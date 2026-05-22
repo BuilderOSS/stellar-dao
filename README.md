@@ -1,22 +1,25 @@
-# Soroban Workshop - Counter Contract
+# Soroban Workshop - Counter Token
 
 Educational Soroban smart contracts demonstrating key concepts and best practices.
 
 ## Contracts
 
-### 🎯 Counter Contract (Featured)
+### 🎯 Counter Token (Featured)
 
 **Location**: `contracts/counter/`
 
-An educational counter contract showcasing **Soroban's Storage TTL (Time To Live)** management across all three storage types.
+A fully **SEP-0041 compliant fungible token** with unique action-based minting mechanics, showcasing **Soroban's Storage TTL (Time To Live)** management across all three storage types.
 
 **Key Features**:
+- ✅ **SEP-0041 Compliant**: Full implementation of Stellar's fungible token standard
+- ✅ **Action-Based Minting**: Punch (+1 token) and Kick (+2 tokens) mechanics
+- ✅ **Multi-Signature Support**: `joint_punch`, `heavy_kick`, and `transfer_points` with multi-auth
+- ✅ **Battle System**: Competitive token burning with wagering
+- ✅ **Allowance Expiration**: Time-limited approvals with `live_until_ledger`
 - ✅ **All 3 Storage Types**: Instance, Persistent, and Temporary
 - ✅ **TTL Management**: Automatic and manual TTL extension patterns
-- ✅ **Punch & Kick Mechanics**: +1 and +2 counter increments
 - ✅ **Cooldown System**: Anti-spam using temporary storage
-- ✅ **Admin Controls**: Global reset and configuration
-- ✅ **Events**: Punch, kick, and milestone events
+- ✅ **SEP-0041 Events**: mint, burn, transfer, approve events
 - ✅ **Comprehensive Tests**: 16 tests covering all functionality
 
 **Quick Start**:
@@ -26,15 +29,7 @@ make test    # Run tests
 make build   # Build WASM
 ```
 
-See [Counter Contract README](contracts/counter/README.md) for full documentation.
-
----
-
-### 👋 Hello World Contract
-
-**Location**: `contracts/hello-world/`
-
-Simple starter contract for basic Soroban concepts.
+See [Counter Token README](contracts/counter/README.md) for full documentation.
 
 ---
 
@@ -43,73 +38,115 @@ Simple starter contract for basic Soroban concepts.
 ```text
 .
 ├── contracts/
-│   ├── counter/           # Storage TTL showcase contract
-│   │   ├── src/
-│   │   │   ├── lib.rs    # Main contract implementation
-│   │   │   └── test.rs   # Comprehensive test suite
-│   │   ├── Cargo.toml
-│   │   ├── Makefile
-│   │   └── README.md
-│   └── hello-world/       # Basic example contract
+│   └── counter/           # SEP-0041 token with Storage TTL showcase
 │       ├── src/
-│       │   ├── lib.rs
-│       │   └── test.rs
-│       └── Cargo.toml
+│       │   ├── lib.rs    # Main contract implementation (850+ lines)
+│       │   └── test.rs   # Comprehensive test suite (29 tests)
+│       ├── Cargo.toml
+│       ├── Makefile
+│       └── README.md
 ├── Cargo.toml             # Workspace configuration
 └── README.md
 ```
 
-## Building Contracts
+## Building
 
-Build all contracts:
-```bash
-stellar contract build
-```
-
-Build specific contract:
+Build the contract:
 ```bash
 stellar contract build --package counter
+# or
+cd contracts/counter && make build
 ```
 
 ## Testing
 
-Test all contracts:
+Run all tests:
 ```bash
 cargo test
+# or
+cd contracts/counter && make test
 ```
 
-Test specific contract:
-```bash
-cd contracts/counter && cargo test
+## SEP-0041 Token Standard
+
+The Counter Token implements the complete [SEP-0041 Token Interface](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md), making it compatible with all Stellar wallets, DEXs, and DeFi protocols.
+
+### Standard Functions Implemented
+
+| Function | Description |
+|----------|-------------|
+| `name()` | Token name |
+| `symbol()` | Token symbol |
+| `decimals()` | Decimal places |
+| `balance(id)` | Get balance |
+| `transfer(from, to, amount)` | Transfer tokens |
+| `transfer_from(spender, from, to, amount)` | Transfer with allowance |
+| `approve(from, spender, amount, live_until_ledger)` | Approve with expiration |
+| `allowance(from, spender)` | Get allowance (auto-expires) |
+| `burn(from, amount)` | Burn tokens |
+| `burn_from(spender, from, amount)` | Burn with allowance |
+
+### Unique Token Features
+
+**Action-Based Minting**: Tokens are minted through interactive actions
+```rust
+// Alice punches Bob → Bob receives 1 token
+client.punch(&alice, &bob);
+
+// Alice kicks Charlie → Charlie receives 2 tokens
+client.kick(&alice, &charlie);
+```
+
+**Multi-Signature Minting**: Collaborative token minting
+```rust
+// Alice and Bob jointly punch Charlie → Charlie receives 4 tokens
+client.joint_punch(&alice, &bob, &charlie);  // Both must sign
+```
+
+**Battle System**: Competitive token mechanism
+```rust
+// Alice challenges Bob with 10 tokens staked
+let alice_wins = client.battle(&alice, &bob, &10);
+// Winner gets all staked tokens, loser's tokens burned
 ```
 
 ## Learning Resources
 
-The **Counter Contract** is designed to teach:
-1. **Storage Type Selection**: When to use Instance vs Persistent vs Temporary
-2. **TTL Management**: How and when to extend storage TTL
-3. **Cost Optimization**: Using temporary storage for ephemeral data
-4. **Data Lifecycle**: Understanding when data expires and how to prevent it
-5. **Cooldown Patterns**: Common anti-spam patterns
+The **Counter Token** is designed to teach:
+
+1. **SEP-0041 Token Standard**: Complete implementation of Stellar's fungible token interface
+2. **Allowance Expiration**: Time-limited approvals with `live_until_ledger`
+3. **Storage Type Selection**: When to use Instance vs Persistent vs Temporary
+4. **TTL Management**: How and when to extend storage TTL
+5. **Cost Optimization**: Using temporary storage for ephemeral data
+6. **Multi-Signature Authorization**: `require_auth()` patterns with multiple signers
+7. **Action-Based Mechanics**: Alternative token distribution models
+8. **Event Emission**: Proper event patterns for mint, burn, transfer, approve
+9. **Data Lifecycle**: Understanding when data expires and how to prevent it
+10. **Cooldown Patterns**: Common anti-spam patterns
 
 ## Storage Types Overview
 
 | Type | Use Case | TTL | Cost |
 |------|----------|-----|------|
-| **Instance** | Contract-wide config, global state | Shares contract lifetime | Cheapest for shared data |
-| **Persistent** | User-specific important data | Manual extension required | More expensive |
+| **Instance** | Contract-wide config, token metadata | Shares contract lifetime | Cheapest for shared data |
+| **Persistent** | Token balances, allowances, user data | Manual extension required | More expensive |
 | **Temporary** | Short-lived data (cooldowns) | Auto-expires | Cheapest overall |
 
-## Counter Contract Storage Breakdown
+## Counter Token Storage Breakdown
 
 ### Instance Storage (Contract-wide)
 - `Admin` - Contract administrator address
-- `GlobalCount` - Total of all punches and kicks
+- `TokenName`, `TokenSymbol`, `Decimals` - Token metadata (SEP-0041)
+- `TotalSupply` - Total token supply (SEP-0041)
+- `GlobalCount` - Total of all minted tokens
 - `CooldownSecs` - Cooldown duration configuration
 
 ### Persistent Storage (User-specific, TTL-managed)
-- `UserCounter(Address)` - Individual user counter values
+- `Balance(Address)` - Token balances (SEP-0041)
+- `Allowance(Address, Address)` - Allowances with expiration (SEP-0041)
 - `UserStats(Address)` - Detailed statistics (total punches, kicks, last action)
+- `BattleRecord(Address)` - Win/loss records
 - **TTL**: 30-day threshold, extends to 60 days on each action
 
 ### Temporary Storage (Auto-expiring)
@@ -118,60 +155,129 @@ The **Counter Contract** is designed to teach:
 
 ## Functions Overview
 
-### Core Functions
-- `punch(user)` → Increment by 1
-- `kick(user)` → Increment by 2
-- `extend_my_ttl(user)` → Manually extend TTL
+### SEP-0041 Token Functions
+```rust
+// Initialize with token metadata
+initialize(admin, name, symbol, decimals)
+
+// Token standard functions
+name() → String
+symbol() → String
+decimals() → u32
+balance(id) → i128
+transfer(from, to, amount)
+transfer_from(spender, from, to, amount)
+approve(from, spender, amount, live_until_ledger)
+allowance(from, spender) → i128
+burn(from, amount)
+burn_from(spender, from, amount)
+```
+
+### Action-Based Minting Functions
+```rust
+punch(from, to) → i128                    // Mint 1 token to 'to'
+kick(from, to) → i128                     // Mint 2 tokens to 'to'
+joint_punch(user1, user2, target) → i128  // Mint 4 tokens (multi-sig)
+heavy_kick(user1, user2, target) → i128   // Mint 6 tokens (multi-sig)
+transfer_points(from, to, approver, amount) // 3-party transfer
+```
+
+### Battle & Admin Functions
+```rust
+battle(challenger, opponent, amount) → bool
+reset_global(admin)
+set_cooldown_duration(admin, seconds)
+extend_my_ttl(user)
+```
 
 ### View Functions
-- `get_count(user)` → User's counter
-- `get_global_count()` → Total of all actions
-- `get_stats(user)` → Detailed user statistics
-- `is_on_cooldown(user)` → Check cooldown status
-- `cooldown_remaining(user)` → Seconds remaining
-
-### Admin Functions
-- `initialize(admin)` → Initialize contract
-- `reset_global(admin)` → Reset global counter
-- `set_cooldown_duration(admin, seconds)` → Configure cooldown
+```rust
+get_count(user) → i128                    // Same as balance()
+get_global_count() → i128
+get_total_supply() → i128
+get_stats(user) → Option<UserStats>
+get_battle_record(user) → Option<BattleRecord>
+is_on_cooldown(user) → bool
+cooldown_remaining(user) → u64
+get_cooldown_duration() → u64
+```
 
 ## Example Usage
 
+### Token Initialization
 ```rust
-// Initialize contract
-client.initialize(&admin);
+use soroban_sdk::String;
 
-// User punches (+1)
-let count = client.punch(&user); // count = 1
-// ✅ TTL automatically extended for user's data
-// ✅ Cooldown set (temporary storage)
+client.initialize(
+    &admin,
+    &String::from_str(&env, "Counter Token"),
+    &String::from_str(&env, "CNTR"),
+    &7,  // 7 decimals
+);
+```
 
-// Wait for cooldown to expire...
+### Action-Based Token Distribution
+```rust
+// Alice punches Bob → Bob gets 1 token
+client.punch(&alice, &bob);
+assert_eq!(client.balance(&bob), 1);
 
-// User kicks (+2)
-let count = client.kick(&user); // count = 3
-// ✅ TTL extended again
+// Wait for cooldown (1 hour default)...
 
-// Check stats
-let stats = client.get_stats(&user);
-// stats.total_punches = 1
-// stats.total_kicks = 1
+// Alice kicks Bob → Bob gets 2 more tokens
+client.kick(&alice, &bob);
+assert_eq!(client.balance(&bob), 3);
+```
+
+### Standard Token Operations
+```rust
+// Transfer tokens
+client.transfer(&alice, &bob, &100);
+
+// Approve with expiration
+client.approve(&alice, &bob, &50, &1000000);  // Expires at ledger 1000000
+
+// Transfer from allowance
+client.transfer_from(&bob, &alice, &charlie, &25);
+
+// Burn tokens
+client.burn(&alice, &10);
+```
+
+### Multi-Signature Actions
+```rust
+// Both Alice and Bob must sign this transaction
+client.joint_punch(&alice, &bob, &charlie);  // Charlie gets 4 tokens
 ```
 
 ## Storage TTL Lifecycle
 
 ```
-Day 0:  User punches → Counter stored (60-day TTL)
+Day 0:  User punches → Balance stored (60-day TTL)
+                     → Stats stored (60-day TTL)
                      → Cooldown stored (2-day TTL)
 
 Day 2:  Cooldown expired → Auto-deleted (Temporary)
-        Counter still exists → (Persistent)
+        Balance still exists → (Persistent)
 
 Day 30: TTL warning threshold → User should extend
-        Each punch/kick → Auto-extends another 60 days
+        Each action → Auto-extends another 60 days
 
-Day 60: If no activity → Counter expires and is removed
+Day 60: If no activity → Balance expires and is removed
 ```
+
+## Events
+
+### SEP-0041 Events
+- `mint(to, amount)` - Token minting
+- `burn(from, amount)` - Token burning
+- `transfer(from, to, amount)` - Transfers
+- `approve(from, spender, amount, live_until_ledger)` - Allowance approval
+
+### Custom Events
+- `punch(user, target, new_balance)` - Punch action
+- `kick(user, target, new_balance)` - Kick action
+- `milestone(user, count)` - Reaching 10, 50, 100, 500, or 1000 tokens
 
 ## Requirements
 
@@ -182,20 +288,34 @@ Day 60: If no activity → Counter expires and is removed
 ## Build Output
 
 ```
-WASM Size: 6,652 bytes (compact!)
-Exported Functions: 12
+WASM Size: 16,500 bytes
+Exported Functions: 28
 Tests: 16 (all passing ✅)
 ```
 
+## SEP-0041 Compliance
+
+- ✅ All 10 required functions implemented
+- ✅ Events emitted for mint, burn, transfer, approve
+- ✅ Allowance expiration with `live_until_ledger`
+- ✅ Expired allowances return 0
+- ✅ MuxedAddress support in transfer
+- ✅ Authorization checks on all mutating functions
+- ✅ Integer overflow protection
+
 ## Next Steps
 
-1. **Explore** the Counter Contract to understand Storage TTL
-2. **Run tests** to see different storage behaviors in action
-3. **Experiment** with TTL values and cooldown mechanics
-4. **Build** your own contracts using these proven patterns
+1. **Explore** the Counter Token contract to understand SEP-0041 and Storage TTL
+2. **Run tests** to see token operations and storage behaviors in action
+3. **Deploy** to testnet and interact with the token
+4. **Experiment** with action-based minting and multi-sig operations
+5. **Build** your own SEP-0041 tokens using these proven patterns
 
 ## Resources
 
+- [SEP-0041 Specification](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
 - [Soroban Documentation](https://developers.stellar.org/docs/build/smart-contracts)
 - [Storage Types Guide](https://developers.stellar.org/docs/build/guides/storage)
 - [TTL Management](https://developers.stellar.org/docs/build/guides/archival)
+- [Authorization Patterns](https://developers.stellar.org/docs/build/guides/auth)
+- [Token Interface](https://docs.rs/soroban-sdk/latest/soroban_sdk/token/index.html)
