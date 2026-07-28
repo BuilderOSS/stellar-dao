@@ -3,16 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
-import { createCounterClient, getDefaultNetwork, getNetworkConfig, type NetworkConfig } from '@/lib/stellar';
-import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Select, Text } from '@/components/ui';
+import { createCounterClient, getNetworkConfig, type NetworkConfig, type NetworkName } from '@/lib/stellar';
+import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
-
-type NetworkName = 'local' | 'testnet';
 
 type MetricProps = {
   label: string;
   value: string;
   hint: string;
+};
+
+type WalletDemoProps = {
+  network: NetworkName;
+  onSessionUpdate: (patch: { address?: string; status?: string; syncedAt?: string }) => void;
 };
 
 function MetricTile({ label, value, hint }: MetricProps) {
@@ -31,8 +34,7 @@ function MetricTile({ label, value, hint }: MetricProps) {
   );
 }
 
-export function WalletDemo() {
-  const [network, setNetwork] = useState<NetworkName>(getDefaultNetwork());
+export function WalletDemo({ network, onSessionUpdate }: WalletDemoProps) {
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState('Disconnected');
   const [tokenName, setTokenName] = useState('');
@@ -63,8 +65,11 @@ export function WalletDemo() {
       const result = await StellarWalletsKit.getAddress();
       setAddress(result.address);
       setStatus(`Connected on ${currentNetwork.label}`);
+      onSessionUpdate({ address: result.address, status: `Connected on ${currentNetwork.label}` });
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Wallet connection failed');
+      const message = error instanceof Error ? error.message : 'Wallet connection failed';
+      setStatus(message);
+      onSessionUpdate({ status: message });
     }
   }
 
@@ -91,9 +96,13 @@ export function WalletDemo() {
         setBalance(balanceTx.result.toString());
       }
 
+      const syncedAt = new Date().toISOString();
       setStatus(`Loaded contract data from ${currentNetwork.label}`);
+      onSessionUpdate({ status: `Loaded contract data from ${currentNetwork.label}`, syncedAt });
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Contract lookup failed');
+      const message = error instanceof Error ? error.message : 'Contract lookup failed';
+      setStatus(message);
+      onSessionUpdate({ status: message });
     }
   }
 
@@ -111,12 +120,9 @@ export function WalletDemo() {
         <Grid columns={{ base: 1, lg: 2 }} gap="5">
           <Stack gap="4">
             <Field>
-              <FieldLabel htmlFor="network">Network</FieldLabel>
-              <Select id="network" value={network} onChange={(event) => setNetwork(event.target.value as NetworkName)}>
-                <option value="local">Local</option>
-                <option value="testnet">Testnet</option>
-              </Select>
-              <FieldHelperText>Switch between the local container and testnet.</FieldHelperText>
+              <FieldLabel>Active network</FieldLabel>
+              <Badge>{currentNetwork.label}</Badge>
+              <FieldHelperText>Use the dashboard header to switch between networks.</FieldHelperText>
             </Field>
 
             <Field>

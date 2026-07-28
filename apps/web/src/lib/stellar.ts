@@ -1,6 +1,6 @@
 import { Client as CounterClient } from '@punch-counter/contracts-counter';
 
-type NetworkName = 'local' | 'testnet';
+export type NetworkName = 'local' | 'testnet';
 
 export type NetworkConfig = {
   name: NetworkName;
