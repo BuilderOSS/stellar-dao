@@ -1,0 +1,11 @@
+{
+  "name": "@punch-counter/contracts-counter",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.1.0",
+    "buffer": "^6.0.3"
+  }
+}

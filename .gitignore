@@ -1,6 +1,12 @@
 # Rust's output directory
 target
 
+# JavaScript / frontend artifacts
+node_modules
+.next
+apps/web/.env.local
+packages/contracts/counter/src/generated/dist
+
 # Local settings
 .soroban
 .stellar

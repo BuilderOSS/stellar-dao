@@ -1,6 +1,37 @@
-# Soroban Workshop - Counter Token
+# Punch Counter
 
-Educational Soroban smart contracts demonstrating key concepts and best practices.
+Soroban contracts plus a Next.js frontend with Stellar Wallets Kit and generated TypeScript contract clients.
+
+## Workspace
+
+- `contracts/counter` - Soroban token contract
+- `packages/contracts/counter` - committed generated TS bindings
+- `apps/web` - Next.js frontend
+
+## Quick Start
+
+```bash
+pnpm install
+pnpm setup:local
+pnpm dev
+```
+
+## Local Network
+
+```bash
+pnpm local:up
+pnpm local:down
+```
+
+`pnpm local:up` starts a local Stellar container, creates a funded local identity, deploys and initializes the contract, and writes `apps/web/.env.local` for the frontend.
+
+## Testnet Deploy
+
+```bash
+pnpm contracts:deploy:testnet
+```
+
+Set `NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID` in `apps/web/.env.local` if you deploy separately.
 
 ## Contracts
 
@@ -37,6 +68,8 @@ See [Counter Token README](contracts/counter/README.md) for full documentation.
 
 ```text
 .
+├── apps/
+│   └── web/               # Next.js app
 ├── contracts/
 │   └── counter/           # SEP-0041 token with Storage TTL showcase
 │       ├── src/
@@ -45,15 +78,21 @@ See [Counter Token README](contracts/counter/README.md) for full documentation.
 │       ├── Cargo.toml
 │       ├── Makefile
 │       └── README.md
+├── packages/
+│   └── contracts/
+│       └── counter/       # Committed generated TS bindings
 ├── Cargo.toml             # Workspace configuration
+├── package.json           # PNPM scripts and workspace config
+├── pnpm-workspace.yaml
 └── README.md
 ```
 
 ## Building
 
-Build the contract:
+Build the contract and frontend:
 ```bash
 stellar contract build --package counter
+pnpm --dir apps/web build
 # or
 cd contracts/counter && make build
 ```
