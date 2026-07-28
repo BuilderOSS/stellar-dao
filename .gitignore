@@ -5,6 +5,7 @@ target
 node_modules
 .next
 apps/web/.env.local
+apps/web/styled-system
 packages/contracts/counter/src/generated/dist
 
 # Local settings
