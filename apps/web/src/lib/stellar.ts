@@ -1,4 +1,5 @@
 import { Client as CounterClient } from '@punch-counter/contracts-counter';
+import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 
 export type NetworkName = 'local' | 'testnet';
 
@@ -47,5 +48,44 @@ export function createCounterClient(network: NetworkConfig) {
     rpcUrl: network.rpcUrl,
     networkPassphrase: network.passphrase,
     allowHttp: network.name === 'local'
+  });
+}
+
+function normalizeWalletError(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Wallet signing failed';
+  return { code: -1, message };
+}
+
+export function createCounterActionClient(network: NetworkConfig, address: string) {
+  if (!network.contractId) {
+    return null;
+  }
+
+  return new CounterClient({
+    contractId: network.contractId,
+    rpcUrl: network.rpcUrl,
+    networkPassphrase: network.passphrase,
+    allowHttp: network.name === 'local',
+    publicKey: address,
+    signTransaction: async (xdr, opts) => {
+      try {
+        return await StellarWalletsKit.signTransaction(xdr, {
+          networkPassphrase: opts?.networkPassphrase ?? network.passphrase,
+          address: opts?.address ?? address
+        });
+      } catch (error) {
+        return { signedTxXdr: '', error: normalizeWalletError(error) };
+      }
+    },
+    signAuthEntry: async (authEntry, opts) => {
+      try {
+        return await StellarWalletsKit.signAuthEntry(authEntry, {
+          networkPassphrase: opts?.networkPassphrase ?? network.passphrase,
+          address: opts?.address ?? address
+        });
+      } catch (error) {
+        return { signedAuthEntry: '', error: normalizeWalletError(error) };
+      }
+    }
   });
 }

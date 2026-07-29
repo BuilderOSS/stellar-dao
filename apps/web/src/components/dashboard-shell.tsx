@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { AccountCenter } from '@/components/account-center';
+import { ActionCenter } from '@/components/action-center';
 import { ContractDashboard } from '@/components/contract-dashboard';
+import { DevTools } from '@/components/dev-tools';
 import { WalletSessionPanel } from '@/components/wallet-session-panel';
 import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import { getNetworkConfig, type NetworkConfig, type NetworkName } from '@/lib/stellar';
+import type { ActionRecord } from '@/lib/tx';
 
 type DashboardTab = 'overview' | 'account' | 'actions' | 'dev';
 
@@ -15,6 +19,7 @@ type DashboardSession = {
   status: string;
   syncedAt: string;
   activeTab: DashboardTab;
+  history: ActionRecord[];
 };
 
 const STORAGE_KEY = 'punch-counter.dashboard.v2';
@@ -24,7 +29,8 @@ const initialSession: DashboardSession = {
   address: '',
   status: 'Disconnected',
   syncedAt: '',
-  activeTab: 'overview'
+  activeTab: 'overview',
+  history: []
 };
 
 function readSession(): DashboardSession {
@@ -42,6 +48,7 @@ function readSession(): DashboardSession {
       address: parsed.address ?? '',
       status: parsed.status ?? 'Disconnected',
       syncedAt: parsed.syncedAt ?? '',
+      history: Array.isArray(parsed.history) ? (parsed.history as ActionRecord[]).slice(0, 20) : [],
       activeTab:
         parsed.activeTab === 'account' || parsed.activeTab === 'actions' || parsed.activeTab === 'dev'
           ? parsed.activeTab
@@ -109,6 +116,14 @@ export function DashboardShell() {
 
   function updateSession(patch: Partial<DashboardSession>) {
     setSession((current) => ({ ...current, ...patch }));
+  }
+
+  function recordAction(record: ActionRecord) {
+    setSession((current) => ({
+      ...current,
+      history: [record, ...current.history].slice(0, 20),
+      status: record.summary
+    }));
   }
 
   return (
@@ -188,50 +203,49 @@ export function DashboardShell() {
 
       <div style={{ width: '100%' }}>
         {session.activeTab === 'overview' ? (
-          <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
+          <Stack gap="6">
+            <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
+            <Card p="6">
+              <Stack gap="3">
+                <Text className="label">Session activity</Text>
+                <Text className="lede" style={{ margin: 0 }}>
+                  Track submitted actions here without indexing. Recent submissions stay local to this browser session.
+                </Text>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  <Badge>{session.history.length} local records</Badge>
+                  <Badge>{session.history.filter((record) => record.status === 'success').length} success</Badge>
+                  <Badge>{session.history.filter((record) => record.status === 'error').length} errors</Badge>
+                </div>
+              </Stack>
+            </Card>
+          </Stack>
         ) : null}
 
         {session.activeTab === 'account' ? (
-          <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>
+          <Stack gap="6">
             <WalletSessionPanel network={session.network} address={session.address} onSessionUpdate={(patch) => updateSession(patch)} />
-            <ContractDashboard network={session.network} address={session.address} view="account" onSync={(patch) => updateSession(patch)} />
-          </div>
+            <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>
+              <AccountCenter network={session.network} address={session.address} status={session.status} history={session.history} />
+              <ContractDashboard network={session.network} address={session.address} view="account" onSync={(patch) => updateSession(patch)} />
+            </div>
+          </Stack>
         ) : null}
 
         {session.activeTab === 'actions' ? (
-          <Card p="6">
-            <Stack gap="4">
-              <Text className="label">Actions</Text>
-              <Heading style={{ fontSize: '1.3rem' }}>Coming next</Heading>
-              <Text className="lede" style={{ margin: 0 }}>
-                The action forms for punch, kick, transfer, approval, and battle will live here in phase 3.
-              </Text>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Badge>Single signer</Badge>
-                <Badge>Multi-signer</Badge>
-                <Badge>Action history</Badge>
-              </div>
-            </Stack>
-          </Card>
+          <ActionCenter network={session.network} address={session.address} onRecord={recordAction} />
         ) : null}
 
         {session.activeTab === 'dev' ? (
           <Grid columns={{ base: 1, xl: 2 }} gap="6">
             <ContractDashboard network={session.network} address={session.address} view="dev" onSync={(patch) => updateSession(patch)} />
-            <Card p="6">
-              <Stack gap="4">
-                <Text className="label">Developer notes</Text>
-                <Heading style={{ fontSize: '1.3rem' }}>Local and testnet diagnostics</Heading>
-                <Text className="lede" style={{ margin: 0 }}>
-                  Keep this space for bootstrap checks, admin controls, and deploy diagnostics while the app remains
-                  indexed-free.
-                </Text>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <Badge>{currentNetwork.rpcUrl}</Badge>
-                  {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Badge>No contract id</Badge>}
-                </div>
-              </Stack>
-            </Card>
+            <DevTools
+              network={session.network}
+              networkConfig={currentNetwork}
+              address={session.address}
+              status={session.status}
+              history={session.history}
+              onRecord={recordAction}
+            />
           </Grid>
         ) : null}
       </div>

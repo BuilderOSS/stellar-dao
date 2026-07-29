@@ -4,8 +4,8 @@ import '../../styled-system/styles.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Punch Counter',
-  description: 'Soroban frontend with Stellar Wallets Kit'
+  title: 'Punch Counter: Soroban Token Dashboard',
+  description: 'Soroban token dashboard with contract reads, signing, and action forms'
 };
 
 export default function RootLayout({
