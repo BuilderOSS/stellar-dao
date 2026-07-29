@@ -70,6 +70,10 @@ function createRpcServer(network: NetworkConfig) {
   return new rpc.Server(network.rpcUrl, { allowHttp: network.name === 'local' });
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function ensureArenaAccountExists(network: NetworkConfig, address: string) {
   try {
     await createRpcServer(network).getAccount(address);
@@ -149,4 +153,32 @@ export async function submitArenaTransaction(network: NetworkConfig, signedTxXdr
   } catch (error) {
     throw normalizeSubmitError(error);
   }
+}
+
+export async function waitForArenaTransactionConfirmation(network: NetworkConfig, hash: string, timeoutMs = 60_000) {
+  const server = createRpcServer(network);
+  const startedAt = Date.now();
+  let delayMs = 1000;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const response = await server.getTransaction(hash);
+    if (response.status === 'SUCCESS') {
+      return response;
+    }
+
+    if (response.status === 'FAILED') {
+      throw new Error('Transaction failed on-chain');
+    }
+
+    await sleep(delayMs);
+    delayMs = Math.min(Math.round(delayMs * 1.5), 5000);
+  }
+
+  throw new Error('Transaction still pending');
+}
+
+export async function submitAndConfirmArenaTransaction(network: NetworkConfig, signedTxXdr: string) {
+  const submission = await submitArenaTransaction(network, signedTxXdr);
+  const confirmation = await waitForArenaTransactionConfirmation(network, submission.hash);
+  return { submission, confirmation };
 }

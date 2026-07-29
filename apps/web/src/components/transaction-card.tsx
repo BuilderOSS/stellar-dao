@@ -6,8 +6,8 @@ import {
   ensureArenaAccountExists,
   getNetworkConfig,
   selectArenaWallet,
+  submitAndConfirmArenaTransaction,
   signArenaTransaction,
-  submitArenaTransaction,
   type NetworkName
 } from '@/lib/stellar';
 import type { ActionRecord, ActionSpec } from '@/lib/tx';
@@ -158,23 +158,43 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     }
   }
 
-  async function sendSignedHandoff(signedXdr: string, signers: string[]) {
-    const sent = await submitArenaTransaction(currentNetwork, signedXdr);
-    const resultText = spec.formatResult ? spec.formatResult((sent as any).result ?? sent) : `${spec.title} submitted`;
-    markSubmitted(handoffId, resultText);
-    const record: ActionRecord = {
-      id: `${spec.id}-${Date.now()}`,
-      actionId: spec.id,
-      actionTitle: spec.title,
-      group: spec.group,
-      status: 'success',
-      summary: resultText,
-      details: safeStringify((sent as any).result ?? sent),
-      signers,
-      timestamp: new Date().toISOString()
-    };
-    onRecord?.(record);
-    setStatus(resultText);
+  async function sendSignedHandoff(signedXdr: string, signers: string[], previewResult: string) {
+    setStatus('Submitted to network. Waiting for confirmation...');
+
+    try {
+      const { submission, confirmation } = await submitAndConfirmArenaTransaction(currentNetwork, signedXdr);
+      const resultText = previewResult || (spec.formatResult ? spec.formatResult((confirmation as any).returnValue ?? confirmation) : `${spec.title} confirmed`);
+      markSubmitted(handoffId, resultText);
+      const record: ActionRecord = {
+        id: `${spec.id}-${Date.now()}`,
+        actionId: spec.id,
+        actionTitle: spec.title,
+        group: spec.group,
+        status: 'success',
+        summary: resultText,
+        details: safeStringify({ submission, confirmation }),
+        signers,
+        timestamp: new Date().toISOString()
+      };
+      onRecord?.(record);
+      setStatus(resultText);
+    } catch (error) {
+      const message = errorMessage(error);
+      console.error('[transaction-card] confirmation failed', error);
+      markError(handoffId, message);
+      onRecord?.({
+        id: `${spec.id}-${Date.now()}`,
+        actionId: spec.id,
+        actionTitle: spec.title,
+        group: spec.group,
+        status: 'error',
+        summary: message,
+        details: safeStringify(error instanceof Error ? { message: error.message } : error),
+        signers,
+        timestamp: new Date().toISOString()
+      });
+      setStatus(message);
+    }
   }
 
   async function signCurrentWallet() {
@@ -226,7 +246,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
 
       const refreshed = useTransactionHandoffStore.getState().handoffs[handoffId];
       if (refreshed?.requiredSigners.every((signer) => refreshed.signedBy.includes(signer))) {
-        await sendSignedHandoff(refreshed.signedXdr || signedXdr, refreshed.signedBy);
+        await sendSignedHandoff(refreshed.signedXdr || signedXdr, refreshed.signedBy, refreshed.previewResult);
         return;
       }
 
@@ -263,7 +283,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     setStatus('');
 
     try {
-      await sendSignedHandoff(activeHandoff.signedXdr, activeHandoff.signedBy);
+      await sendSignedHandoff(activeHandoff.signedXdr, activeHandoff.signedBy, activeHandoff.previewResult);
     } catch (error) {
       const message = errorMessage(error);
       console.error('[transaction-card] submit failed', error);
