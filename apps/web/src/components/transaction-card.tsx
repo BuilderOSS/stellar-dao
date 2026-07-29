@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createArenaActionClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
-import type { ActionPreview, ActionRecord, ActionSpec } from '@/lib/tx';
+import { createArenaActionClient, getNetworkConfig, signArenaTransaction, submitArenaTransaction, type NetworkName } from '@/lib/stellar';
+import type { ActionRecord, ActionSpec } from '@/lib/tx';
 import { safeStringify, summarizeValue } from '@/lib/tx';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
+import { useTransactionHandoffStore } from '@/stores/transaction-handoff-store';
 
 type TransactionCardProps = {
   spec: ActionSpec;
@@ -14,11 +15,11 @@ type TransactionCardProps = {
   onRecord?: (record: ActionRecord) => void;
 };
 
-type PreviewState = ActionPreview & {
-  assembled: any;
-};
-
 const autoPrefillFields = new Set(['from', 'admin', 'user', 'attacker', 'user1']);
+
+function buildHandoffId(network: NetworkName, contractId: string, actionId: string) {
+  return `${network}:${contractId}:${actionId}`;
+}
 
 function fieldTypeFor(type: ActionSpec['fields'][number]['type']) {
   if (type === 'amount' || type === 'u32') return 'text';
@@ -32,14 +33,26 @@ function fieldInputMode(type: ActionSpec['fields'][number]['type']) {
 
 export function TransactionCard({ spec, network, address, onRecord }: TransactionCardProps) {
   const currentNetwork = useMemo(() => getNetworkConfig(network), [network]);
+  const handoffId = useMemo(() => buildHandoffId(network, currentNetwork.contractId, spec.id), [network, currentNetwork.contractId, spec.id]);
+  const handoff = useTransactionHandoffStore((state) => state.handoffs[handoffId]);
+  const saveDraft = useTransactionHandoffStore((state) => state.saveDraft);
+  const savePreview = useTransactionHandoffStore((state) => state.savePreview);
+  const recordSignature = useTransactionHandoffStore((state) => state.recordSignature);
+  const markSubmitted = useTransactionHandoffStore((state) => state.markSubmitted);
+  const markError = useTransactionHandoffStore((state) => state.markError);
   const [draft, setDraft] = useState<Record<string, string>>(() =>
     Object.fromEntries(spec.fields.map((field) => [field.name, '']))
   );
-  const [preview, setPreview] = useState<PreviewState | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copyLabel, setCopyLabel] = useState<'Copy JSON' | 'Copied'>('Copy JSON');
+  const [copyLabel, setCopyLabel] = useState<'Copy XDR' | 'Copied'>('Copy XDR');
   const [status, setStatus] = useState<string>('');
+
+  useEffect(() => {
+    if (handoff?.draft) {
+      setDraft(handoff.draft);
+    }
+  }, [handoff?.id]);
 
   useEffect(() => {
     setDraft((current) => {
@@ -54,8 +67,19 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }, [address, spec.fields]);
 
   function updateField(name: string, value: string) {
-    setDraft((current) => ({ ...current, [name]: value }));
-    setPreview(null);
+    setDraft((current) => {
+      const next = { ...current, [name]: value };
+      saveDraft({
+        id: handoffId,
+        network,
+        contractId: currentNetwork.contractId,
+        actionId: spec.id,
+        actionTitle: spec.title,
+        group: spec.group,
+        draft: next
+      });
+      return next;
+    });
     setStatus('');
   }
 
@@ -72,49 +96,86 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     try {
       const args = spec.buildArgs(draft, address);
       const tx = await (client as any)[spec.method](args);
-      const nextPreview: PreviewState = {
-        assembled: tx,
-        json: tx.toJSON(),
-        xdr: tx.toXDR(),
-        result: summarizeValue(tx.result),
-        requiredSigners: tx.needsNonInvokerSigningBy?.() ?? [],
+      const requiredSigners = Array.from(new Set([address, ...(tx.needsNonInvokerSigningBy?.() ?? [])].filter(Boolean)));
+      const previewJson = tx.toJSON();
+      const previewXdr = tx.toXDR();
+      const previewResult = summarizeValue(tx.result);
+
+      savePreview({
+        id: handoffId,
+        network,
+        contractId: currentNetwork.contractId,
+        actionId: spec.id,
+        actionTitle: spec.title,
+        group: spec.group,
+        draft,
+        previewJson,
+        previewXdr,
+        previewResult,
+        requiredSigners,
+        signerCount: spec.signerCount,
         isReadCall: tx.isReadCall
-      };
-      setPreview(nextPreview);
-      setStatus(nextPreview.requiredSigners.length ? 'Preview ready, handoff required' : 'Preview ready for signing');
+      });
+      setStatus(requiredSigners.length > 1 ? 'Saved for multisigner handoff' : 'Preview ready for signing');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Preview failed';
       setStatus(message);
-      setPreview(null);
+      markError(handoffId, message);
     } finally {
       setIsPreviewing(false);
     }
   }
 
-  async function submitPreview() {
-    if (!preview) return;
+  async function sendSignedHandoff(signedXdr: string, signers: string[]) {
+    const sent = await submitArenaTransaction(currentNetwork, signedXdr);
+    const resultText = spec.formatResult ? spec.formatResult((sent as any).result ?? sent) : `${spec.title} submitted`;
+    markSubmitted(handoffId, resultText);
+    const record: ActionRecord = {
+      id: `${spec.id}-${Date.now()}`,
+      actionId: spec.id,
+      actionTitle: spec.title,
+      group: spec.group,
+      status: 'success',
+      summary: resultText,
+      details: safeStringify((sent as any).result ?? sent),
+      signers,
+      timestamp: new Date().toISOString()
+    };
+    onRecord?.(record);
+    setStatus(resultText);
+  }
+
+  async function signCurrentWallet() {
+    const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
+    if (!activeHandoff?.previewXdr) return;
+
+    if (!address) {
+      setStatus('Connect a wallet first');
+      return;
+    }
+
+    if (!activeHandoff.requiredSigners.includes(address)) {
+      setStatus('This wallet is not one of the required signers');
+      return;
+    }
 
     setIsSubmitting(true);
     setStatus('');
 
     try {
-      const sent = await preview.assembled.signAndSend();
-      const resultText = spec.formatResult ? spec.formatResult(sent.result) : `${spec.title} submitted`;
-      const record: ActionRecord = {
-        id: `${spec.id}-${Date.now()}`,
-        actionId: spec.id,
-        actionTitle: spec.title,
-        group: spec.group,
-        status: 'success',
-        summary: resultText,
-        details: safeStringify(sent.result),
-        signers: preview.requiredSigners,
-        timestamp: new Date().toISOString()
-      };
-      onRecord?.(record);
-      setStatus(resultText);
+      const signedXdr = await signArenaTransaction(currentNetwork, activeHandoff.signedXdr || activeHandoff.previewXdr, address);
+      recordSignature(handoffId, address, signedXdr);
+
+      const refreshed = useTransactionHandoffStore.getState().handoffs[handoffId];
+      if (refreshed?.requiredSigners.every((signer) => refreshed.signedBy.includes(signer))) {
+        await sendSignedHandoff(refreshed.signedXdr || signedXdr, refreshed.signedBy);
+        return;
+      }
+
+      setStatus('Signature saved for handoff');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Submit failed';
+      markError(handoffId, message);
       onRecord?.({
         id: `${spec.id}-${Date.now()}`,
         actionId: spec.id,
@@ -123,7 +184,39 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
         status: 'error',
         summary: message,
         details: safeStringify(error instanceof Error ? { message: error.message } : error),
-        signers: preview.requiredSigners,
+        signers: useTransactionHandoffStore.getState().handoffs[handoffId]?.signedBy ?? [],
+        timestamp: new Date().toISOString()
+      });
+      setStatus(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function submitReadyHandoff() {
+    const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
+    if (!activeHandoff?.signedXdr) {
+      setStatus('Add signatures first');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatus('');
+
+    try {
+      await sendSignedHandoff(activeHandoff.signedXdr, activeHandoff.signedBy);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Submit failed';
+      markError(handoffId, message);
+      onRecord?.({
+        id: `${spec.id}-${Date.now()}`,
+        actionId: spec.id,
+        actionTitle: spec.title,
+        group: spec.group,
+        status: 'error',
+        summary: message,
+        details: safeStringify(error instanceof Error ? { message: error.message } : error),
+        signers: useTransactionHandoffStore.getState().handoffs[handoffId]?.signedBy ?? [],
         timestamp: new Date().toISOString()
       });
       setStatus(message);
@@ -133,15 +226,30 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function copyPreview() {
-    if (!preview) return;
+    const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
+    if (!activeHandoff?.previewXdr) return;
     try {
-      await navigator.clipboard.writeText(preview.json);
+      await navigator.clipboard.writeText(activeHandoff.signedXdr || activeHandoff.previewXdr);
       setCopyLabel('Copied');
-      window.setTimeout(() => setCopyLabel('Copy JSON'), 1000);
+      window.setTimeout(() => setCopyLabel('Copy XDR'), 1000);
     } catch {
       setStatus('Copy failed');
     }
   }
+
+  const activeHandoff = handoff;
+  const requiredSigners = activeHandoff?.requiredSigners ?? [];
+  const signedBy = activeHandoff?.signedBy ?? [];
+  const readyToSubmit = Boolean(activeHandoff?.signedXdr) && requiredSigners.every((signer) => signedBy.includes(signer));
+  const canAddSignature = Boolean(activeHandoff?.previewXdr && address && requiredSigners.includes(address) && !signedBy.includes(address));
+  const statusText = status || activeHandoff?.lastMessage || '';
+  const primaryLabel = !activeHandoff?.previewXdr
+    ? 'Preview'
+    : readyToSubmit
+      ? 'Submit signed transaction'
+      : activeHandoff.signerCount > 1
+        ? 'Add signature'
+        : 'Sign & submit';
 
   return (
     <Card p="5" className="stack">
@@ -183,47 +291,74 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
           <Button
             type="button"
             size="sm"
-            onClick={() => void submitPreview()}
-            disabled={!preview || isPreviewing || isSubmitting || Boolean(preview?.requiredSigners.length)}
+            onClick={() => void (readyToSubmit ? submitReadyHandoff() : signCurrentWallet())}
+            disabled={!activeHandoff?.previewXdr || isPreviewing || isSubmitting || (!readyToSubmit && !canAddSignature)}
           >
-            {isSubmitting ? 'Submitting...' : preview?.requiredSigners.length ? 'Handoff required' : 'Sign & submit'}
+            {isSubmitting ? 'Working...' : primaryLabel}
           </Button>
-          {preview ? (
+          {activeHandoff?.previewXdr ? (
             <Button type="button" variant="plain" size="sm" onClick={() => void copyPreview()}>
               {copyLabel}
             </Button>
           ) : null}
+          {activeHandoff?.previewXdr ? (
+            <Button type="button" variant="plain" size="sm" onClick={() => useTransactionHandoffStore.getState().resetHandoff(handoffId)}>
+              Reset XDR
+            </Button>
+          ) : null}
         </div>
 
-        {status ? <Badge style={{ alignSelf: 'flex-start' }}>{status}</Badge> : null}
+        {statusText ? <Badge style={{ alignSelf: 'flex-start' }}>{statusText}</Badge> : null}
 
-        {preview ? (
+        {activeHandoff?.previewXdr ? (
           <Card p="4">
             <Stack gap="3">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {preview.isReadCall ? <Badge>Preview only</Badge> : <Badge>Ready</Badge>}
-                {preview.requiredSigners.length ? <Badge>{preview.requiredSigners.length} additional signer(s)</Badge> : <Badge>Single signer ready</Badge>}
+                {activeHandoff.isReadCall ? <Badge>Preview only</Badge> : <Badge>{activeHandoff.status}</Badge>}
+                <Badge>{signedBy.length} / {requiredSigners.length || 1} signatures</Badge>
+                {readyToSubmit ? <Badge>Ready to submit</Badge> : null}
               </div>
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                Result: {preview.result}
+                Result: {activeHandoff.previewResult}
               </Text>
-              {preview.requiredSigners.length ? (
+              {requiredSigners.length ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {preview.requiredSigners.map((signer) => (
+                  {requiredSigners.map((signer) => (
                     <ShortId key={signer} value={signer} />
+                  ))}
+                </div>
+              ) : null}
+              {address ? (
+                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                  Current wallet: {address}
+                </Text>
+              ) : null}
+              {address && requiredSigners.length ? (
+                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                  {requiredSigners.includes(address)
+                    ? signedBy.includes(address)
+                      ? 'This wallet already signed. Reset the XDR to collect a different signature set.'
+                      : 'This wallet can sign the stored handoff.'
+                    : 'Reconnect with one of the listed wallets to add the next signature.'}
+                </Text>
+              ) : null}
+              {signedBy.length ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {signedBy.map((signer) => (
+                    <Badge key={signer}>Signed: {signer}</Badge>
                   ))}
                 </div>
               ) : null}
               <details>
                 <summary style={{ cursor: 'pointer' }}>Preview payload</summary>
                 <pre className="mono" style={{ margin: '12px 0 0', whiteSpace: 'pre-wrap' }}>
-                  {preview.json}
+                  {activeHandoff.previewJson}
                 </pre>
               </details>
               <details>
                 <summary style={{ cursor: 'pointer' }}>XDR</summary>
                 <pre className="mono" style={{ margin: '12px 0 0', whiteSpace: 'pre-wrap' }}>
-                  {preview.xdr}
+                  {activeHandoff.signedXdr || activeHandoff.previewXdr}
                 </pre>
               </details>
             </Stack>

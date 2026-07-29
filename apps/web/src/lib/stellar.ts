@@ -1,5 +1,6 @@
 import { Client as ArenaClient } from '@punch-arena/arena-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { TransactionBuilder, rpc } from '@stellar/stellar-sdk';
 
 export type NetworkName = 'local' | 'testnet';
 
@@ -56,6 +57,10 @@ function normalizeWalletError(error: unknown) {
   return { code: -1, message };
 }
 
+function normalizeSubmitError(error: unknown) {
+  return error instanceof Error ? error : new Error('Transaction submission failed');
+}
+
 export function createArenaActionClient(network: NetworkConfig, address: string) {
   if (!network.contractId) {
     return null;
@@ -88,4 +93,27 @@ export function createArenaActionClient(network: NetworkConfig, address: string)
       }
     }
   });
+}
+
+export async function signArenaTransaction(network: NetworkConfig, xdr: string, address: string) {
+  const result = await StellarWalletsKit.signTransaction(xdr, {
+    networkPassphrase: network.passphrase,
+    address
+  });
+
+  if (result.signedTxXdr) {
+    return result.signedTxXdr;
+  }
+
+  throw normalizeWalletError(new Error('Wallet signing failed'));
+}
+
+export async function submitArenaTransaction(network: NetworkConfig, signedTxXdr: string) {
+  try {
+    const server = new rpc.Server(network.rpcUrl);
+    const transaction = TransactionBuilder.fromXDR(signedTxXdr, network.passphrase);
+    return await server.sendTransaction(transaction);
+  } catch (error) {
+    throw normalizeSubmitError(error);
+  }
 }

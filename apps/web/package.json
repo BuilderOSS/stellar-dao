@@ -18,7 +18,8 @@
     "buffer": "^6.0.3",
     "next": "^15.4.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@ark-ui/react": "^5.37.2",

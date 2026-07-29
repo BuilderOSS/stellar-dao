@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AccountCenter } from '@/components/account-center';
 import { ActionCenter } from '@/components/action-center';
 import { ContractDashboard } from '@/components/contract-dashboard';
@@ -9,60 +9,7 @@ import { WalletSessionPanel } from '@/components/wallet-session-panel';
 import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import { getNetworkConfig, type NetworkConfig, type NetworkName } from '@/lib/stellar';
-import type { ActionRecord } from '@/lib/tx';
-
-type DashboardTab = 'overview' | 'account' | 'actions' | 'dev';
-
-type DashboardSession = {
-  network: NetworkName;
-  address: string;
-  status: string;
-  syncedAt: string;
-  activeTab: DashboardTab;
-  history: ActionRecord[];
-};
-
-const STORAGE_KEY = 'punch-arena.dashboard.v1';
-
-const initialSession: DashboardSession = {
-  network: 'local',
-  address: '',
-  status: 'Disconnected',
-  syncedAt: '',
-  activeTab: 'overview',
-  history: []
-};
-
-function readSession(): DashboardSession {
-  if (typeof window === 'undefined') {
-    return initialSession;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialSession;
-
-    const parsed = JSON.parse(raw) as Partial<DashboardSession>;
-    return {
-      network: parsed.network === 'testnet' ? 'testnet' : 'local',
-      address: parsed.address ?? '',
-      status: parsed.status ?? 'Disconnected',
-      syncedAt: parsed.syncedAt ?? '',
-      history: Array.isArray(parsed.history) ? (parsed.history as ActionRecord[]).slice(0, 20) : [],
-      activeTab:
-        parsed.activeTab === 'account' || parsed.activeTab === 'actions' || parsed.activeTab === 'dev'
-          ? parsed.activeTab
-          : 'overview'
-    };
-  } catch {
-    return initialSession;
-  }
-}
-
-function persistSession(session: DashboardSession) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-}
+import { useDashboardSessionStore } from '@/stores/dashboard-session-store';
 
 function formatSyncedAt(syncedAt: string) {
   if (!syncedAt) return 'Not synced yet';
@@ -102,29 +49,11 @@ function TabButton({ active, children, onClick }: { active: boolean; children: s
 }
 
 export function DashboardShell() {
-  const [session, setSession] = useState<DashboardSession>(initialSession);
-
-  useEffect(() => {
-    setSession(readSession());
-  }, []);
-
-  useEffect(() => {
-    persistSession(session);
-  }, [session]);
+  const session = useDashboardSessionStore();
+  const updateSession = useDashboardSessionStore((state) => state.updateSession);
+  const recordAction = useDashboardSessionStore((state) => state.recordAction);
 
   const currentNetwork: NetworkConfig = useMemo(() => getNetworkConfig(session.network), [session.network]);
-
-  function updateSession(patch: Partial<DashboardSession>) {
-    setSession((current) => ({ ...current, ...patch }));
-  }
-
-  function recordAction(record: ActionRecord) {
-    setSession((current) => ({
-      ...current,
-      history: [record, ...current.history].slice(0, 20),
-      status: record.summary
-    }));
-  }
 
   return (
     <main className="page-shell">
