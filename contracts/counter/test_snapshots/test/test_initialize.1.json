@@ -8,6 +8,7 @@
     [],
     [],
     [],
+    [],
     []
   ],
   "ledger": {
@@ -35,6 +36,18 @@
                     "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                   },
                   "storage": [
+                    {
+                      "key": {
+                        "vec": [
+                          {
+                            "symbol": "ActionCount"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "u32": 0
+                      }
+                    },
                     {
                       "key": {
                         "vec": [
@@ -75,24 +88,12 @@
                       "key": {
                         "vec": [
                           {
-                            "symbol": "GlobalCount"
-                          }
-                        ]
-                      },
-                      "val": {
-                        "u32": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "vec": [
-                          {
                             "symbol": "TokenName"
                           }
                         ]
                       },
                       "val": {
-                        "string": "Counter Token"
+                        "string": "Arena Token"
                       }
                     },
                     {
@@ -104,7 +105,7 @@
                         ]
                       },
                       "val": {
-                        "string": "CNTR"
+                        "string": "ARENA"
                       }
                     },
                     {
