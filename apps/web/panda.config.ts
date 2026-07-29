@@ -8,7 +8,7 @@ const button = defineRecipe({
     alignItems: 'center',
     appearance: 'none',
     borderWidth: '1px',
-    borderColor: 'rgba(168,85,247,0.34)',
+    borderColor: 'rgba(251,191,36,0.34)',
     borderRadius: 'l2',
     cursor: 'pointer',
     display: 'inline-flex',
@@ -47,24 +47,24 @@ const button = defineRecipe({
   variants: {
     variant: {
       solid: {
-        bg: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 45%, #2563eb 100%)',
+        bg: 'linear-gradient(135deg, #b45309 0%, #f59e0b 45%, #fbbf24 100%)',
         color: 'white',
-        borderColor: 'rgba(221,214,254,0.32)',
-        shadow: '0 18px 45px rgba(124,58,237,0.34)'
+        borderColor: 'rgba(254,243,199,0.32)',
+        shadow: '0 18px 45px rgba(245,158,11,0.34)'
       },
       surface: {
-        bg: 'rgba(15,23,42,0.82)',
-        borderColor: 'rgba(196,181,253,0.18)',
+        bg: 'rgba(15,15,14,0.82)',
+        borderColor: 'rgba(251,191,36,0.18)',
         color: 'white',
         shadow: 'none',
-        _hover: { bg: 'rgba(30,41,59,0.94)', borderColor: 'rgba(196,181,253,0.32)' }
+        _hover: { bg: 'rgba(28,25,20,0.94)', borderColor: 'rgba(251,191,36,0.32)' }
       },
       outline: {
-        borderColor: 'rgba(196,181,253,0.22)',
+        borderColor: 'rgba(251,191,36,0.22)',
         color: 'white',
         bg: 'transparent',
         shadow: 'none',
-        _hover: { bg: 'rgba(255,255,255,0.08)', borderColor: 'rgba(221,214,254,0.34)' }
+        _hover: { bg: 'rgba(255,255,255,0.08)', borderColor: 'rgba(254,243,199,0.34)' }
       },
       plain: {
         color: 'white',
@@ -93,8 +93,8 @@ const card = defineRecipe({
     p: '6',
     borderRadius: '2xl',
     borderWidth: '1px',
-    borderColor: 'rgba(196,181,253,0.12)',
-    bg: 'linear-gradient(180deg, rgba(15,23,42,0.9) 0%, rgba(8,12,24,0.94) 100%)',
+    borderColor: 'rgba(251,191,36,0.12)',
+    bg: 'linear-gradient(180deg, rgba(18,16,13,0.92) 0%, rgba(9,9,10,0.96) 100%)',
     backdropFilter: 'blur(20px)',
     boxShadow: '0 28px 88px rgba(2,6,23,0.5)',
     color: 'white'
@@ -116,7 +116,7 @@ const input = defineRecipe({
   base: {
     width: '100%',
     borderWidth: '1px',
-    borderColor: 'rgba(196,181,253,0.16)',
+    borderColor: 'rgba(251,191,36,0.16)',
     borderRadius: '14px',
     bg: 'rgba(15,23,42,0.98)',
     color: 'white',
@@ -127,7 +127,7 @@ const input = defineRecipe({
     transitionProperty: 'border-color, box-shadow, background-color',
     _focusVisible: {
       borderColor: 'accent.500',
-      boxShadow: '0 0 0 4px rgba(124,58,237,0.2)'
+      boxShadow: '0 0 0 4px rgba(245,158,11,0.2)'
     }
   }
 });
@@ -138,7 +138,7 @@ const select = defineRecipe({
   base: {
     width: '100%',
     borderWidth: '1px',
-    borderColor: 'rgba(196,181,253,0.16)',
+    borderColor: 'rgba(251,191,36,0.16)',
     borderRadius: '14px',
     bg: 'rgba(15,23,42,0.98)',
     color: 'white',
@@ -149,7 +149,7 @@ const select = defineRecipe({
     transitionProperty: 'border-color, box-shadow, background-color',
     _focusVisible: {
       borderColor: 'accent.500',
-      boxShadow: '0 0 0 4px rgba(124,58,237,0.2)'
+      boxShadow: '0 0 0 4px rgba(245,158,11,0.2)'
     }
   }
 });
@@ -162,13 +162,13 @@ const badge = defineRecipe({
     alignItems: 'center',
     borderRadius: 'full',
     borderWidth: '1px',
-    borderColor: 'rgba(196,181,253,0.18)',
+    borderColor: 'rgba(251,191,36,0.18)',
     px: '3',
     py: '1.5',
     textStyle: 'xs',
     fontWeight: 'semibold',
-    bg: 'rgba(124,58,237,0.18)',
-    color: '#f3e8ff'
+    bg: 'rgba(245,158,11,0.16)',
+    color: '#fff4db'
   }
 });
 
@@ -209,20 +209,20 @@ export default defineConfig({
       tokens: {
         colors: {
           accent: {
-            50: { value: '#f5f3ff' },
-            100: { value: '#ede9fe' },
-            200: { value: '#ddd6fe' },
-            300: { value: '#c4b5fd' },
-            400: { value: '#a78bfa' },
-            500: { value: '#8b5cf6' },
-            600: { value: '#7c3aed' },
-            700: { value: '#6d28d9' },
-            800: { value: '#5b21b6' },
-            900: { value: '#4c1d95' },
-            950: { value: '#2e1065' }
-          }
-        }
+      50: { value: '#fff8eb' },
+      100: { value: '#fff0c8' },
+      200: { value: '#ffe08a' },
+      300: { value: '#ffd24f' },
+      400: { value: '#fbbf24' },
+      500: { value: '#f59e0b' },
+      600: { value: '#d97706' },
+      700: { value: '#b45309' },
+      800: { value: '#92400e' },
+      900: { value: '#78350f' },
+      950: { value: '#451a03' }
       }
+    }
+  }
     }
   }
 });

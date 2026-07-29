@@ -62,21 +62,15 @@ export function DashboardShell() {
         <Stack gap="5">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
             <Stack gap="1">
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Badge>Park UI</Badge>
-                <Badge>Stellar Wallets Kit</Badge>
-                <Badge>Soroban</Badge>
-                <Badge>{currentNetwork.label}</Badge>
-              </div>
-              <Text className="label">Soroban app shell</Text>
               <Heading style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.02 }}>
-                Punch Arena: Arena Dashboard
+                Punch Arena
               </Heading>
               <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
-                A focused Soroban frontend with typed reads, wallet signing, and a clean path from local dev to testnet.
+                Ember-lit clashes, hard points, and quiet revenge. Build your name in the arena, then burn it into the ledger.
               </Text>
             </Stack>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Badge>{currentNetwork.label}</Badge>
               <Badge>{session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
               <Badge>{session.status}</Badge>
             </div>
@@ -91,8 +85,8 @@ export function DashboardShell() {
             </Card>
             <Card p="4">
               <Stack gap="2">
-              <Text className="label">Arena</Text>
-              {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Text>Missing</Text>}
+                <Text className="label">Arena</Text>
+                {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Text>Missing</Text>}
               </Stack>
             </Card>
             <SessionStat
