@@ -28,10 +28,13 @@ a {
 
 .page-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   padding: 40px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .eyebrow {
@@ -112,7 +115,6 @@ textarea {
 
 @media (max-width: 900px) {
   .page-shell {
-    grid-template-columns: 1fr;
     padding: 20px;
   }
 }

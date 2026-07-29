@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createCounterClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
-import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, Text } from '@/components/ui';
+import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 
 type ContractDashboardProps = {
@@ -318,8 +318,18 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
         {view === 'dev' ? (
           <Grid columns={{ base: 1, md: 2 }} gap="4">
             <Metric label="RPC URL" value={currentNetwork.rpcUrl} hint="Active Soroban RPC endpoint." />
-            <Metric label="Contract ID" value={currentNetwork.contractId || 'Missing'} hint="Loaded from the active network environment." />
-            <Metric label="Session address" value={address || 'Not connected'} hint="Wallet address stored in the dashboard." />
+            <Card p="4">
+              <Stack gap="2">
+                <Text className="label">Contract ID</Text>
+                {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Text>Missing</Text>}
+              </Stack>
+            </Card>
+            <Card p="4">
+              <Stack gap="2">
+                <Text className="label">Session address</Text>
+                {address ? <ShortId value={address} /> : <Text>Not connected</Text>}
+              </Stack>
+            </Card>
             <Metric label="Refresh status" value={state.loading ? 'Loading' : 'Idle'} hint={state.error || 'Ready to inspect the network.'} />
           </Grid>
         ) : null}

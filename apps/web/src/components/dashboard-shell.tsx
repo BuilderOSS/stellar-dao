@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ContractDashboard } from '@/components/contract-dashboard';
-import { WalletDemo } from '@/components/wallet-demo';
-import { Badge, Button, Card, Heading, Select, Text } from '@/components/ui';
+import { WalletSessionPanel } from '@/components/wallet-session-panel';
+import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import { getNetworkConfig, type NetworkConfig, type NetworkName } from '@/lib/stellar';
 
@@ -113,53 +113,22 @@ export function DashboardShell() {
 
   return (
     <main className="page-shell">
-      <Grid columns={{ base: 1, lg: 2 }} gap="6">
-        <Card p="8">
-          <Stack gap="5">
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Badge>Park UI</Badge>
-              <Badge>Stellar Wallets Kit</Badge>
-              <Badge>Soroban</Badge>
-            </div>
-            <Heading>Punch Counter</Heading>
-            <Text className="lede">
-              A focused Soroban frontend with typed reads, wallet signing, and a clean path from local dev to testnet.
-            </Text>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Badge>Typed bindings</Badge>
-              <Badge>Local network</Badge>
-              <Badge>Testnet ready</Badge>
-            </div>
-          </Stack>
-        </Card>
-
-        <Card p="8">
-          <Stack gap="4">
-            <Text className="label">Workflow</Text>
-            <Stack gap="3">
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <Badge>1</Badge>
-                <Text>Choose a network and keep the session synced.</Text>
-              </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <Badge>2</Badge>
-                <Text>Connect a wallet through Stellar Wallets Kit.</Text>
-              </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <Badge>3</Badge>
-                <Text>Inspect contract data, then move into account and action tabs.</Text>
-              </div>
-            </Stack>
-          </Stack>
-        </Card>
-      </Grid>
-
-      <Card p="6">
+      <Card p="8">
         <Stack gap="5">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
             <Stack gap="1">
-              <Text className="label">Dashboard status</Text>
-              <Heading style={{ fontSize: '1.4rem' }}>Session overview</Heading>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <Badge>Park UI</Badge>
+                <Badge>Stellar Wallets Kit</Badge>
+                <Badge>Soroban</Badge>
+              </div>
+              <Text className="label">Soroban app shell</Text>
+              <Heading style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.02 }}>
+                Punch Counter: Soroban Token Dashboard
+              </Heading>
+              <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
+                A focused Soroban frontend with typed reads, wallet signing, and a clean path from local dev to testnet.
+              </Text>
             </Stack>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <Badge>{currentNetwork.label}</Badge>
@@ -168,7 +137,7 @@ export function DashboardShell() {
             </div>
           </div>
 
-          <Grid columns={{ base: 1, md: 4 }} gap="4">
+          <Grid columns={{ base: 1, md: 2, xl: 4 }} gap="4">
             <Card p="4">
               <Stack gap="2">
                 <Text className="label">Network</Text>
@@ -181,16 +150,18 @@ export function DashboardShell() {
                 </Text>
               </Stack>
             </Card>
-            <SessionStat
-              label="Wallet"
-              value={session.address || 'Not connected'}
-              hint="Last connected address for this browser session."
-            />
-            <SessionStat
-              label="Contract"
-              value={currentNetwork.contractId || 'Missing'}
-              hint="Loaded from the active network environment."
-            />
+            <Card p="4">
+              <Stack gap="2">
+                <Text className="label">Wallet</Text>
+                {session.address ? <ShortId value={session.address} /> : <Text>Not connected</Text>}
+              </Stack>
+            </Card>
+            <Card p="4">
+              <Stack gap="2">
+                <Text className="label">Contract</Text>
+                {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Text>Missing</Text>}
+              </Stack>
+            </Card>
             <SessionStat
               label="Synced"
               value={formatSyncedAt(session.syncedAt)}
@@ -215,53 +186,55 @@ export function DashboardShell() {
         </Stack>
       </Card>
 
-      {session.activeTab === 'overview' ? (
-        <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
-      ) : null}
+      <div style={{ width: '100%' }}>
+        {session.activeTab === 'overview' ? (
+          <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
+        ) : null}
 
-      {session.activeTab === 'account' ? (
-        <Grid columns={{ base: 1, xl: 2 }} gap="6">
-          <WalletDemo network={session.network} onSessionUpdate={(patch) => updateSession(patch)} />
-          <ContractDashboard network={session.network} address={session.address} view="account" onSync={(patch) => updateSession(patch)} />
-        </Grid>
-      ) : null}
+        {session.activeTab === 'account' ? (
+          <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>
+            <WalletSessionPanel network={session.network} address={session.address} onSessionUpdate={(patch) => updateSession(patch)} />
+            <ContractDashboard network={session.network} address={session.address} view="account" onSync={(patch) => updateSession(patch)} />
+          </div>
+        ) : null}
 
-      {session.activeTab === 'actions' ? (
-        <Card p="6">
-          <Stack gap="4">
-            <Text className="label">Actions</Text>
-            <Heading style={{ fontSize: '1.3rem' }}>Coming next</Heading>
-            <Text className="lede" style={{ margin: 0 }}>
-              The action forms for punch, kick, transfer, approval, and battle will live here in phase 3.
-            </Text>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Badge>Single signer</Badge>
-              <Badge>Multi-signer</Badge>
-              <Badge>Action history</Badge>
-            </div>
-          </Stack>
-        </Card>
-      ) : null}
-
-      {session.activeTab === 'dev' ? (
-        <Grid columns={{ base: 1, xl: 2 }} gap="6">
-          <ContractDashboard network={session.network} address={session.address} view="dev" onSync={(patch) => updateSession(patch)} />
+        {session.activeTab === 'actions' ? (
           <Card p="6">
             <Stack gap="4">
-              <Text className="label">Developer notes</Text>
-              <Heading style={{ fontSize: '1.3rem' }}>Local and testnet diagnostics</Heading>
+              <Text className="label">Actions</Text>
+              <Heading style={{ fontSize: '1.3rem' }}>Coming next</Heading>
               <Text className="lede" style={{ margin: 0 }}>
-                Keep this space for bootstrap checks, admin controls, and deploy diagnostics while the app remains
-                indexed-free.
+                The action forms for punch, kick, transfer, approval, and battle will live here in phase 3.
               </Text>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Badge>{currentNetwork.rpcUrl}</Badge>
-                <Badge>{currentNetwork.contractId || 'No contract id'}</Badge>
+                <Badge>Single signer</Badge>
+                <Badge>Multi-signer</Badge>
+                <Badge>Action history</Badge>
               </div>
             </Stack>
           </Card>
-        </Grid>
-      ) : null}
+        ) : null}
+
+        {session.activeTab === 'dev' ? (
+          <Grid columns={{ base: 1, xl: 2 }} gap="6">
+            <ContractDashboard network={session.network} address={session.address} view="dev" onSync={(patch) => updateSession(patch)} />
+            <Card p="6">
+              <Stack gap="4">
+                <Text className="label">Developer notes</Text>
+                <Heading style={{ fontSize: '1.3rem' }}>Local and testnet diagnostics</Heading>
+                <Text className="lede" style={{ margin: 0 }}>
+                  Keep this space for bootstrap checks, admin controls, and deploy diagnostics while the app remains
+                  indexed-free.
+                </Text>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <Badge>{currentNetwork.rpcUrl}</Badge>
+                  {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Badge>No contract id</Badge>}
+                </div>
+              </Stack>
+            </Card>
+          </Grid>
+        ) : null}
+      </div>
     </main>
   );
 }
