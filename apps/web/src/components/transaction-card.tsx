@@ -300,10 +300,13 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const activeHandoff = handoff;
   const requiredSigners = activeHandoff?.requiredSigners ?? [];
   const signedBy = activeHandoff?.signedBy ?? [];
+  const isSubmitted = activeHandoff?.status === 'submitted';
   const readyToSubmit = Boolean(activeHandoff?.signedXdr) && requiredSigners.every((signer) => signedBy.includes(signer));
   const canAddSignature = Boolean(activeHandoff?.previewXdr && address && requiredSigners.includes(address) && !signedBy.includes(address));
   const statusText = status || activeHandoff?.lastMessage || '';
-  const primaryLabel = readyToSubmit
+  const primaryLabel = isSubmitted
+    ? 'Submitted'
+    : readyToSubmit
     ? 'Submit signed transaction'
     : activeHandoff?.signerCount > 1
       ? 'Add signature'
@@ -350,7 +353,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
             type="button"
             size="sm"
             onClick={() => void (readyToSubmit ? submitReadyHandoff() : signCurrentWallet())}
-            disabled={!activeHandoff?.previewXdr || isPreviewing || isSubmitting || (!readyToSubmit && !canAddSignature)}
+            disabled={!activeHandoff?.previewXdr || isPreviewing || isSubmitting || isSubmitted || (!readyToSubmit && !canAddSignature)}
           >
             {isSubmitting ? 'Working...' : primaryLabel}
           </Button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createArenaClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -135,6 +135,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
   const [spenderAddress, setSpenderAddress] = useState('');
   const [watchAddress, setWatchAddress] = useState(address);
   const [state, setState] = useState<ReadState>(emptyState);
+  const cooldownEndsAtRef = useRef<number | null>(null);
 
   const currentNetwork = useMemo(() => getNetworkConfig(network), [network]);
 
@@ -197,12 +198,15 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
         nextState.balance = balanceTx.result.toString();
         nextState.isOnCooldown = formatBoolean(cooldownTx.result);
         nextState.cooldownRemaining = cooldownRemainingTx.result.toString();
+        cooldownEndsAtRef.current = cooldownRemainingTx.result > 0 ? Date.now() + Number(cooldownRemainingTx.result) * 1000 : null;
         nextState.totalPunches = statsTx.result?.total_punches?.toString() ?? '0';
         nextState.totalKicks = statsTx.result?.total_kicks?.toString() ?? '0';
         nextState.lastAction = statsTx.result?.last_action ? formatDateTime(Number(statsTx.result.last_action)) : '—';
         nextState.battleWins = battleTx.result?.wins?.toString() ?? '0';
         nextState.battleLosses = battleTx.result?.losses?.toString() ?? '0';
         nextState.totalBattles = battleTx.result?.total_battles?.toString() ?? '0';
+      } else {
+        cooldownEndsAtRef.current = null;
       }
 
       if (targetWatchAddress && targetSpenderAddress) {
@@ -231,6 +235,43 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
     void refresh(address || watchAddress, spenderAddress);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [network, currentNetwork.contractId, address, view]);
+
+  useEffect(() => {
+    if (view !== 'account') {
+      return;
+    }
+
+    const tickCooldown = () => {
+      const endsAt = cooldownEndsAtRef.current;
+      if (!endsAt) {
+        setState((current) => (current.cooldownRemaining === '0' && current.isOnCooldown === 'No' ? current : { ...current, cooldownRemaining: '0', isOnCooldown: 'No' }));
+        return;
+      }
+
+      const remainingSeconds = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setState((current) => {
+        const nextRemaining = String(remainingSeconds);
+        const nextCooldownState = remainingSeconds > 0 ? 'Yes' : 'No';
+        if (current.cooldownRemaining === nextRemaining && current.isOnCooldown === nextCooldownState) {
+          return current;
+        }
+
+        return {
+          ...current,
+          cooldownRemaining: nextRemaining,
+          isOnCooldown: nextCooldownState
+        };
+      });
+
+      if (remainingSeconds <= 0) {
+        cooldownEndsAtRef.current = null;
+      }
+    };
+
+    tickCooldown();
+    const interval = window.setInterval(tickCooldown, 1000);
+    return () => window.clearInterval(interval);
+  }, [view, watchAddress]);
 
   return (
     <Card className="stack">
