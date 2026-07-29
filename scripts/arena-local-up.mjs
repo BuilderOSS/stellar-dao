@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { run, runQuiet } from './lib.mjs';
 
@@ -7,7 +7,6 @@ const networkName = 'local';
 const identityName = 'local-dev';
 const adminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 const networkPassphrase = 'Standalone Network ; February 2017';
-const salt = createHash('sha256').update(`punch-arena:${networkName}`).digest('hex');
 const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
 const envPath = 'apps/web/.env.local';
 const appExampleEnvPath = 'apps/web/.env.example';
@@ -165,6 +164,9 @@ function writeEnv(id) {
 }
 
 run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);
+
+const wasmHash = createHash('sha256').update(readFileSync(wasmPath)).digest('hex');
+const salt = createHash('sha256').update(`punch-arena:${networkName}:${wasmHash}`).digest('hex');
 ensureContainer();
 ensureNetwork();
 await ensureIdentity();

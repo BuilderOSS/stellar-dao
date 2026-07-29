@@ -17,7 +17,6 @@ const rpcUrl =
     : 'https://soroban-testnet.stellar.org';
 const networkPassphrase =
   networkName === 'local' ? 'Standalone Network ; February 2017' : 'Test SDF Network ; September 2015';
-const salt = createHash('sha256').update(`punch-arena:${networkName}`).digest('hex');
 const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
 
 function readLocalEnv(key) {
@@ -34,6 +33,9 @@ function readLocalEnv(key) {
 }
 
 run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);
+
+const wasmHash = createHash('sha256').update(readFileSync(wasmPath)).digest('hex');
+const salt = createHash('sha256').update(`punch-arena:${networkName}:${wasmHash}`).digest('hex');
 
 runQuiet('stellar', ['keys', 'generate', identityName]);
 
