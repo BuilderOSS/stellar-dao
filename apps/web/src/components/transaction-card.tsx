@@ -5,6 +5,7 @@ import {
   createArenaActionClient,
   ensureArenaAccountExists,
   getNetworkConfig,
+  selectArenaWallet,
   signArenaTransaction,
   submitArenaTransaction,
   type NetworkName
@@ -36,6 +37,19 @@ function fieldTypeFor(type: ActionSpec['fields'][number]['type']) {
 function fieldInputMode(type: ActionSpec['fields'][number]['type']) {
   if (type === 'amount' || type === 'u32') return 'numeric';
   return 'text';
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message ?? 'Submit failed');
+  }
+  return 'Submit failed';
+}
+
+function needsWalletSelection(error: unknown) {
+  const message = errorMessage(error).toLowerCase();
+  return message.includes('please set the wallet first') || message.includes('no wallet has been connected');
 }
 
 export function TransactionCard({ spec, network, address, onRecord }: TransactionCardProps) {
@@ -167,12 +181,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
     if (!activeHandoff?.previewXdr) return;
 
-    if (!address) {
-      setStatus('Connect a wallet first');
-      return;
-    }
-
-    if (!activeHandoff.requiredSigners.includes(address)) {
+    if (address && !activeHandoff.requiredSigners.includes(address)) {
       setStatus('This wallet is not one of the required signers');
       return;
     }
@@ -181,8 +190,39 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     setStatus('');
 
     try {
-      const signedXdr = await signArenaTransaction(currentNetwork, activeHandoff.signedXdr || activeHandoff.previewXdr, address);
-      recordSignature(handoffId, address, signedXdr);
+      let signer = address;
+      let signedXdr = '';
+
+      try {
+        if (!signer) {
+          signer = await selectArenaWallet();
+        }
+        if (!signer) {
+          setStatus('Select a wallet to sign');
+          return;
+        }
+
+        signedXdr = await signArenaTransaction(currentNetwork, activeHandoff.signedXdr || activeHandoff.previewXdr, signer);
+      } catch (error) {
+        if (!needsWalletSelection(error)) {
+          throw error;
+        }
+
+        signer = await selectArenaWallet();
+        if (!signer) {
+          setStatus('Select a wallet to sign');
+          return;
+        }
+
+        if (!activeHandoff.requiredSigners.includes(signer)) {
+          setStatus('This wallet is not one of the required signers');
+          return;
+        }
+
+        signedXdr = await signArenaTransaction(currentNetwork, activeHandoff.signedXdr || activeHandoff.previewXdr, signer);
+      }
+
+      recordSignature(handoffId, signer, signedXdr);
 
       const refreshed = useTransactionHandoffStore.getState().handoffs[handoffId];
       if (refreshed?.requiredSigners.every((signer) => refreshed.signedBy.includes(signer))) {
@@ -192,7 +232,8 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
 
       setStatus('Signature saved for handoff');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Submit failed';
+      const message = errorMessage(error);
+      console.error('[transaction-card] signing failed', error);
       markError(handoffId, message);
       onRecord?.({
         id: `${spec.id}-${Date.now()}`,
@@ -224,7 +265,8 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     try {
       await sendSignedHandoff(activeHandoff.signedXdr, activeHandoff.signedBy);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Submit failed';
+      const message = errorMessage(error);
+      console.error('[transaction-card] submit failed', error);
       markError(handoffId, message);
       onRecord?.({
         id: `${spec.id}-${Date.now()}`,

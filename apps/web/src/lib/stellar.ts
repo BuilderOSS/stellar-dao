@@ -122,14 +122,25 @@ export async function signArenaTransaction(network: NetworkConfig, xdr: string, 
     return result.signedTxXdr;
   }
 
-  throw normalizeWalletError(new Error('Wallet signing failed'));
+  const resultError = 'error' in result ? (result.error as { message?: string } | undefined) : undefined;
+  const message = resultError?.message ?? 'Wallet signing failed';
+  throw new Error(message);
+}
+
+export async function selectArenaWallet() {
+  const result = await StellarWalletsKit.authModal();
+  return result.address;
 }
 
 export async function submitArenaTransaction(network: NetworkConfig, signedTxXdr: string) {
   try {
     const server = createRpcServer(network);
     const transaction = TransactionBuilder.fromXDR(signedTxXdr, network.passphrase);
-    return await server.sendTransaction(transaction);
+    const response = await server.sendTransaction(transaction);
+    if (response.status === 'ERROR') {
+      throw new Error(response.errorResult ? response.errorResult.toString() : 'Transaction rejected by network');
+    }
+    return response;
   } catch (error) {
     throw normalizeSubmitError(error);
   }
