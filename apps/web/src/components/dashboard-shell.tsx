@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ContractDashboard } from '@/components/contract-dashboard';
 import { WalletDemo } from '@/components/wallet-demo';
 import { Badge, Card, Heading, Select, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -184,7 +185,10 @@ export function DashboardShell() {
         </Stack>
       </Card>
 
-      <WalletDemo network={session.network} onSessionUpdate={(patch) => updateSession(patch)} />
+      <Grid columns={{ base: 1, xl: 2 }} gap="6">
+        <WalletDemo network={session.network} onSessionUpdate={(patch) => updateSession(patch)} />
+        <ContractDashboard network={session.network} address={session.address} onSync={(patch) => updateSession(patch)} />
+      </Grid>
     </main>
   );
 }
