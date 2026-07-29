@@ -1,6 +1,6 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, MuxedAddress, String,
+    contract, contractevent, contractimpl, contracttype, token, Address, Env, MuxedAddress, String,
 };
 use core::cmp::min;
 
@@ -63,6 +63,136 @@ pub struct AllowanceValue {
     pub live_until_ledger: u32,
 }
 
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChargeUp {
+    #[topic]
+    pub user: Address,
+    pub new_balance: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Punch {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub moved: i128,
+    pub actor_balance: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Kick {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub moved: i128,
+    pub actor_balance: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JointPunch {
+    #[topic]
+    pub user1: Address,
+    #[topic]
+    pub user2: Address,
+    #[topic]
+    pub target: Address,
+    pub moved: i128,
+    pub user1_balance: i128,
+    pub user2_balance: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HeavyKick {
+    #[topic]
+    pub user1: Address,
+    #[topic]
+    pub user2: Address,
+    #[topic]
+    pub user3: Address,
+    #[topic]
+    pub target: Address,
+    pub moved: i128,
+    pub user1_balance: i128,
+    pub user2_balance: i128,
+    pub user3_balance: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TransferPoints {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Battle {
+    #[topic]
+    pub attacker: Address,
+    #[topic]
+    pub defender: Address,
+    #[topic]
+    pub winner: Address,
+    #[topic]
+    pub loser: Address,
+    pub drained: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Milestone {
+    #[topic]
+    pub user: Address,
+    pub count: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Mint {
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Burn {
+    #[topic]
+    pub from: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Transfer {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Approve {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub spender: Address,
+    pub amount: i128,
+    pub live_until_ledger: u32,
+}
+
 #[contract]
 pub struct ArenaContract;
 
@@ -116,8 +246,11 @@ impl ArenaContract {
         Self::set_cooldown(&env, &user);
 
         let new_balance = Self::get_balance(&env, &user);
-        env.events()
-            .publish((symbol_short!("charge"), user.clone()), new_balance);
+        ChargeUp {
+            user: user.clone(),
+            new_balance,
+        }
+        .publish(&env);
         Self::check_milestone(&env, &user, new_balance as u32);
 
         1
@@ -137,10 +270,13 @@ impl ArenaContract {
         Self::set_cooldown(&env, &from);
 
         let actor_balance = Self::get_balance(&env, &from);
-        env.events().publish(
-            (symbol_short!("punch"), from.clone(), to.clone()),
-            (moved, actor_balance),
-        );
+        Punch {
+            from: from.clone(),
+            to: to.clone(),
+            moved,
+            actor_balance,
+        }
+        .publish(&env);
         Self::check_milestone(&env, &from, actor_balance as u32);
 
         moved
@@ -160,10 +296,13 @@ impl ArenaContract {
         Self::set_cooldown(&env, &from);
 
         let actor_balance = Self::get_balance(&env, &from);
-        env.events().publish(
-            (symbol_short!("kick"), from.clone(), to.clone()),
-            (moved, actor_balance),
-        );
+        Kick {
+            from: from.clone(),
+            to: to.clone(),
+            moved,
+            actor_balance,
+        }
+        .publish(&env);
         Self::check_milestone(&env, &from, actor_balance as u32);
 
         moved
@@ -216,15 +355,15 @@ impl ArenaContract {
 
         let user1_balance = Self::get_balance(&env, &user1);
         let user2_balance = Self::get_balance(&env, &user2);
-        env.events().publish(
-            (
-                symbol_short!("j_punch"),
-                user1.clone(),
-                user2.clone(),
-                target.clone(),
-            ),
-            (moved, user1_balance, user2_balance),
-        );
+        JointPunch {
+            user1: user1.clone(),
+            user2: user2.clone(),
+            target: target.clone(),
+            moved,
+            user1_balance,
+            user2_balance,
+        }
+        .publish(&env);
 
         Self::check_milestone(&env, &user1, user1_balance as u32);
         Self::check_milestone(&env, &user2, user2_balance as u32);
@@ -267,16 +406,17 @@ impl ArenaContract {
         let user1_balance = Self::get_balance(&env, &user1);
         let user2_balance = Self::get_balance(&env, &user2);
         let user3_balance = Self::get_balance(&env, &user3);
-        env.events().publish(
-            (
-                symbol_short!("h_kick"),
-                user1.clone(),
-                user2.clone(),
-                user3.clone(),
-                target.clone(),
-            ),
-            (moved, user1_balance, user2_balance, user3_balance),
-        );
+        HeavyKick {
+            user1: user1.clone(),
+            user2: user2.clone(),
+            user3: user3.clone(),
+            target: target.clone(),
+            moved,
+            user1_balance,
+            user2_balance,
+            user3_balance,
+        }
+        .publish(&env);
 
         Self::check_milestone(&env, &user1, user1_balance as u32);
         Self::check_milestone(&env, &user2, user2_balance as u32);
@@ -297,6 +437,13 @@ impl ArenaContract {
 
         // Use internal transfer (validates balance, updates storage, emits event)
         Self::transfer_internal(&env, &from, &to, amount);
+
+        TransferPoints {
+            from: from.clone(),
+            to: to.clone(),
+            amount,
+        }
+        .publish(&env);
 
         // Set cooldown only for sender
         Self::set_cooldown(&env, &from);
@@ -331,10 +478,14 @@ impl ArenaContract {
         Self::set_cooldown(&env, &attacker);
         Self::set_cooldown(&env, &defender);
 
-        env.events().publish(
-            (symbol_short!("battle"), symbol_short!("win")),
-            (winner.clone(), loser.clone(), drained),
-        );
+        Battle {
+            attacker: attacker.clone(),
+            defender: defender.clone(),
+            winner: winner.clone(),
+            loser: loser.clone(),
+            drained,
+        }
+        .publish(&env);
 
         Self::check_milestone(&env, &winner, Self::get_balance(&env, &winner) as u32);
 
@@ -651,8 +802,11 @@ impl ArenaContract {
     fn check_milestone(env: &Env, user: &Address, count: u32) {
         // Emit milestone events at certain thresholds
         if count == 10 || count == 50 || count == 100 || count == 500 || count == 1000 {
-            env.events()
-                .publish((symbol_short!("milestone"), user.clone()), count);
+            Milestone {
+                user: user.clone(),
+                count,
+            }
+            .publish(env);
         }
     }
 
@@ -690,11 +844,11 @@ impl ArenaContract {
             .instance()
             .set(&DataKey::TotalSupply, &(total_supply + amount));
 
-        // SEP-0041: Emit mint event
-        // Topics: "mint", to
-        // Data: amount
-        env.events()
-            .publish((symbol_short!("mint"), to.clone()), amount);
+        Mint {
+            to: to.clone(),
+            amount,
+        }
+        .publish(env);
     }
 
     fn burn_internal(env: &Env, from: &Address, amount: i128) {
@@ -713,11 +867,11 @@ impl ArenaContract {
             .instance()
             .set(&DataKey::TotalSupply, &(total_supply - amount));
 
-        // SEP-0041: Emit burn event
-        // Topics: "burn", from
-        // Data: amount
-        env.events()
-            .publish((symbol_short!("burn"), from.clone()), amount);
+        Burn {
+            from: from.clone(),
+            amount,
+        }
+        .publish(env);
     }
 
     fn transfer_internal(env: &Env, from: &Address, to: &Address, amount: i128) {
@@ -730,13 +884,12 @@ impl ArenaContract {
         let to_balance = Self::get_balance(env, to);
         Self::set_balance(env, to, to_balance + amount);
 
-        // SEP-0041: Emit transfer event
-        // Topics: "transfer", from, to
-        // Data: amount
-        env.events().publish(
-            (symbol_short!("transfer"), from.clone(), to.clone()),
+        Transfer {
+            from: from.clone(),
+            to: to.clone(),
             amount,
-        );
+        }
+        .publish(env);
     }
 
     fn get_allowance(env: &Env, from: &Address, spender: &Address) -> i128 {
@@ -781,13 +934,13 @@ impl ArenaContract {
             PERSISTENT_EXTEND_TO,
         );
 
-        // SEP-0041: Emit approve event
-        // Topics: "approve", from, spender
-        // Data: amount, live_until_ledger
-        env.events().publish(
-            (symbol_short!("approve"), from.clone(), spender.clone()),
-            (amount, live_until_ledger),
-        );
+        Approve {
+            from: from.clone(),
+            spender: spender.clone(),
+            amount,
+            live_until_ledger,
+        }
+        .publish(env);
     }
 
     fn spend_allowance(env: &Env, from: &Address, spender: &Address, amount: i128) {
