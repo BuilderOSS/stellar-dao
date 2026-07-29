@@ -3,24 +3,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ContractDashboard } from '@/components/contract-dashboard';
 import { WalletDemo } from '@/components/wallet-demo';
-import { Badge, Card, Heading, Select, Text } from '@/components/ui';
+import { Badge, Button, Card, Heading, Select, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import { getNetworkConfig, type NetworkConfig, type NetworkName } from '@/lib/stellar';
+
+type DashboardTab = 'overview' | 'account' | 'actions' | 'dev';
 
 type DashboardSession = {
   network: NetworkName;
   address: string;
   status: string;
   syncedAt: string;
+  activeTab: DashboardTab;
 };
 
-const STORAGE_KEY = 'punch-counter.dashboard.v1';
+const STORAGE_KEY = 'punch-counter.dashboard.v2';
 
 const initialSession: DashboardSession = {
   network: 'local',
   address: '',
   status: 'Disconnected',
-  syncedAt: ''
+  syncedAt: '',
+  activeTab: 'overview'
 };
 
 function readSession(): DashboardSession {
@@ -37,7 +41,11 @@ function readSession(): DashboardSession {
       network: parsed.network === 'testnet' ? 'testnet' : 'local',
       address: parsed.address ?? '',
       status: parsed.status ?? 'Disconnected',
-      syncedAt: parsed.syncedAt ?? ''
+      syncedAt: parsed.syncedAt ?? '',
+      activeTab:
+        parsed.activeTab === 'account' || parsed.activeTab === 'actions' || parsed.activeTab === 'dev'
+          ? parsed.activeTab
+          : 'overview'
     };
   } catch {
     return initialSession;
@@ -78,6 +86,14 @@ function SessionStat({ label, value, hint }: { label: string; value: string; hin
   );
 }
 
+function TabButton({ active, children, onClick }: { active: boolean; children: string; onClick: () => void }) {
+  return (
+    <Button type="button" size="sm" variant={active ? 'surface' : 'plain'} onClick={onClick}>
+      {children}
+    </Button>
+  );
+}
+
 export function DashboardShell() {
   const [session, setSession] = useState<DashboardSession>(initialSession);
 
@@ -107,8 +123,7 @@ export function DashboardShell() {
             </div>
             <Heading>Punch Counter</Heading>
             <Text className="lede">
-              A polished frontend for the Soroban token contract, with typed clients, wallet signing, and local or
-              testnet deployment.
+              A focused Soroban frontend with typed reads, wallet signing, and a clean path from local dev to testnet.
             </Text>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <Badge>Typed bindings</Badge>
@@ -124,7 +139,7 @@ export function DashboardShell() {
             <Stack gap="3">
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <Badge>1</Badge>
-                <Text>Start the local Stellar container or switch to testnet.</Text>
+                <Text>Choose a network and keep the session synced.</Text>
               </div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <Badge>2</Badge>
@@ -132,7 +147,7 @@ export function DashboardShell() {
               </div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <Badge>3</Badge>
-                <Text>Load the contract metadata and token state from the typed client.</Text>
+                <Text>Inspect contract data, then move into account and action tabs.</Text>
               </div>
             </Stack>
           </Stack>
@@ -182,13 +197,71 @@ export function DashboardShell() {
               hint="Last successful contract read."
             />
           </Grid>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <TabButton active={session.activeTab === 'overview'} onClick={() => updateSession({ activeTab: 'overview' })}>
+              Overview
+            </TabButton>
+            <TabButton active={session.activeTab === 'account'} onClick={() => updateSession({ activeTab: 'account' })}>
+              Account
+            </TabButton>
+            <TabButton active={session.activeTab === 'actions'} onClick={() => updateSession({ activeTab: 'actions' })}>
+              Actions
+            </TabButton>
+            <TabButton active={session.activeTab === 'dev'} onClick={() => updateSession({ activeTab: 'dev' })}>
+              Dev
+            </TabButton>
+          </div>
         </Stack>
       </Card>
 
-      <Grid columns={{ base: 1, xl: 2 }} gap="6">
-        <WalletDemo network={session.network} onSessionUpdate={(patch) => updateSession(patch)} />
-        <ContractDashboard network={session.network} address={session.address} onSync={(patch) => updateSession(patch)} />
-      </Grid>
+      {session.activeTab === 'overview' ? (
+        <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
+      ) : null}
+
+      {session.activeTab === 'account' ? (
+        <Grid columns={{ base: 1, xl: 2 }} gap="6">
+          <WalletDemo network={session.network} onSessionUpdate={(patch) => updateSession(patch)} />
+          <ContractDashboard network={session.network} address={session.address} view="account" onSync={(patch) => updateSession(patch)} />
+        </Grid>
+      ) : null}
+
+      {session.activeTab === 'actions' ? (
+        <Card p="6">
+          <Stack gap="4">
+            <Text className="label">Actions</Text>
+            <Heading style={{ fontSize: '1.3rem' }}>Coming next</Heading>
+            <Text className="lede" style={{ margin: 0 }}>
+              The action forms for punch, kick, transfer, approval, and battle will live here in phase 3.
+            </Text>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Badge>Single signer</Badge>
+              <Badge>Multi-signer</Badge>
+              <Badge>Action history</Badge>
+            </div>
+          </Stack>
+        </Card>
+      ) : null}
+
+      {session.activeTab === 'dev' ? (
+        <Grid columns={{ base: 1, xl: 2 }} gap="6">
+          <ContractDashboard network={session.network} address={session.address} view="dev" onSync={(patch) => updateSession(patch)} />
+          <Card p="6">
+            <Stack gap="4">
+              <Text className="label">Developer notes</Text>
+              <Heading style={{ fontSize: '1.3rem' }}>Local and testnet diagnostics</Heading>
+              <Text className="lede" style={{ margin: 0 }}>
+                Keep this space for bootstrap checks, admin controls, and deploy diagnostics while the app remains
+                indexed-free.
+              </Text>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <Badge>{currentNetwork.rpcUrl}</Badge>
+                <Badge>{currentNetwork.contractId || 'No contract id'}</Badge>
+              </div>
+            </Stack>
+          </Card>
+        </Grid>
+      ) : null}
     </main>
   );
 }
