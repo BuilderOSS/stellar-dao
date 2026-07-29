@@ -9,6 +9,8 @@ const networkPassphrase = 'Standalone Network ; February 2017';
 const salt = createHash('sha256').update(`punch-arena:${networkName}`).digest('hex');
 const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
 const envPath = 'apps/web/.env.local';
+const appExampleEnvPath = 'apps/web/.env.example';
+const exampleEnvPath = '.env.example';
 let rpcUrl = 'http://localhost:8000/rpc';
 
 function inspectContainerHostPort() {
@@ -145,18 +147,19 @@ function deployAndInit(id) {
 
 function writeEnv(id) {
   mkdirSync('apps/web', { recursive: true });
-  writeFileSync(
-    envPath,
-    [
-      'NEXT_PUBLIC_STELLAR_NETWORK=local',
-      `NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=${rpcUrl}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=${networkPassphrase}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID=${id}`,
-      'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
-      'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
-      'NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID='
-    ].join('\n') + '\n'
-  );
+  const lines = [
+    'NEXT_PUBLIC_STELLAR_NETWORK=local',
+    `NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=${rpcUrl}`,
+    `NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=${networkPassphrase}`,
+    `NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID=${id}`,
+    'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
+    'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
+    'NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID='
+  ];
+
+  writeFileSync(envPath, `${lines.join('\n')}\n`);
+  writeFileSync(appExampleEnvPath, `${lines.join('\n')}\n`);
+  writeFileSync(exampleEnvPath, `${lines.join('\n')}\n`);
 }
 
 run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);

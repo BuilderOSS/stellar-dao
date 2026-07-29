@@ -61,6 +61,23 @@ function normalizeSubmitError(error: unknown) {
   return error instanceof Error ? error : new Error('Transaction submission failed');
 }
 
+function createRpcServer(network: NetworkConfig) {
+  return new rpc.Server(network.rpcUrl, { allowHttp: network.name === 'local' });
+}
+
+export async function ensureArenaAccountExists(network: NetworkConfig, address: string) {
+  try {
+    await createRpcServer(network).getAccount(address);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Account lookup failed';
+    if (message.toLowerCase().includes('account not found')) {
+      return false;
+    }
+    throw normalizeSubmitError(error);
+  }
+}
+
 export function createArenaActionClient(network: NetworkConfig, address: string) {
   if (!network.contractId) {
     return null;
@@ -110,7 +127,7 @@ export async function signArenaTransaction(network: NetworkConfig, xdr: string, 
 
 export async function submitArenaTransaction(network: NetworkConfig, signedTxXdr: string) {
   try {
-    const server = new rpc.Server(network.rpcUrl);
+    const server = createRpcServer(network);
     const transaction = TransactionBuilder.fromXDR(signedTxXdr, network.passphrase);
     return await server.sendTransaction(transaction);
   } catch (error) {

@@ -6,9 +6,9 @@ import { ActionCenter } from '@/components/action-center';
 import { ContractDashboard } from '@/components/contract-dashboard';
 import { DevTools } from '@/components/dev-tools';
 import { WalletSessionPanel } from '@/components/wallet-session-panel';
-import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
-import { getNetworkConfig, type NetworkConfig, type NetworkName } from '@/lib/stellar';
+import { getDefaultNetwork, getNetworkConfig, type NetworkConfig } from '@/lib/stellar';
 import { useDashboardSessionStore } from '@/stores/dashboard-session-store';
 
 function formatSyncedAt(syncedAt: string) {
@@ -53,7 +53,8 @@ export function DashboardShell() {
   const updateSession = useDashboardSessionStore((state) => state.updateSession);
   const recordAction = useDashboardSessionStore((state) => state.recordAction);
 
-  const currentNetwork: NetworkConfig = useMemo(() => getNetworkConfig(session.network), [session.network]);
+  const network = useMemo(() => getDefaultNetwork(), []);
+  const currentNetwork: NetworkConfig = useMemo(() => getNetworkConfig(network), [network]);
 
   return (
     <main className="page-shell">
@@ -65,6 +66,7 @@ export function DashboardShell() {
                 <Badge>Park UI</Badge>
                 <Badge>Stellar Wallets Kit</Badge>
                 <Badge>Soroban</Badge>
+                <Badge>{currentNetwork.label}</Badge>
               </div>
               <Text className="label">Soroban app shell</Text>
               <Heading style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.02 }}>
@@ -75,25 +77,12 @@ export function DashboardShell() {
               </Text>
             </Stack>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Badge>{currentNetwork.label}</Badge>
               <Badge>{session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
               <Badge>{session.status}</Badge>
             </div>
           </div>
 
           <Grid columns={{ base: 1, md: 2, xl: 4 }} gap="4">
-            <Card p="4">
-              <Stack gap="2">
-                <Text className="label">Network</Text>
-                <Select value={session.network} onChange={(event) => updateSession({ network: event.target.value as NetworkName })}>
-                  <option value="local">Local</option>
-                  <option value="testnet">Testnet</option>
-                </Select>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>
-                  {currentNetwork.rpcUrl}
-                </Text>
-              </Stack>
-            </Card>
             <Card p="4">
               <Stack gap="2">
                 <Text className="label">Wallet</Text>
@@ -133,7 +122,7 @@ export function DashboardShell() {
       <div style={{ width: '100%' }}>
         {session.activeTab === 'overview' ? (
           <Stack gap="6">
-            <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
+            <ContractDashboard network={network} address={session.address} view="overview" onSync={updateSession} />
             <Card p="6">
               <Stack gap="3">
                 <Text className="label">Arena activity</Text>
@@ -152,23 +141,23 @@ export function DashboardShell() {
 
         {session.activeTab === 'account' ? (
           <Stack gap="6">
-            <WalletSessionPanel network={session.network} address={session.address} onSessionUpdate={(patch) => updateSession(patch)} />
+            <WalletSessionPanel network={network} address={session.address} onSessionUpdate={updateSession} />
             <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>
-              <AccountCenter network={session.network} address={session.address} status={session.status} history={session.history} />
-              <ContractDashboard network={session.network} address={session.address} view="account" onSync={(patch) => updateSession(patch)} />
+              <AccountCenter network={network} address={session.address} status={session.status} history={session.history} />
+              <ContractDashboard network={network} address={session.address} view="account" onSync={updateSession} />
             </div>
           </Stack>
         ) : null}
 
         {session.activeTab === 'actions' ? (
-          <ActionCenter network={session.network} address={session.address} onRecord={recordAction} />
+          <ActionCenter network={network} address={session.address} onRecord={recordAction} />
         ) : null}
 
         {session.activeTab === 'dev' ? (
           <Grid columns={{ base: 1, xl: 2 }} gap="6">
-            <ContractDashboard network={session.network} address={session.address} view="dev" onSync={(patch) => updateSession(patch)} />
+            <ContractDashboard network={network} address={session.address} view="dev" onSync={updateSession} />
             <DevTools
-              network={session.network}
+              network={network}
               networkConfig={currentNetwork}
               address={session.address}
               status={session.status}

@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createArenaActionClient, getNetworkConfig, signArenaTransaction, submitArenaTransaction, type NetworkName } from '@/lib/stellar';
+import {
+  createArenaActionClient,
+  ensureArenaAccountExists,
+  getNetworkConfig,
+  signArenaTransaction,
+  submitArenaTransaction,
+  type NetworkName
+} from '@/lib/stellar';
 import type { ActionRecord, ActionSpec } from '@/lib/tx';
 import { safeStringify, summarizeValue } from '@/lib/tx';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
@@ -84,6 +91,17 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function buildPreview() {
+    if (!address) {
+      setStatus('Connect a wallet first');
+      return;
+    }
+
+    const accountExists = await ensureArenaAccountExists(currentNetwork, address);
+    if (!accountExists) {
+      setStatus(`This wallet does not exist on ${currentNetwork.label} yet. Fund it, then preview again.`);
+      return;
+    }
+
     const client = createArenaActionClient(currentNetwork, address);
     if (!client) {
       setStatus('Set a contract id first');
@@ -243,13 +261,11 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const readyToSubmit = Boolean(activeHandoff?.signedXdr) && requiredSigners.every((signer) => signedBy.includes(signer));
   const canAddSignature = Boolean(activeHandoff?.previewXdr && address && requiredSigners.includes(address) && !signedBy.includes(address));
   const statusText = status || activeHandoff?.lastMessage || '';
-  const primaryLabel = !activeHandoff?.previewXdr
-    ? 'Preview'
-    : readyToSubmit
-      ? 'Submit signed transaction'
-      : activeHandoff.signerCount > 1
-        ? 'Add signature'
-        : 'Sign & submit';
+  const primaryLabel = readyToSubmit
+    ? 'Submit signed transaction'
+    : activeHandoff?.signerCount > 1
+      ? 'Add signature'
+      : 'Sign & submit';
 
   return (
     <Card p="5" className="stack">

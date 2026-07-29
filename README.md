@@ -16,6 +16,8 @@ pnpm arena:setup:local
 pnpm dev
 ```
 
+Set `NEXT_PUBLIC_STELLAR_NETWORK=local` or `testnet` in `apps/web/.env.local` to choose the active network without a UI toggle.
+
 ## Local Network
 
 ```bash

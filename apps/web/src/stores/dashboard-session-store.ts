@@ -2,13 +2,11 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { NetworkName } from '@/lib/stellar';
 import type { ActionRecord } from '@/lib/tx';
 
 export type DashboardTab = 'overview' | 'account' | 'actions' | 'dev';
 
 export type DashboardSessionState = {
-  network: NetworkName;
   address: string;
   status: string;
   syncedAt: string;
@@ -25,7 +23,6 @@ type DashboardSessionActions = {
 type DashboardSessionStore = DashboardSessionState & DashboardSessionActions;
 
 const initialState: DashboardSessionState = {
-  network: 'local',
   address: '',
   status: 'Disconnected',
   syncedAt: '',
@@ -45,7 +42,23 @@ export const useDashboardSessionStore = create<DashboardSessionStore>()(
   persist(
     (set) => ({
       ...initialState,
-      updateSession: (patch) => set((current) => ({ ...current, ...patch })),
+      updateSession: (patch) =>
+        set((current) => {
+          let changed = false;
+          const next = { ...current };
+
+          for (const [key, value] of Object.entries(patch) as Array<[
+            keyof DashboardSessionState,
+            DashboardSessionState[keyof DashboardSessionState]
+          ]>) {
+            if (typeof value !== 'undefined' && next[key] !== value) {
+              next[key] = value as never;
+              changed = true;
+            }
+          }
+
+          return changed ? next : current;
+        }),
       recordAction: (record) =>
         set((current) => ({
           ...current,
@@ -58,7 +71,6 @@ export const useDashboardSessionStore = create<DashboardSessionStore>()(
       name: 'punch-arena.session.v1',
       storage,
       partialize: (state) => ({
-        network: state.network,
         address: state.address,
         status: state.status,
         syncedAt: state.syncedAt,
