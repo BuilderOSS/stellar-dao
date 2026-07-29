@@ -7,7 +7,7 @@
 - Keep Park UI as the design system, but tighten hierarchy, spacing, and empty states.
 
 ## Phase 2: Contract Dashboard
-- Show token metadata, total supply, global count, balance, cooldown, allowance, stats, and battle record.
+- Show token metadata, total supply, action count, balance, cooldown, allowance, stats, and battle record.
 - Make each panel refresh independently.
 - Add loading, error, and success states for every read operation.
 
@@ -23,7 +23,7 @@
 
 ## Phase 5: Admin and Dev Tools
 - Keep admin controls behind a dedicated section.
-- Include reset global, set cooldown duration, extend TTL, and local bootstrap diagnostics.
+- Include reset action count, set cooldown duration, extend TTL, and local bootstrap diagnostics.
 - Hide admin controls from the normal user flow unless the connected wallet is admin.
 
 ## Phase 6: Indexing Later

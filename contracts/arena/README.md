@@ -44,10 +44,10 @@ Implements SEP-0041's `live_until_ledger` parameter:
 Unlike traditional tokens, this contract mints tokens through interactive actions:
 
 ```rust
-// Alice punches Bob → Bob receives 1 token
+// Alice punches Bob → Bob receives 1 point
 client.punch(&alice, &bob);  // Bob's balance += 1
 
-// Alice kicks Bob → Bob receives 2 tokens
+// Alice kicks Bob → Bob receives 2 points
 client.kick(&alice, &bob);   // Bob's balance += 2
 
 // Users can also punch/kick themselves
@@ -59,14 +59,14 @@ client.punch(&alice, &alice); // Alice's balance += 1
 Demonstrates `require_auth()` patterns with multi-signature functions:
 
 ```rust
-// Alice and Bob jointly punch Charlie → Charlie receives 4 tokens
+// Alice and Bob jointly punch Charlie → Charlie receives 4 points
 client.joint_punch(&alice, &bob, &charlie);  // Both must sign
 
-// Alice and Bob heavy kick Charlie → Charlie receives 6 tokens
+// Alice and Bob heavy kick Charlie → Charlie receives 6 points
 client.heavy_kick(&alice, &bob, &charlie);
 
 // Transfer points from one user to another
-client.transfer_points(&alice, &bob, &charlie, &10);  // Transfer 10 tokens
+client.transfer_points(&alice, &bob, &charlie, &10);  // Transfer 10 points
 ```
 
 ### Battle System
@@ -74,10 +74,9 @@ client.transfer_points(&alice, &bob, &charlie, &10);  // Transfer 10 tokens
 Competitive token burning mechanism:
 
 ```rust
-// Alice battles Bob with 10 tokens staked
+// Alice battles Bob
 client.battle(&alice, &bob, &10);
-// Winner determined by random ledger sequence
-// Winner gets all staked tokens, loser's tokens are burned
+// Winner is the higher-balance fighter and drains up to 3 points
 ```
 
 ## Storage Architecture
@@ -163,7 +162,7 @@ transfer_points(from: Address, to: Address, approver: Address, amount: i128)
 ```rust
 battle(challenger: Address, opponent: Address, amount: i128) -> bool
 // Returns true if challenger wins, false if opponent wins
-// Winner receives all staked tokens, loser's stake is burned
+// Winner drains up to 3 points from the loser
 ```
 
 ### View Functions
@@ -225,7 +224,7 @@ let admin = Address::generate(&env);
 client.initialize(
     &admin,
     &String::from_str(&env, "Arena Token"),
-    &String::from_str(&env, "CNTR"),
+    &String::from_str(&env, "ARENA"),
     &7,  // 7 decimals
 );
 ```
@@ -233,14 +232,14 @@ client.initialize(
 ### Action-Based Token Distribution
 
 ```rust
-// Alice punches Bob → Bob gets 1 token
+// Alice punches Bob → Bob gets 1 point
 client.punch(&alice, &bob);
 assert_eq!(client.balance(&bob), 1);
 
 // Wait for cooldown to expire (1 hour default)
 // ...
 
-// Alice kicks Bob → Bob gets 2 more tokens
+// Alice kicks Bob → Bob gets 2 more points
 client.kick(&alice, &bob);
 assert_eq!(client.balance(&bob), 3);
 

@@ -51,7 +51,7 @@ A fully **SEP-0041 compliant fungible token** with unique action-based minting m
 - ✅ **TTL Management**: Automatic and manual TTL extension patterns
 - ✅ **Cooldown System**: Anti-spam using temporary storage
 - ✅ **SEP-0041 Events**: mint, burn, transfer, approve events
-- ✅ **Comprehensive Tests**: 16 tests covering all functionality
+- ✅ **Comprehensive Tests**: 7 tests covering the current arena rules
 
 **Quick Start**:
 ```bash
@@ -73,8 +73,8 @@ See [Arena Token README](contracts/arena/README.md) for full documentation.
 ├── contracts/
 │   └── arena/           # SEP-0041 token with Storage TTL showcase
 │       ├── src/
-│       │   ├── lib.rs    # Main contract implementation (850+ lines)
-│       │   └── test.rs   # Comprehensive test suite (29 tests)
+│       │   ├── lib.rs    # Main contract implementation
+│       │   └── test.rs   # Comprehensive test suite
 │       ├── Cargo.toml
 │       ├── Makefile
 │       └── README.md
@@ -146,7 +146,7 @@ client.joint_punch(&alice, &bob, &charlie);  // Both must sign
 ```rust
 // Alice challenges Bob with 10 tokens staked
 let alice_wins = client.battle(&alice, &bob, &10);
-// Winner gets all staked tokens, loser's tokens burned
+// Winner drains up to 3 points from the loser
 ```
 
 ## Learning Resources
@@ -250,7 +250,7 @@ use soroban_sdk::String;
 client.initialize(
     &admin,
     &String::from_str(&env, "Arena Token"),
-    &String::from_str(&env, "CNTR"),
+    &String::from_str(&env, "ARENA"),
     &7,  // 7 decimals
 );
 ```

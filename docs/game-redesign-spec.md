@@ -1,11 +1,11 @@
 # Game Redesign Spec
 
 ## Goal
-Turn the contract from a basic arena into an opt-in arena game with a coherent point economy.
+Document the arena contract and UI rules for the current point economy.
 
 ## Naming
-- Rename `ArenaContract` to `ArenaContract`.
-- Rename the package/folder from `arena` to `arena` when we implement.
+- `ArenaContract` is the contract name.
+- `arena` is the contract package/folder.
 - Treat token balances as game points/power, not money.
 
 ## Design Rules
@@ -28,11 +28,10 @@ Turn the contract from a basic arena into an opt-in arena game with a coherent p
 ## Method Plan
 
 ### `charge_up(user)`
-- New method.
 - Requires `user` auth only.
 - Mints `+1` point to `user`.
 - Increments total supply.
-- Increments action arenas.
+- Increments action count.
 - This is the main self-growth mechanic.
 
 ### `punch(from, to)`
@@ -86,16 +85,16 @@ Turn the contract from a basic arena into an opt-in arena game with a coherent p
 
 ## Storage Plan
 - `TotalSupply`: total points minted through `charge_up` and any future admin minting.
-- `GlobalCount`: rename to `TotalActions` or `ActionCount`.
-- `UserStats`: track gameplay counts, ideally `charge_ups`, `punches`, `kicks`, `battles`, `raids`.
-- `BattleRecord`: keep or rename to `CombatRecord`.
-- `Cooldown`: keep as the short-term anti-spam mechanism.
-- `Allowance`: keep for token mechanics.
+- `ActionCount`: total gameplay actions.
+- `UserStats`: track `charge_ups`, `total_punches`, `total_kicks`, `total_battles`, `total_raids`.
+- `BattleRecord`: keep win/loss history.
+- `Cooldown`: short-term anti-spam mechanism.
+- `Allowance`: token mechanics.
 
 ## Event Plan
-- Emit a clear event for every gameplay action.
+- Emit a typed event for every gameplay action.
 - Include actor(s), target, and delta values where relevant.
-- Keep token events (`mint`, `transfer`, `burn`, `approve`) separate from gameplay events.
+- Keep token events (`Mint`, `Transfer`, `Burn`, `Approve`) separate from gameplay events.
 
 ## UI Impact
 - Put `Charge Up` first in the actions flow.
@@ -120,6 +119,6 @@ Turn the contract from a basic arena into an opt-in arena game with a coherent p
 - The contract name no longer implies a simple arena.
 
 ## Recommendation
-- Use `ArenaContract` as the new contract name.
+- Keep `ArenaContract` as the contract name.
 - Use `charge_up` as the self-growth method.
 - Use hybrid combat everywhere else, with opt-in battles and bounded draining attacks.
