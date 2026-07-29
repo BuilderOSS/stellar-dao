@@ -12,7 +12,7 @@ export type ContractActionName =
   | 'joint_punch'
   | 'heavy_kick'
   | 'transfer_points'
-  | 'reset_global'
+  | 'reset_action_count'
   | 'set_cooldown_duration'
   | 'extend_my_ttl';
 
@@ -339,11 +339,11 @@ export const ACTION_SECTIONS: Array<{
     hint: 'Privileged maintenance calls separated from the normal action flow.',
     actions: [
       {
-        id: 'reset_global',
-        title: 'Reset global',
-        method: 'reset_global',
+        id: 'reset_action_count',
+        title: 'Reset action count',
+        method: 'reset_action_count',
         group: 'admin',
-        description: 'Reset the global action count back to zero.',
+        description: 'Reset the action count back to zero.',
         signerCount: 1,
         fields: [
           { name: 'admin', label: 'Admin', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' }

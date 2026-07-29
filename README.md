@@ -1,43 +1,43 @@
-# Punch Counter
+# Punch Arena
 
 Soroban contracts plus a Next.js frontend with Stellar Wallets Kit and generated TypeScript contract clients.
 
 ## Workspace
 
-- `contracts/counter` - Soroban token contract
-- `packages/contracts/counter` - committed generated TS bindings
+- `contracts/arena` - Soroban token contract
+- `packages/arena-bindings` - committed generated TS bindings
 - `apps/web` - Next.js frontend
 
 ## Quick Start
 
 ```bash
 pnpm install
-pnpm setup:local
+pnpm arena:setup:local
 pnpm dev
 ```
 
 ## Local Network
 
 ```bash
-pnpm local:up
-pnpm local:down
+pnpm arena:local:up
+pnpm arena:local:down
 ```
 
-`pnpm local:up` starts a local Stellar container, creates a funded local identity, deploys and initializes the contract, and writes `apps/web/.env.local` for the frontend.
+`pnpm arena:local:up` starts a local Stellar container, creates a funded local identity, deploys and initializes the contract, and writes `apps/web/.env.local` for the frontend.
 
 ## Testnet Deploy
 
 ```bash
-pnpm contracts:deploy:testnet
+pnpm arena:deploy:testnet
 ```
 
 Set `NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID` in `apps/web/.env.local` if you deploy separately.
 
 ## Contracts
 
-### 🎯 Counter Token (Featured)
+### 🎯 Arena Token (Featured)
 
-**Location**: `contracts/counter/`
+**Location**: `contracts/arena/`
 
 A fully **SEP-0041 compliant fungible token** with unique action-based minting mechanics, showcasing **Soroban's Storage TTL (Time To Live)** management across all three storage types.
 
@@ -55,12 +55,12 @@ A fully **SEP-0041 compliant fungible token** with unique action-based minting m
 
 **Quick Start**:
 ```bash
-cd contracts/counter
+cd contracts/arena
 make test    # Run tests
 make build   # Build WASM
 ```
 
-See [Counter Token README](contracts/counter/README.md) for full documentation.
+See [Arena Token README](contracts/arena/README.md) for full documentation.
 
 ---
 
@@ -71,7 +71,7 @@ See [Counter Token README](contracts/counter/README.md) for full documentation.
 ├── apps/
 │   └── web/               # Next.js app
 ├── contracts/
-│   └── counter/           # SEP-0041 token with Storage TTL showcase
+│   └── arena/           # SEP-0041 token with Storage TTL showcase
 │       ├── src/
 │       │   ├── lib.rs    # Main contract implementation (850+ lines)
 │       │   └── test.rs   # Comprehensive test suite (29 tests)
@@ -80,7 +80,7 @@ See [Counter Token README](contracts/counter/README.md) for full documentation.
 │       └── README.md
 ├── packages/
 │   └── contracts/
-│       └── counter/       # Committed generated TS bindings
+│       └── arena/       # Committed generated TS bindings
 ├── Cargo.toml             # Workspace configuration
 ├── package.json           # PNPM scripts and workspace config
 ├── pnpm-workspace.yaml
@@ -91,10 +91,10 @@ See [Counter Token README](contracts/counter/README.md) for full documentation.
 
 Build the contract and frontend:
 ```bash
-stellar contract build --package counter
+stellar contract build --package arena
 pnpm --dir apps/web build
 # or
-cd contracts/counter && make build
+cd contracts/arena && make build
 ```
 
 ## Testing
@@ -103,12 +103,12 @@ Run all tests:
 ```bash
 cargo test
 # or
-cd contracts/counter && make test
+cd contracts/arena && make test
 ```
 
 ## SEP-0041 Token Standard
 
-The Counter Token implements the complete [SEP-0041 Token Interface](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md), making it compatible with all Stellar wallets, DEXs, and DeFi protocols.
+The Arena Token implements the complete [SEP-0041 Token Interface](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md), making it compatible with all Stellar wallets, DEXs, and DeFi protocols.
 
 ### Standard Functions Implemented
 
@@ -151,7 +151,7 @@ let alice_wins = client.battle(&alice, &bob, &10);
 
 ## Learning Resources
 
-The **Counter Token** is designed to teach:
+The **Arena Token** is designed to teach:
 
 1. **SEP-0041 Token Standard**: Complete implementation of Stellar's fungible token interface
 2. **Allowance Expiration**: Time-limited approvals with `live_until_ledger`
@@ -172,7 +172,7 @@ The **Counter Token** is designed to teach:
 | **Persistent** | Token balances, allowances, user data | Manual extension required | More expensive |
 | **Temporary** | Short-lived data (cooldowns) | Auto-expires | Cheapest overall |
 
-## Counter Token Storage Breakdown
+## Arena Token Storage Breakdown
 
 ### Instance Storage (Contract-wide)
 - `Admin` - Contract administrator address
@@ -224,7 +224,7 @@ transfer_points(from, to, approver, amount) // 3-party transfer
 ### Battle & Admin Functions
 ```rust
 battle(challenger, opponent, amount) → bool
-reset_global(admin)
+reset_action_count(admin)
 set_cooldown_duration(admin, seconds)
 extend_my_ttl(user)
 ```
@@ -232,7 +232,7 @@ extend_my_ttl(user)
 ### View Functions
 ```rust
 get_count(user) → i128                    // Same as balance()
-get_global_count() → i128
+get_action_count() → u32
 get_total_supply() → i128
 get_stats(user) → Option<UserStats>
 get_battle_record(user) → Option<BattleRecord>
@@ -249,7 +249,7 @@ use soroban_sdk::String;
 
 client.initialize(
     &admin,
-    &String::from_str(&env, "Counter Token"),
+    &String::from_str(&env, "Arena Token"),
     &String::from_str(&env, "CNTR"),
     &7,  // 7 decimals
 );
@@ -344,7 +344,7 @@ Tests: 16 (all passing ✅)
 
 ## Next Steps
 
-1. **Explore** the Counter Token contract to understand SEP-0041 and Storage TTL
+1. **Explore** the Arena Token contract to understand SEP-0041 and Storage TTL
 2. **Run tests** to see token operations and storage behaviors in action
 3. **Deploy** to testnet and interact with the token
 4. **Experiment** with action-based minting and multi-sig operations

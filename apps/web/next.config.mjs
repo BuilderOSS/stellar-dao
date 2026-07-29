@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@punch-counter/contracts-arena'],
+  transpilePackages: ['@punch-arena/arena-bindings'],
   typedRoutes: true
 };
 

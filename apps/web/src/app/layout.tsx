@@ -4,7 +4,7 @@ import '../../styled-system/styles.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Punch Counter: Arena Dashboard',
+  title: 'Punch Arena',
   description: 'Soroban arena dashboard with contract reads, signing, and action forms'
 };
 

@@ -20,7 +20,7 @@ type ReadState = {
   tokenSymbol: string;
   decimals: string;
   totalSupply: string;
-  globalCount: string;
+  actionCount: string;
   cooldownDuration: string;
   balance: string;
   isOnCooldown: string;
@@ -42,7 +42,7 @@ const emptyState: ReadState = {
   tokenSymbol: '—',
   decimals: '—',
   totalSupply: '—',
-  globalCount: '—',
+  actionCount: '—',
   cooldownDuration: '—',
   balance: '—',
   isOnCooldown: '—',
@@ -159,7 +159,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
         client.symbol(),
         client.decimals(),
         client.get_total_supply(),
-        client.get_global_count(),
+        client.get_action_count(),
         client.get_cooldown_duration()
       ]);
 
@@ -171,7 +171,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
         tokenSymbol: overview[1].result,
         decimals: String(overview[2].result),
         totalSupply: overview[3].result.toString(),
-        globalCount: overview[4].result.toString(),
+        actionCount: overview[4].result.toString(),
         cooldownDuration: overview[5].result.toString(),
         balance: '—',
         isOnCooldown: '—',
@@ -260,7 +260,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
               <Metric label="Points" value={state.tokenName === '—' ? '—' : `${state.tokenName} (${state.tokenSymbol})`} hint="Game points metadata." />
               <Metric label="Decimals" value={state.decimals} hint="Smallest on-chain unit precision." />
               <Metric label="Total supply" value={state.totalSupply} hint="Current issued points." />
-              <Metric label="Action count" value={state.globalCount} hint="Total arena actions seen by the contract." />
+              <Metric label="Action count" value={state.actionCount} hint="Total arena actions seen by the contract." />
               <Metric label="Cooldown" value={formatWithUnit(state.cooldownDuration, 's')} hint="Configured cooldown duration." />
               <Metric label="Synced" value={formatSyncedAt(state.syncedAt)} hint="Last completed refresh." />
             </Grid>

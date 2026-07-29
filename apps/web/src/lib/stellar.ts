@@ -1,4 +1,4 @@
-import { Client as ArenaClient } from '@punch-counter/contracts-arena';
+import { Client as ArenaClient } from '@punch-arena/arena-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 
 export type NetworkName = 'local' | 'testnet';

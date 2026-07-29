@@ -22,7 +22,7 @@ type DashboardSession = {
   history: ActionRecord[];
 };
 
-const STORAGE_KEY = 'punch-counter.arena-dashboard.v1';
+const STORAGE_KEY = 'punch-arena.dashboard.v1';
 
 const initialSession: DashboardSession = {
   network: 'local',
@@ -139,7 +139,7 @@ export function DashboardShell() {
               </div>
               <Text className="label">Soroban app shell</Text>
               <Heading style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.02 }}>
-                Punch Counter: Arena Dashboard
+                Punch Arena: Arena Dashboard
               </Heading>
               <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
                 A focused Soroban frontend with typed reads, wallet signing, and a clean path from local dev to testnet.

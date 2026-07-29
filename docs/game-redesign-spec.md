@@ -1,11 +1,11 @@
 # Game Redesign Spec
 
 ## Goal
-Turn the contract from a basic counter into an opt-in arena game with a coherent point economy.
+Turn the contract from a basic arena into an opt-in arena game with a coherent point economy.
 
 ## Naming
-- Rename `CounterContract` to `ArenaContract`.
-- Rename the package/folder from `counter` to `arena` when we implement.
+- Rename `ArenaContract` to `ArenaContract`.
+- Rename the package/folder from `arena` to `arena` when we implement.
 - Treat token balances as game points/power, not money.
 
 ## Design Rules
@@ -32,7 +32,7 @@ Turn the contract from a basic counter into an opt-in arena game with a coherent
 - Requires `user` auth only.
 - Mints `+1` point to `user`.
 - Increments total supply.
-- Increments action counters.
+- Increments action arenas.
 - This is the main self-growth mechanic.
 
 ### `punch(from, to)`
@@ -80,7 +80,7 @@ Turn the contract from a basic counter into an opt-in arena game with a coherent
 - Keep as advanced token mechanics.
 - Not part of the main game loop.
 
-### `reset_global`, `set_cooldown_duration`, `extend_my_ttl`
+### `reset_action_count`, `set_cooldown_duration`, `extend_my_ttl`
 - Keep as admin/dev utilities.
 - Hide from normal play.
 
@@ -117,7 +117,7 @@ Turn the contract from a basic counter into an opt-in arena game with a coherent
 - `punch` and `kick` work as unilateral light attacks.
 - `joint_punch` and `heavy_kick` work as allied raids.
 - The frontend can present the game in a way that makes the rules obvious.
-- The contract name no longer implies a simple counter.
+- The contract name no longer implies a simple arena.
 
 ## Recommendation
 - Use `ArenaContract` as the new contract name.

@@ -1,5 +1,5 @@
 {
-  "name": "@punch-counter/web",
+  "name": "@punch-arena/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.5.0",
-    "@punch-counter/contracts-arena": "workspace:*",
+    "@punch-arena/arena-bindings": "workspace:*",
     "@stellar/stellar-sdk": "^16.1.0",
     "buffer": "^6.0.3",
     "next": "^15.4.0",
