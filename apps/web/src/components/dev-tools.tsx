@@ -46,8 +46,12 @@ export function DevTools({ network, networkConfig, address, status, history, onR
             </Text>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {networkConfig.contractId ? <ShortId value={networkConfig.contractId} /> : <Badge>Missing contract id</Badge>}
+              <ShortId value={networkConfig.adminAddress} />
               {address ? <ShortId value={address} /> : <Badge>No wallet connected</Badge>}
             </div>
+            <Text className="lede" style={{ margin: 0, fontSize: '0.88rem' }}>
+              Admin address is configured for this network.
+            </Text>
             <Text className="lede" style={{ margin: 0, fontSize: '0.88rem' }}>
               Local arena log contains {history.length} recorded transaction attempt{history.length === 1 ? '' : 's'}.
             </Text>
@@ -76,6 +80,10 @@ export function DevTools({ network, networkConfig, address, status, history, onR
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                 These calls are grouped separately and should only be used with the correct privileged wallet.
               </Text>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <Badge>Admin</Badge>
+                <ShortId value={networkConfig.adminAddress} />
+              </div>
             </Stack>
           </Card>
           <Grid columns={{ base: 1, xl: 2 }} gap="4">

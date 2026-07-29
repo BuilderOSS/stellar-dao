@@ -9,6 +9,7 @@ if (!networkName || !['local', 'testnet'].includes(networkName)) {
 }
 
 const identityName = networkName === 'local' ? 'local-dev' : 'testnet-dev';
+const adminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 const envPath = 'apps/web/.env.local';
 const rpcUrl =
   networkName === 'local'
@@ -35,8 +36,6 @@ function readLocalEnv(key) {
 run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);
 
 runQuiet('stellar', ['keys', 'generate', identityName]);
-
-const publicKey = runQuiet('stellar', ['keys', 'public-key', identityName]).stdout.trim();
 
 if (networkName === 'local') {
   runQuiet('stellar', ['network', 'add', networkName, '--rpc-url', rpcUrl, '--network-passphrase', networkPassphrase]);
@@ -68,7 +67,6 @@ if (!exists.ok) {
   ]);
 }
 
-const admin = publicKey;
 runQuiet('stellar', [
   'contract',
   'invoke',
@@ -81,11 +79,11 @@ runQuiet('stellar', [
   '--',
   'initialize',
   '--admin',
-  admin,
+  adminAddress,
   '--name',
-    'Arena Token',
-    '--symbol',
-    'ARENA',
+  'Arena Token',
+  '--symbol',
+  'ARENA',
   '--decimals',
   '7'
 ]);
@@ -97,9 +95,11 @@ writeFileSync(
     `NEXT_PUBLIC_STELLAR_NETWORK=${networkName}`,
     'NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=http://localhost:8000/rpc',
     'NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=Standalone Network ; February 2017',
+    `NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS=${adminAddress}`,
     `NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID=${networkName === 'local' ? id : ''}`,
     'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
     'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
+    `NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS=${adminAddress}`,
     `NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID=${networkName === 'testnet' ? id : ''}`
   ].join('\n') + '\n'
 );

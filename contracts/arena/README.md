@@ -236,7 +236,7 @@ client.initialize(
 client.punch(&alice, &bob);
 assert_eq!(client.balance(&bob), 1);
 
-// Wait for cooldown to expire (1 hour default)
+// Wait for cooldown to expire (60 seconds default)
 // ...
 
 // Alice kicks Bob → Bob gets 2 more points
@@ -353,7 +353,7 @@ Temporary Storage:
 - Threshold: 1 day (17,280 ledgers)
 - Extend to: 2 days (34,560 ledgers)
 
-Default Cooldown: 3600 seconds (1 hour)
+Default Cooldown: 60 seconds
 ```
 
 ### WASM Build

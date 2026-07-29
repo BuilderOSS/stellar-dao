@@ -10,7 +10,10 @@ export type NetworkConfig = {
   rpcUrl: string;
   passphrase: string;
   contractId: string;
+  adminAddress: string;
 };
+
+const defaultAdminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 
 export function getNetworkConfig(name: NetworkName): NetworkConfig {
   if (name === 'testnet') {
@@ -20,7 +23,8 @@ export function getNetworkConfig(name: NetworkName): NetworkConfig {
       rpcUrl: process.env.NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL ?? 'https://soroban-testnet.stellar.org',
       passphrase:
         process.env.NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015',
-      contractId: process.env.NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID ?? ''
+      contractId: process.env.NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID ?? '',
+      adminAddress: process.env.NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS ?? defaultAdminAddress
     };
   }
 
@@ -30,7 +34,8 @@ export function getNetworkConfig(name: NetworkName): NetworkConfig {
     rpcUrl: process.env.NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL ?? 'http://localhost:8000/rpc',
     passphrase:
       process.env.NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017',
-    contractId: process.env.NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID ?? ''
+    contractId: process.env.NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID ?? '',
+    adminAddress: process.env.NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS ?? defaultAdminAddress
   };
 }
 

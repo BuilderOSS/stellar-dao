@@ -37,7 +37,7 @@ fn test_initialize() {
     );
 
     assert_eq!(client.get_action_count(), 0);
-    assert_eq!(client.get_cooldown_duration(), 3600);
+    assert_eq!(client.get_cooldown_duration(), 60);
     assert_eq!(client.get_total_supply(), 0);
 }
 

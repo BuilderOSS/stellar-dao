@@ -218,8 +218,8 @@ impl ArenaContract {
         // Initialize action count in INSTANCE storage
         env.storage().instance().set(&DataKey::ActionCount, &0u32);
 
-        // Set default cooldown to 1 hour (3600 seconds)
-        env.storage().instance().set(&DataKey::CooldownSecs, &3600u64);
+        // Set default cooldown to 60 seconds
+        env.storage().instance().set(&DataKey::CooldownSecs, &60u64);
 
         // SEP-0041: Initialize token metadata
         env.storage().instance().set(&DataKey::TokenName, &name);
@@ -542,7 +542,7 @@ impl ArenaContract {
             .storage()
             .instance()
             .get(&DataKey::CooldownSecs)
-            .unwrap_or(3600);
+            .unwrap_or(60);
 
         let current_time = env.ledger().timestamp();
         current_time < last_action + cooldown_secs
@@ -560,7 +560,7 @@ impl ArenaContract {
             .storage()
             .instance()
             .get(&DataKey::CooldownSecs)
-            .unwrap_or(3600);
+            .unwrap_or(60);
 
         let current_time = env.ledger().timestamp();
         let ready_time = last_action + cooldown_secs;
@@ -597,7 +597,7 @@ impl ArenaContract {
         env.storage()
             .instance()
             .get(&DataKey::CooldownSecs)
-            .unwrap_or(3600)
+            .unwrap_or(60)
     }
 
     // ===== HELPER FUNCTIONS =====

@@ -5,6 +5,7 @@ import { run, runQuiet } from './lib.mjs';
 const containerName = 'stellar-punch-arena-local';
 const networkName = 'local';
 const identityName = 'local-dev';
+const adminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 const networkPassphrase = 'Standalone Network ; February 2017';
 const salt = createHash('sha256').update(`punch-arena:${networkName}`).digest('hex');
 const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
@@ -122,7 +123,6 @@ function deployAndInit(id) {
     ]);
   }
 
-  const admin = runQuiet('stellar', ['keys', 'public-key', identityName]).stdout.trim();
   runQuiet('stellar', [
     'contract',
     'invoke',
@@ -135,7 +135,7 @@ function deployAndInit(id) {
     '--',
     'initialize',
     '--admin',
-    admin,
+    adminAddress,
     '--name',
     'Arena Token',
     '--symbol',
@@ -151,9 +151,11 @@ function writeEnv(id) {
     'NEXT_PUBLIC_STELLAR_NETWORK=local',
     `NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=${rpcUrl}`,
     `NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=${networkPassphrase}`,
+    `NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS=${adminAddress}`,
     `NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID=${id}`,
     'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
     'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
+    `NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS=${adminAddress}`,
     'NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID='
   ];
 

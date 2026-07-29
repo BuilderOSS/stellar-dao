@@ -263,7 +263,7 @@ client.initialize(
 client.punch(&alice, &bob);
 assert_eq!(client.balance(&bob), 1);
 
-// Wait for cooldown (1 hour default)...
+// Wait for cooldown (60s default)...
 
 // Alice kicks Bob → Bob gets 2 more tokens
 client.kick(&alice, &bob);
