@@ -22,15 +22,20 @@ export function AccountCenter({ network, address, status, history }: AccountCent
   const errorCount = countBy(history, (record) => record.status === 'error');
   const uniqueActions = new Set(history.map((record) => record.actionId)).size;
   const lastAction = history[0];
+  const chargeUps = countBy(history, (record) => record.actionId === 'charge_up');
+  const punches = countBy(history, (record) => record.actionId === 'punch');
+  const kicks = countBy(history, (record) => record.actionId === 'kick');
+  const battles = countBy(history, (record) => record.actionId === 'battle');
+  const raids = countBy(history, (record) => record.group === 'raid');
 
   return (
     <Stack gap="5">
       <Card p="6">
         <Stack gap="3">
           <Badge>{network === 'local' ? 'Local account' : 'Testnet account'}</Badge>
-          <Heading style={{ fontSize: '1.6rem' }}>Connected account</Heading>
+          <Heading style={{ fontSize: '1.6rem' }}>Arena profile</Heading>
           <Text className="lede" style={{ margin: 0 }}>
-            {address ? 'Wallet connected and ready for contract reads and submissions.' : 'Connect a wallet to unlock account actions.'}
+            {address ? 'Wallet connected and ready for reads, combat, and raids.' : 'Connect a wallet to unlock arena actions.'}
           </Text>
         </Stack>
       </Card>
@@ -50,6 +55,11 @@ export function AccountCenter({ network, address, status, history }: AccountCent
             <Text className="label">My activity</Text>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               <Badge>{history.length} actions</Badge>
+              <Badge>{chargeUps} charge ups</Badge>
+              <Badge>{punches} punches</Badge>
+              <Badge>{kicks} kicks</Badge>
+              <Badge>{battles} battles</Badge>
+              <Badge>{raids} raids</Badge>
               <Badge>{successCount} success</Badge>
               <Badge>{errorCount} failed</Badge>
               <Badge>{uniqueActions} kinds</Badge>

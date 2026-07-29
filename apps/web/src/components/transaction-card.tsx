@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createCounterActionClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
+import { createArenaActionClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
 import type { ActionPreview, ActionRecord, ActionSpec } from '@/lib/tx';
 import { safeStringify, summarizeValue } from '@/lib/tx';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
@@ -18,7 +18,7 @@ type PreviewState = ActionPreview & {
   assembled: any;
 };
 
-const autoPrefillFields = new Set(['from', 'admin', 'user', 'attacker']);
+const autoPrefillFields = new Set(['from', 'admin', 'user', 'attacker', 'user1']);
 
 function fieldTypeFor(type: ActionSpec['fields'][number]['type']) {
   if (type === 'amount' || type === 'u32') return 'text';
@@ -60,7 +60,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function buildPreview() {
-    const client = createCounterActionClient(currentNetwork, address);
+    const client = createArenaActionClient(currentNetwork, address);
     if (!client) {
       setStatus('Set a contract id first');
       return;

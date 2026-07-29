@@ -24,7 +24,7 @@ export function DevTools({ network, networkConfig, address, status, history, onR
       <Card p="6">
         <Stack gap="3">
           <Badge>Developer tools</Badge>
-          <Heading style={{ fontSize: '1.8rem' }}>Admin and diagnostics</Heading>
+          <Heading style={{ fontSize: '1.8rem' }}>Admin and arena diagnostics</Heading>
           <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
             Admin controls are intentionally separated from normal user flows. Use them here when the connected wallet
             is allowed to submit privileged operations.
@@ -49,7 +49,7 @@ export function DevTools({ network, networkConfig, address, status, history, onR
               {address ? <ShortId value={address} /> : <Badge>No wallet connected</Badge>}
             </div>
             <Text className="lede" style={{ margin: 0, fontSize: '0.88rem' }}>
-              Local activity log contains {history.length} recorded transaction attempt{history.length === 1 ? '' : 's'}.
+              Local arena log contains {history.length} recorded transaction attempt{history.length === 1 ? '' : 's'}.
             </Text>
           </Stack>
         </Card>

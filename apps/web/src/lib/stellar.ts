@@ -38,7 +38,7 @@ export function getDefaultNetwork(): NetworkName {
   return value === 'testnet' ? 'testnet' : 'local';
 }
 
-export function createCounterClient(network: NetworkConfig) {
+export function createArenaClient(network: NetworkConfig) {
   if (!network.contractId) {
     return null;
   }
@@ -56,7 +56,7 @@ function normalizeWalletError(error: unknown) {
   return { code: -1, message };
 }
 
-export function createCounterActionClient(network: NetworkConfig, address: string) {
+export function createArenaActionClient(network: NetworkConfig, address: string) {
   if (!network.contractId) {
     return null;
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createCounterClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
+import { createArenaClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 
@@ -143,7 +143,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
   }, [address]);
 
   async function refresh(targetWatchAddress = watchAddress, targetSpenderAddress = spenderAddress) {
-    const client = createCounterClient(currentNetwork);
+    const client = createArenaClient(currentNetwork);
     if (!client) {
       const error = 'Set a contract id first';
       setState((current) => ({ ...current, loading: false, error }));
@@ -239,10 +239,10 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
           title={view === 'overview' ? 'Overview' : view === 'account' ? 'Account' : 'Developer'}
           hint={
             view === 'overview'
-              ? 'Token metadata and network-level contract state'
+              ? 'Arena metadata and network-level point state'
               : view === 'account'
-                ? 'Reads for the selected account'
-                : 'Low-level contract and network diagnostics'
+                ? 'Reads for the selected arena profile'
+                : 'Low-level arena and network diagnostics'
           }
           action={state.loading ? 'Loading...' : 'Refresh'}
           onAction={() => void refresh()}
@@ -257,10 +257,10 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
         {view === 'overview' ? (
           <>
             <Grid columns={{ base: 1, md: 3 }} gap="4">
-              <Metric label="Token" value={state.tokenName === '—' ? '—' : `${state.tokenName} (${state.tokenSymbol})`} hint="Contract metadata." />
-              <Metric label="Decimals" value={state.decimals} hint="Token precision." />
-              <Metric label="Total supply" value={state.totalSupply} hint="Current issued supply." />
-              <Metric label="Global count" value={state.globalCount} hint="Total minted through app actions." />
+              <Metric label="Points" value={state.tokenName === '—' ? '—' : `${state.tokenName} (${state.tokenSymbol})`} hint="Game points metadata." />
+              <Metric label="Decimals" value={state.decimals} hint="Smallest on-chain unit precision." />
+              <Metric label="Total supply" value={state.totalSupply} hint="Current issued points." />
+              <Metric label="Action count" value={state.globalCount} hint="Total arena actions seen by the contract." />
               <Metric label="Cooldown" value={formatWithUnit(state.cooldownDuration, 's')} hint="Configured cooldown duration." />
               <Metric label="Synced" value={formatSyncedAt(state.syncedAt)} hint="Last completed refresh." />
             </Grid>
@@ -294,7 +294,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
             </Grid>
 
             <Grid columns={{ base: 1, md: 3 }} gap="4">
-              <Metric label="Balance" value={state.balance} hint="Balance for the inspected account." />
+              <Metric label="Points" value={state.balance} hint="Points for the inspected account." />
               <Metric label="On cooldown" value={state.isOnCooldown} hint="Whether the inspected account is blocked." />
               <Metric label="Cooldown remaining" value={formatWithUnit(state.cooldownRemaining, 's')} hint="Seconds until the next action." />
               <Metric label="Allowance" value={state.allowance} hint="Allowance for the selected spender." />

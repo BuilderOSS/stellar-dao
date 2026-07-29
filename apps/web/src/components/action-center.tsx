@@ -31,10 +31,10 @@ export function ActionCenter({ network, address, onRecord }: ActionCenterProps) 
     <Stack gap="5">
       <Card p="6">
         <Stack gap="3">
-          <Badge>Transaction center</Badge>
-          <Heading style={{ fontSize: '1.8rem' }}>Actions</Heading>
+          <Badge>Arena actions</Badge>
+          <Heading style={{ fontSize: '1.8rem' }}>Playbook</Heading>
           <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
-            Build each transaction, inspect the preview, then sign and submit from the connected wallet. Multi-signer
+            Build each arena move, inspect the preview, then sign and submit from the connected wallet. Multi-signer
             flows still show the full handoff payload for the extra signers.
           </Text>
         </Stack>

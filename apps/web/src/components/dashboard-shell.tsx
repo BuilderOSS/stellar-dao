@@ -22,7 +22,7 @@ type DashboardSession = {
   history: ActionRecord[];
 };
 
-const STORAGE_KEY = 'punch-counter.dashboard.v2';
+const STORAGE_KEY = 'punch-counter.arena-dashboard.v1';
 
 const initialSession: DashboardSession = {
   network: 'local',
@@ -139,7 +139,7 @@ export function DashboardShell() {
               </div>
               <Text className="label">Soroban app shell</Text>
               <Heading style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)', lineHeight: 1.02 }}>
-                Punch Counter: Soroban Token Dashboard
+                Punch Counter: Arena Dashboard
               </Heading>
               <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
                 A focused Soroban frontend with typed reads, wallet signing, and a clean path from local dev to testnet.
@@ -173,8 +173,8 @@ export function DashboardShell() {
             </Card>
             <Card p="4">
               <Stack gap="2">
-                <Text className="label">Contract</Text>
-                {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Text>Missing</Text>}
+              <Text className="label">Arena</Text>
+              {currentNetwork.contractId ? <ShortId value={currentNetwork.contractId} /> : <Text>Missing</Text>}
               </Stack>
             </Card>
             <SessionStat
@@ -207,9 +207,9 @@ export function DashboardShell() {
             <ContractDashboard network={session.network} address={session.address} view="overview" onSync={(patch) => updateSession(patch)} />
             <Card p="6">
               <Stack gap="3">
-                <Text className="label">Session activity</Text>
+                <Text className="label">Arena activity</Text>
                 <Text className="lede" style={{ margin: 0 }}>
-                  Track submitted actions here without indexing. Recent submissions stay local to this browser session.
+                  Track submitted arena actions here without indexing. Recent submissions stay local to this browser session.
                 </Text>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   <Badge>{session.history.length} local records</Badge>

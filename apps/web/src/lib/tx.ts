@@ -1,12 +1,14 @@
-export type ActionGroup = 'single' | 'two' | 'three' | 'admin';
+export type ActionGroup = 'growth' | 'combat' | 'battle' | 'raid' | 'economy' | 'admin';
 
 export type ContractActionName =
+  | 'charge_up'
   | 'punch'
   | 'kick'
   | 'burn'
   | 'battle'
   | 'approve'
   | 'transfer'
+  | 'burn_from'
   | 'joint_punch'
   | 'heavy_kick'
   | 'transfer_points'
@@ -115,113 +117,79 @@ export const ACTION_SECTIONS: Array<{
   actions: ActionSpec[];
 }> = [
   {
-    group: 'single',
-    title: 'Single-signer',
-    hint: 'Actions that can be completed from one connected wallet.',
+    group: 'growth',
+    title: 'Charge Up',
+    hint: 'Build your own points and keep your streak alive.',
+    actions: [
+      {
+        id: 'charge_up',
+        title: 'Charge Up',
+        method: 'charge_up',
+        group: 'growth',
+        description: 'Increase your own points by 1.',
+        signerCount: 1,
+        fields: [
+          { name: 'user', label: 'User', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' }
+        ],
+        buildArgs: (values, address) => ({
+          user: requireAddress(values.user, address, 'User address')
+        }),
+        formatResult: () => 'Charge up complete'
+      }
+    ]
+  },
+  {
+    group: 'combat',
+    title: 'Light Attacks',
+    hint: 'Quick unilateral drains against another player.',
     actions: [
       {
         id: 'punch',
         title: 'Punch',
         method: 'punch',
-        group: 'single',
-        description: 'Mint 1 token to the target and advance the action counter.',
+        group: 'combat',
+        description: 'Drain up to 1 point from a target and gain it.',
         signerCount: 1,
         fields: [
           { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
-          { name: 'to', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that receives the token.' }
+          { name: 'to', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that gets drained.' }
         ],
         buildArgs: (values, address) => ({
           from: requireAddress(values.from, address, 'From address'),
           to: requireAddress(values.to, '', 'Target address')
         }),
-        formatResult: (result) => `Punch result: ${summarizeValue(result)}`
+        formatResult: (result) => `Drained ${summarizeValue(result)} point(s)`
       },
       {
         id: 'kick',
         title: 'Kick',
         method: 'kick',
-        group: 'single',
-        description: 'Mint 2 tokens to the target.',
+        group: 'combat',
+        description: 'Drain up to 2 points from a target and gain them.',
         signerCount: 1,
         fields: [
           { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
-          { name: 'to', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that receives the token.' }
+          { name: 'to', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that gets drained.' }
         ],
         buildArgs: (values, address) => ({
           from: requireAddress(values.from, address, 'From address'),
           to: requireAddress(values.to, '', 'Target address')
         }),
-        formatResult: (result) => `Kick result: ${summarizeValue(result)}`
-      },
-      {
-        id: 'burn',
-        title: 'Burn',
-        method: 'burn',
-        group: 'single',
-        description: 'Burn tokens from a wallet balance.',
-        signerCount: 1,
-        fields: [
-          { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
-          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Integer token amount to burn.' }
-        ],
-        buildArgs: (values, address) => ({
-          from: requireAddress(values.from, address, 'From address'),
-          amount: parseAmount(values.amount, 'Amount')
-        }),
-        formatResult: (result) => `Burn result: ${summarizeValue(result)}`
-      },
-      {
-        id: 'approve',
-        title: 'Approve',
-        method: 'approve',
-        group: 'single',
-        description: 'Approve an allowance for a spender.',
-        signerCount: 1,
-        fields: [
-          { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
-          { name: 'spender', label: 'Spender', type: 'address', placeholder: 'Spender address', help: 'The address that receives approval.' },
-          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Approved token amount.' },
-          { name: 'live_until_ledger', label: 'Live until ledger', type: 'u32', placeholder: '0', help: 'Optional expiration ledger.' }
-        ],
-        buildArgs: (values, address) => ({
-          from: requireAddress(values.from, address, 'From address'),
-          spender: requireAddress(values.spender, '', 'Spender address'),
-          amount: parseAmount(values.amount, 'Amount'),
-          live_until_ledger: parseCount(values.live_until_ledger, 'Live until ledger')
-        }),
-        formatResult: (result) => `Approve result: ${summarizeValue(result)}`
+        formatResult: (result) => `Drained ${summarizeValue(result)} point(s)`
       }
     ]
   },
   {
-    group: 'two',
-    title: 'Two-signer',
-    hint: 'Actions that need two authorization paths or at least a shared handoff.',
+    group: 'battle',
+    title: 'Duel Arena',
+    hint: 'Opt-in PvP where both players sign and the winner drains points.',
     actions: [
-      {
-        id: 'transfer',
-        title: 'Transfer',
-        method: 'transfer',
-        group: 'two',
-        description: 'Transfer tokens from one account to another.',
-        signerCount: 2,
-        fields: [
-          { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
-          { name: 'to', label: 'To', type: 'address', placeholder: 'Recipient address', help: 'Recipient address.' },
-          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Integer token amount.' }
-        ],
-        buildArgs: (values, address) => ({
-          from: requireAddress(values.from, address, 'From address'),
-          to: requireAddress(values.to, '', 'Recipient address'),
-          amount: parseAmount(values.amount, 'Amount')
-        })
-      },
       {
         id: 'battle',
         title: 'Battle',
         method: 'battle',
-        group: 'two',
-        description: 'Battle two accounts and record the outcome.',
+        group: 'battle',
+        description: 'Both players sign. Winner drains up to 3 points from the loser.',
         signerCount: 2,
         fields: [
           { name: 'attacker', label: 'Attacker', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
@@ -230,70 +198,138 @@ export const ACTION_SECTIONS: Array<{
         buildArgs: (values, address) => ({
           attacker: requireAddress(values.attacker, address, 'Attacker address'),
           defender: requireAddress(values.defender, '', 'Defender address')
-        })
-      },
+        }),
+        formatResult: (result) => (result ? 'Attacker won' : 'Defender won')
+      }
+    ]
+  },
+  {
+    group: 'raid',
+    title: 'Team Raids',
+    hint: 'Allied signers coordinate to drain a target without target approval.',
+    actions: [
       {
         id: 'joint_punch',
-        title: 'Joint punch',
+        title: 'Joint Punch',
         method: 'joint_punch',
-        group: 'two',
-        description: 'Two users jointly punch a target.',
+        group: 'raid',
+        description: 'Two allies jointly drain up to 4 points from a target.',
         signerCount: 2,
         fields: [
-          { name: 'user1', label: 'User 1', type: 'address', placeholder: 'Signer 1', help: 'First signer.' },
-          { name: 'user2', label: 'User 2', type: 'address', placeholder: 'Signer 2', help: 'Second signer.' },
-          { name: 'target', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that receives the token.' }
+          { name: 'user1', label: 'Ally 1', type: 'address', placeholder: 'Signer 1', help: 'Defaults to your wallet if empty.' },
+          { name: 'user2', label: 'Ally 2', type: 'address', placeholder: 'Signer 2', help: 'Second allied signer.' },
+          { name: 'target', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that gets drained.' }
         ],
-        buildArgs: (values) => ({
-          user1: requireAddress(values.user1, '', 'User 1 address'),
-          user2: requireAddress(values.user2, '', 'User 2 address'),
+        buildArgs: (values, address) => ({
+          user1: requireAddress(values.user1, address, 'Ally 1 address'),
+          user2: requireAddress(values.user2, '', 'Ally 2 address'),
           target: requireAddress(values.target, '', 'Target address')
-        })
+        }),
+        formatResult: (result) => `Raid drained ${summarizeValue(result)} point(s)`
       },
       {
+        id: 'heavy_kick',
+        title: 'Heavy Kick',
+        method: 'heavy_kick',
+        group: 'raid',
+        description: 'Three allies jointly drain up to 6 points from a target.',
+        signerCount: 3,
+        fields: [
+          { name: 'user1', label: 'Ally 1', type: 'address', placeholder: 'Signer 1', help: 'Defaults to your wallet if empty.' },
+          { name: 'user2', label: 'Ally 2', type: 'address', placeholder: 'Signer 2', help: 'Second allied signer.' },
+          { name: 'user3', label: 'Ally 3', type: 'address', placeholder: 'Signer 3', help: 'Third allied signer.' },
+          { name: 'target', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that gets drained.' }
+        ],
+        buildArgs: (values, address) => ({
+          user1: requireAddress(values.user1, address, 'Ally 1 address'),
+          user2: requireAddress(values.user2, '', 'Ally 2 address'),
+          user3: requireAddress(values.user3, '', 'Ally 3 address'),
+          target: requireAddress(values.target, '', 'Target address')
+        }),
+        formatResult: (result) => `Raid drained ${summarizeValue(result)} point(s)`
+      }
+    ]
+  },
+  {
+    group: 'economy',
+    title: 'Token Mechanics',
+    hint: 'Advanced transfer and allowance flows that sit beside the game loop.',
+    actions: [
+      {
         id: 'transfer_points',
-        title: 'Transfer points',
+        title: 'Transfer Points',
         method: 'transfer_points',
-        group: 'two',
-        description: 'Transfer points between two users.',
+        group: 'economy',
+        description: 'Transfer points between two users. Both sides sign.',
         signerCount: 2,
         fields: [
           { name: 'from', label: 'From', type: 'address', placeholder: 'Sender address', help: 'Sender address.' },
           { name: 'to', label: 'To', type: 'address', placeholder: 'Recipient address', help: 'Recipient address.' },
-          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Integer token amount.' }
+          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Integer point amount.' }
         ],
         buildArgs: (values, address) => ({
           from: requireAddress(values.from, address, 'From address'),
           to: requireAddress(values.to, '', 'Recipient address'),
           amount: parseAmount(values.amount, 'Amount')
-        })
-      }
-    ]
-  },
-  {
-    group: 'three',
-    title: 'Three-signer',
-    hint: 'Heavy coordination flows that need a full handoff.',
-    actions: [
+        }),
+        formatResult: () => 'Transfer submitted'
+      },
       {
-        id: 'heavy_kick',
-        title: 'Heavy kick',
-        method: 'heavy_kick',
-        group: 'three',
-        description: 'Three users jointly kick a target.',
-        signerCount: 3,
+        id: 'approve',
+        title: 'Approve',
+        method: 'approve',
+        group: 'economy',
+        description: 'Approve an allowance for another account.',
+        signerCount: 1,
         fields: [
-          { name: 'user1', label: 'User 1', type: 'address', placeholder: 'Signer 1', help: 'First signer.' },
-          { name: 'user2', label: 'User 2', type: 'address', placeholder: 'Signer 2', help: 'Second signer.' },
-          { name: 'user3', label: 'User 3', type: 'address', placeholder: 'Signer 3', help: 'Third signer.' },
-          { name: 'target', label: 'Target', type: 'address', placeholder: 'Target address', help: 'The target that receives the token.' }
+          { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
+          { name: 'spender', label: 'Spender', type: 'address', placeholder: 'Spender address', help: 'The address that receives approval.' },
+          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Approved point amount.' },
+          { name: 'live_until_ledger', label: 'Live until ledger', type: 'u32', placeholder: '0', help: 'Optional expiration ledger.' }
         ],
-        buildArgs: (values) => ({
-          user1: requireAddress(values.user1, '', 'User 1 address'),
-          user2: requireAddress(values.user2, '', 'User 2 address'),
-          user3: requireAddress(values.user3, '', 'User 3 address'),
-          target: requireAddress(values.target, '', 'Target address')
-        })
+        buildArgs: (values, address) => ({
+          from: requireAddress(values.from, address, 'From address'),
+          spender: requireAddress(values.spender, '', 'Spender address'),
+          amount: parseAmount(values.amount, 'Amount'),
+          live_until_ledger: parseCount(values.live_until_ledger, 'Live until ledger')
+        }),
+        formatResult: () => 'Allowance approved'
+      },
+      {
+        id: 'burn',
+        title: 'Burn',
+        method: 'burn',
+        group: 'economy',
+        description: 'Burn points from your own balance.',
+        signerCount: 1,
+        fields: [
+          { name: 'from', label: 'From', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
+          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Integer point amount to burn.' }
+        ],
+        buildArgs: (values, address) => ({
+          from: requireAddress(values.from, address, 'From address'),
+          amount: parseAmount(values.amount, 'Amount')
+        }),
+        formatResult: () => 'Burn submitted'
+      },
+      {
+        id: 'burn_from',
+        title: 'Burn From',
+        method: 'burn_from',
+        group: 'economy',
+        description: 'Burn points from another account through allowance.',
+        signerCount: 1,
+        fields: [
+          { name: 'spender', label: 'Spender', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' },
+          { name: 'from', label: 'From', type: 'address', placeholder: 'Owner address', help: 'The account that approved the allowance.' },
+          { name: 'amount', label: 'Amount', type: 'amount', placeholder: '1', help: 'Integer point amount to burn.' }
+        ],
+        buildArgs: (values, address) => ({
+          spender: requireAddress(values.spender, address, 'Spender address'),
+          from: requireAddress(values.from, '', 'Owner address'),
+          amount: parseAmount(values.amount, 'Amount')
+        }),
+        formatResult: () => 'Allowance burn submitted'
       }
     ]
   },
@@ -307,7 +343,7 @@ export const ACTION_SECTIONS: Array<{
         title: 'Reset global',
         method: 'reset_global',
         group: 'admin',
-        description: 'Reset the global counter back to zero.',
+        description: 'Reset the global action count back to zero.',
         signerCount: 1,
         fields: [
           { name: 'admin', label: 'Admin', type: 'address', placeholder: 'Use connected wallet', help: 'Defaults to the connected wallet.' }
@@ -315,7 +351,7 @@ export const ACTION_SECTIONS: Array<{
         buildArgs: (values, address) => ({
           admin: requireAddress(values.admin, address, 'Admin address')
         }),
-        formatResult: () => 'Global counter reset'
+        formatResult: () => 'Action count reset'
       },
       {
         id: 'set_cooldown_duration',
