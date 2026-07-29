@@ -17,7 +17,7 @@ const rpcUrl =
 const networkPassphrase =
   networkName === 'local' ? 'Standalone Network ; February 2017' : 'Test SDF Network ; September 2015';
 const salt = createHash('sha256').update(`punch-counter:${networkName}`).digest('hex');
-const wasmPath = 'target/wasm32-unknown-unknown/release/counter.wasm';
+const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
 
 function readLocalEnv(key) {
   if (!existsSync(envPath)) {
@@ -32,7 +32,7 @@ function readLocalEnv(key) {
   return line ? line.slice(key.length + 1).trim() : null;
 }
 
-run('stellar', ['contract', 'build', '--package', 'counter', '--out-dir', 'target/wasm32-unknown-unknown/release']);
+run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);
 
 runQuiet('stellar', ['keys', 'generate', identityName]);
 
@@ -61,7 +61,7 @@ if (!exists.ok) {
     '--salt',
     salt,
     '--alias',
-    `counter-${networkName}`
+    `arena-${networkName}`
   ]);
 }
 

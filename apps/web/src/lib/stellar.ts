@@ -1,4 +1,4 @@
-import { Client as CounterClient } from '@punch-counter/contracts-counter';
+import { Client as ArenaClient } from '@punch-counter/contracts-arena';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 
 export type NetworkName = 'local' | 'testnet';
@@ -43,7 +43,7 @@ export function createCounterClient(network: NetworkConfig) {
     return null;
   }
 
-  return new CounterClient({
+  return new ArenaClient({
     contractId: network.contractId,
     rpcUrl: network.rpcUrl,
     networkPassphrase: network.passphrase,
@@ -61,7 +61,7 @@ export function createCounterActionClient(network: NetworkConfig, address: strin
     return null;
   }
 
-  return new CounterClient({
+  return new ArenaClient({
     contractId: network.contractId,
     rpcUrl: network.rpcUrl,
     networkPassphrase: network.passphrase,

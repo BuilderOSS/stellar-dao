@@ -33,13 +33,16 @@ if (typeof window !== "undefined") {
 
 
 
-export type DataKey = {tag: "Admin", values: void} | {tag: "GlobalCount", values: void} | {tag: "CooldownSecs", values: void} | {tag: "TotalSupply", values: void} | {tag: "TokenName", values: void} | {tag: "TokenSymbol", values: void} | {tag: "Decimals", values: void} | {tag: "Balance", values: readonly [string]} | {tag: "UserStats", values: readonly [string]} | {tag: "BattleRecord", values: readonly [string]} | {tag: "Allowance", values: readonly [string, string]} | {tag: "Cooldown", values: readonly [string]};
+export type DataKey = {tag: "Admin", values: void} | {tag: "ActionCount", values: void} | {tag: "CooldownSecs", values: void} | {tag: "TotalSupply", values: void} | {tag: "TokenName", values: void} | {tag: "TokenSymbol", values: void} | {tag: "Decimals", values: void} | {tag: "Balance", values: readonly [string]} | {tag: "UserStats", values: readonly [string]} | {tag: "BattleRecord", values: readonly [string]} | {tag: "Allowance", values: readonly [string, string]} | {tag: "Cooldown", values: readonly [string]};
 
 
 export interface UserStats {
+  charge_ups: u32;
   last_action: u64;
+  total_battles: u32;
   total_kicks: u32;
   total_punches: u32;
+  total_raids: u32;
 }
 
 
@@ -63,8 +66,8 @@ export interface Client {
 
   /**
    * Construct and simulate a kick transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * KICK - Actor kicks target, minting 2 tokens to target
-   * Demonstrates: Token minting with higher reward
+   * KICK - Actor drains up to 2 points from target and gains them
+   * Demonstrates: Stronger unilateral attack, bounded drain, TTL extension
    */
   kick: ({from, to}: {from: string, to: string}, options?: MethodOptions) => Promise<AssembledTransaction<i128>>
 
@@ -75,15 +78,15 @@ export interface Client {
 
   /**
    * Construct and simulate a punch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * PUNCH - Actor punches target, minting 1 token to target
-   * Demonstrates: Token minting, action-based gameplay, TTL extension
+   * PUNCH - Actor drains up to 1 point from target and gains it
+   * Demonstrates: Light unilateral attack, bounded drain, TTL extension
    */
   punch: ({from, to}: {from: string, to: string}, options?: MethodOptions) => Promise<AssembledTransaction<i128>>
 
   /**
    * Construct and simulate a battle transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * BATTLE - Two users battle, winner determined by token balance
-   * Demonstrates: Competitive multi-sig with mint/burn mechanics
+   * BATTLE - Two users duel, winner drains up to 3 points from the loser
+   * Demonstrates: Opt-in PvP with bounded point transfer
    */
   battle: ({attacker, defender}: {attacker: string, defender: string}, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>
 
@@ -123,6 +126,13 @@ export interface Client {
   burn_from: ({spender, from, amount}: {spender: string, from: string, amount: i128}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
 
   /**
+   * Construct and simulate a charge_up transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * CHARGE UP - Actor mints 1 point to themselves
+   * Demonstrates: Self-growth, cooldown management, TTL extension
+   */
+  charge_up: ({user}: {user: string}, options?: MethodOptions) => Promise<AssembledTransaction<i128>>
+
+  /**
    * Construct and simulate a get_count transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get user's token balance (SEP-0041 compatible via balance() too)
    */
@@ -136,8 +146,8 @@ export interface Client {
 
   /**
    * Construct and simulate a heavy_kick transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * HEAVY KICK - Three users jointly kick a target, minting 6 tokens total
-   * Demonstrates: Triple multi-signature authorization
+   * HEAVY KICK - Three allied users drain up to 6 points from a target
+   * Demonstrates: Triple-signature raid with bounded point transfer
    */
   heavy_kick: ({user1, user2, user3, target}: {user1: string, user2: string, user3: string, target: string}, options?: MethodOptions) => Promise<AssembledTransaction<i128>>
 
@@ -150,8 +160,8 @@ export interface Client {
 
   /**
    * Construct and simulate a joint_punch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * JOINT PUNCH - Two users jointly punch a target, minting 4 tokens total
-   * Demonstrates: Multi-signature authorization with require_auth() x2
+   * JOINT PUNCH - Two allied users drain up to 4 points from a target
+   * Demonstrates: Multi-signature raid with bounded point transfer
    */
   joint_punch: ({user1, user2, target}: {user1: string, user2: string, target: string}, options?: MethodOptions) => Promise<AssembledTransaction<i128>>
 
@@ -240,15 +250,15 @@ export class Client extends ContractClient {
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAAB0RhdGFLZXkAAAAADAAAAAAAAAAAAAAABUFkbWluAAAAAAAAAAAAAAAAAAALR2xvYmFsQ291bnQAAAAAAAAAAAAAAAAMQ29vbGRvd25TZWNzAAAAAAAAAAAAAAALVG90YWxTdXBwbHkAAAAAAAAAAAAAAAAJVG9rZW5OYW1lAAAAAAAAAAAAAAAAAAALVG9rZW5TeW1ib2wAAAAAAAAAAAAAAAAIRGVjaW1hbHMAAAABAAAAAAAAAAdCYWxhbmNlAAAAAAEAAAATAAAAAQAAAAAAAAAJVXNlclN0YXRzAAAAAAAAAQAAABMAAAABAAAAAAAAAAxCYXR0bGVSZWNvcmQAAAABAAAAEwAAAAEAAAAAAAAACUFsbG93YW5jZQAAAAAAAAIAAAATAAAAEwAAAAEAAAAAAAAACENvb2xkb3duAAAAAQAAABM=",
-        "AAAAAQAAAAAAAAAAAAAACVVzZXJTdGF0cwAAAAAAAAMAAAAAAAAAC2xhc3RfYWN0aW9uAAAAAAYAAAAAAAAAC3RvdGFsX2tpY2tzAAAAAAQAAAAAAAAADXRvdGFsX3B1bmNoZXMAAAAAAAAE",
+      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAAB0RhdGFLZXkAAAAADAAAAAAAAAAAAAAABUFkbWluAAAAAAAAAAAAAAAAAAALQWN0aW9uQ291bnQAAAAAAAAAAAAAAAAMQ29vbGRvd25TZWNzAAAAAAAAAAAAAAALVG90YWxTdXBwbHkAAAAAAAAAAAAAAAAJVG9rZW5OYW1lAAAAAAAAAAAAAAAAAAALVG9rZW5TeW1ib2wAAAAAAAAAAAAAAAAIRGVjaW1hbHMAAAABAAAAAAAAAAdCYWxhbmNlAAAAAAEAAAATAAAAAQAAAAAAAAAJVXNlclN0YXRzAAAAAAAAAQAAABMAAAABAAAAAAAAAAxCYXR0bGVSZWNvcmQAAAABAAAAEwAAAAEAAAAAAAAACUFsbG93YW5jZQAAAAAAAAIAAAATAAAAEwAAAAEAAAAAAAAACENvb2xkb3duAAAAAQAAABM=",
+        "AAAAAQAAAAAAAAAAAAAACVVzZXJTdGF0cwAAAAAAAAYAAAAAAAAACmNoYXJnZV91cHMAAAAAAAQAAAAAAAAAC2xhc3RfYWN0aW9uAAAAAAYAAAAAAAAADXRvdGFsX2JhdHRsZXMAAAAAAAAEAAAAAAAAAAt0b3RhbF9raWNrcwAAAAAEAAAAAAAAAA10b3RhbF9wdW5jaGVzAAAAAAAABAAAAAAAAAALdG90YWxfcmFpZHMAAAAABA==",
         "AAAAAQAAAAAAAAAAAAAADEJhdHRsZVJlY29yZAAAAAMAAAAAAAAABmxvc3NlcwAAAAAABAAAAAAAAAANdG90YWxfYmF0dGxlcwAAAAAAAAQAAAAAAAAABHdpbnMAAAAE",
         "AAAAAQAAAAAAAAAAAAAADkFsbG93YW5jZVZhbHVlAAAAAAACAAAAAAAAAAZhbW91bnQAAAAAAAsAAAAAAAAAEWxpdmVfdW50aWxfbGVkZ2VyAAAAAAAABA==",
         "AAAAAAAAAAAAAAAEYnVybgAAAAIAAAAAAAAABGZyb20AAAATAAAAAAAAAAZhbW91bnQAAAAAAAsAAAAA",
-        "AAAAAAAAAGRLSUNLIC0gQWN0b3Iga2lja3MgdGFyZ2V0LCBtaW50aW5nIDIgdG9rZW5zIHRvIHRhcmdldApEZW1vbnN0cmF0ZXM6IFRva2VuIG1pbnRpbmcgd2l0aCBoaWdoZXIgcmV3YXJkAAAABGtpY2sAAAACAAAAAAAAAARmcm9tAAAAEwAAAAAAAAACdG8AAAAAABMAAAABAAAACw==",
+        "AAAAAAAAAIRLSUNLIC0gQWN0b3IgZHJhaW5zIHVwIHRvIDIgcG9pbnRzIGZyb20gdGFyZ2V0IGFuZCBnYWlucyB0aGVtCkRlbW9uc3RyYXRlczogU3Ryb25nZXIgdW5pbGF0ZXJhbCBhdHRhY2ssIGJvdW5kZWQgZHJhaW4sIFRUTCBleHRlbnNpb24AAAAEa2ljawAAAAIAAAAAAAAABGZyb20AAAATAAAAAAAAAAJ0bwAAAAAAEwAAAAEAAAAL",
         "AAAAAAAAAAAAAAAEbmFtZQAAAAAAAAABAAAAEA==",
-        "AAAAAAAAAHlQVU5DSCAtIEFjdG9yIHB1bmNoZXMgdGFyZ2V0LCBtaW50aW5nIDEgdG9rZW4gdG8gdGFyZ2V0CkRlbW9uc3RyYXRlczogVG9rZW4gbWludGluZywgYWN0aW9uLWJhc2VkIGdhbWVwbGF5LCBUVEwgZXh0ZW5zaW9uAAAAAAAABXB1bmNoAAAAAAAAAgAAAAAAAAAEZnJvbQAAABMAAAAAAAAAAnRvAAAAAAATAAAAAQAAAAs=",
-        "AAAAAAAAAHpCQVRUTEUgLSBUd28gdXNlcnMgYmF0dGxlLCB3aW5uZXIgZGV0ZXJtaW5lZCBieSB0b2tlbiBiYWxhbmNlCkRlbW9uc3RyYXRlczogQ29tcGV0aXRpdmUgbXVsdGktc2lnIHdpdGggbWludC9idXJuIG1lY2hhbmljcwAAAAAABmJhdHRsZQAAAAAAAgAAAAAAAAAIYXR0YWNrZXIAAAATAAAAAAAAAAhkZWZlbmRlcgAAABMAAAABAAAAAQ==",
+        "AAAAAAAAAH9QVU5DSCAtIEFjdG9yIGRyYWlucyB1cCB0byAxIHBvaW50IGZyb20gdGFyZ2V0IGFuZCBnYWlucyBpdApEZW1vbnN0cmF0ZXM6IExpZ2h0IHVuaWxhdGVyYWwgYXR0YWNrLCBib3VuZGVkIGRyYWluLCBUVEwgZXh0ZW5zaW9uAAAAAAVwdW5jaAAAAAAAAAIAAAAAAAAABGZyb20AAAATAAAAAAAAAAJ0bwAAAAAAEwAAAAEAAAAL",
+        "AAAAAAAAAHlCQVRUTEUgLSBUd28gdXNlcnMgZHVlbCwgd2lubmVyIGRyYWlucyB1cCB0byAzIHBvaW50cyBmcm9tIHRoZSBsb3NlcgpEZW1vbnN0cmF0ZXM6IE9wdC1pbiBQdlAgd2l0aCBib3VuZGVkIHBvaW50IHRyYW5zZmVyAAAAAAAABmJhdHRsZQAAAAAAAgAAAAAAAAAIYXR0YWNrZXIAAAATAAAAAAAAAAhkZWZlbmRlcgAAABMAAAABAAAAAQ==",
         "AAAAAAAAAAAAAAAGc3ltYm9sAAAAAAAAAAAAAQAAABA=",
         "AAAAAAAAAAAAAAAHYXBwcm92ZQAAAAAEAAAAAAAAAARmcm9tAAAAEwAAAAAAAAAHc3BlbmRlcgAAAAATAAAAAAAAAAZhbW91bnQAAAAAAAsAAAAAAAAAEWxpdmVfdW50aWxfbGVkZ2VyAAAAAAAABAAAAAA=",
         "AAAAAAAAAAAAAAAHYmFsYW5jZQAAAAABAAAAAAAAAAJpZAAAAAAAEwAAAAEAAAAL",
@@ -256,11 +266,12 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAAIdHJhbnNmZXIAAAADAAAAAAAAAARmcm9tAAAAEwAAAAAAAAACdG8AAAAAABQAAAAAAAAABmFtb3VudAAAAAAACwAAAAA=",
         "AAAAAAAAAAAAAAAJYWxsb3dhbmNlAAAAAAAAAgAAAAAAAAAEZnJvbQAAABMAAAAAAAAAB3NwZW5kZXIAAAAAEwAAAAEAAAAL",
         "AAAAAAAAAAAAAAAJYnVybl9mcm9tAAAAAAAAAwAAAAAAAAAHc3BlbmRlcgAAAAATAAAAAAAAAARmcm9tAAAAEwAAAAAAAAAGYW1vdW50AAAAAAALAAAAAA==",
+        "AAAAAAAAAGtDSEFSR0UgVVAgLSBBY3RvciBtaW50cyAxIHBvaW50IHRvIHRoZW1zZWx2ZXMKRGVtb25zdHJhdGVzOiBTZWxmLWdyb3d0aCwgY29vbGRvd24gbWFuYWdlbWVudCwgVFRMIGV4dGVuc2lvbgAAAAAJY2hhcmdlX3VwAAAAAAAAAQAAAAAAAAAEdXNlcgAAABMAAAABAAAACw==",
         "AAAAAAAAAEBHZXQgdXNlcidzIHRva2VuIGJhbGFuY2UgKFNFUC0wMDQxIGNvbXBhdGlibGUgdmlhIGJhbGFuY2UoKSB0b28pAAAACWdldF9jb3VudAAAAAAAAAEAAAAAAAAABHVzZXIAAAATAAAAAQAAAAs=",
         "AAAAAAAAAB5HZXQgdXNlcidzIGRldGFpbGVkIHN0YXRpc3RpY3MAAAAAAAlnZXRfc3RhdHMAAAAAAAABAAAAAAAAAAR1c2VyAAAAEwAAAAEAAAPoAAAH0AAAAAlVc2VyU3RhdHMAAAA=",
-        "AAAAAAAAAHlIRUFWWSBLSUNLIC0gVGhyZWUgdXNlcnMgam9pbnRseSBraWNrIGEgdGFyZ2V0LCBtaW50aW5nIDYgdG9rZW5zIHRvdGFsCkRlbW9uc3RyYXRlczogVHJpcGxlIG11bHRpLXNpZ25hdHVyZSBhdXRob3JpemF0aW9uAAAAAAAACmhlYXZ5X2tpY2sAAAAAAAQAAAAAAAAABXVzZXIxAAAAAAAAEwAAAAAAAAAFdXNlcjIAAAAAAAATAAAAAAAAAAV1c2VyMwAAAAAAABMAAAAAAAAABnRhcmdldAAAAAAAEwAAAAEAAAAL",
+        "AAAAAAAAAIJIRUFWWSBLSUNLIC0gVGhyZWUgYWxsaWVkIHVzZXJzIGRyYWluIHVwIHRvIDYgcG9pbnRzIGZyb20gYSB0YXJnZXQKRGVtb25zdHJhdGVzOiBUcmlwbGUtc2lnbmF0dXJlIHJhaWQgd2l0aCBib3VuZGVkIHBvaW50IHRyYW5zZmVyAAAAAAAKaGVhdnlfa2ljawAAAAAABAAAAAAAAAAFdXNlcjEAAAAAAAATAAAAAAAAAAV1c2VyMgAAAAAAABMAAAAAAAAABXVzZXIzAAAAAAAAEwAAAAAAAAAGdGFyZ2V0AAAAAAATAAAAAQAAAAs=",
         "AAAAAAAAAFdJbml0aWFsaXplIHRoZSBjb250cmFjdCB3aXRoIHRva2VuIG1ldGFkYXRhIGFuZCBhZG1pbgpTRVAtMDA0MSBjb21wbGlhbnQgaW5pdGlhbGl6YXRpb24AAAAACmluaXRpYWxpemUAAAAAAAQAAAAAAAAABWFkbWluAAAAAAAAEwAAAAAAAAAEbmFtZQAAABAAAAAAAAAABnN5bWJvbAAAAAAAEAAAAAAAAAAIZGVjaW1hbHMAAAAEAAAAAA==",
-        "AAAAAAAAAIlKT0lOVCBQVU5DSCAtIFR3byB1c2VycyBqb2ludGx5IHB1bmNoIGEgdGFyZ2V0LCBtaW50aW5nIDQgdG9rZW5zIHRvdGFsCkRlbW9uc3RyYXRlczogTXVsdGktc2lnbmF0dXJlIGF1dGhvcml6YXRpb24gd2l0aCByZXF1aXJlX2F1dGgoKSB4MgAAAAAAAAtqb2ludF9wdW5jaAAAAAADAAAAAAAAAAV1c2VyMQAAAAAAABMAAAAAAAAABXVzZXIyAAAAAAAAEwAAAAAAAAAGdGFyZ2V0AAAAAAATAAAAAQAAAAs=",
+        "AAAAAAAAAIBKT0lOVCBQVU5DSCAtIFR3byBhbGxpZWQgdXNlcnMgZHJhaW4gdXAgdG8gNCBwb2ludHMgZnJvbSBhIHRhcmdldApEZW1vbnN0cmF0ZXM6IE11bHRpLXNpZ25hdHVyZSByYWlkIHdpdGggYm91bmRlZCBwb2ludCB0cmFuc2ZlcgAAAAtqb2ludF9wdW5jaAAAAAADAAAAAAAAAAV1c2VyMQAAAAAAABMAAAAAAAAABXVzZXIyAAAAAAAAEwAAAAAAAAAGdGFyZ2V0AAAAAAATAAAAAQAAAAs=",
         "AAAAAAAAACFSZXNldCBnbG9iYWwgY291bnRlciAoYWRtaW4gb25seSkAAAAAAAAMcmVzZXRfZ2xvYmFsAAAAAQAAAAAAAAAFYWRtaW4AAAAAAAATAAAAAA==",
         "AAAAAAAAAGNNYW51YWxseSBleHRlbmQgVFRMIGZvciB5b3VyIGJhbGFuY2UgYW5kIHN0YXRzCkRlbW9uc3RyYXRlczogTWFudWFsIFRUTCBleHRlbnNpb24gdG8gcHJldmVudCBleHBpcnkAAAAADWV4dGVuZF9teV90dGwAAAAAAAABAAAAAAAAAAR1c2VyAAAAEwAAAAA=",
         "AAAAAAAAAAAAAAANdHJhbnNmZXJfZnJvbQAAAAAAAAQAAAAAAAAAB3NwZW5kZXIAAAAAEwAAAAAAAAAEZnJvbQAAABMAAAAAAAAAAnRvAAAAAAATAAAAAAAAAAZhbW91bnQAAAAAAAsAAAAA",
@@ -288,6 +299,7 @@ export class Client extends ContractClient {
         transfer: this.txFromJSON<null>,
         allowance: this.txFromJSON<i128>,
         burn_from: this.txFromJSON<null>,
+        charge_up: this.txFromJSON<i128>,
         get_count: this.txFromJSON<i128>,
         get_stats: this.txFromJSON<Option<UserStats>>,
         heavy_kick: this.txFromJSON<i128>,

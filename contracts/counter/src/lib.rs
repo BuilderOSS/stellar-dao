@@ -2,6 +2,7 @@
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, token, Address, Env, MuxedAddress, String,
 };
+use core::cmp::min;
 
 // Default TTL values (in ledgers, ~5 seconds per ledger)
 const DAY_IN_LEDGERS: u32 = 17280; // ~1 day
@@ -16,7 +17,7 @@ const TEMPORARY_EXTEND_TO: u32 = 2 * DAY_IN_LEDGERS; // 2 days
 pub enum DataKey {
     // INSTANCE STORAGE - Contract-wide data (shares contract's lifetime)
     Admin,        // Contract administrator
-    GlobalCount,  // Total of all counters
+    ActionCount,  // Total gameplay actions
     CooldownSecs, // Cooldown configuration
     TotalSupply,  // SEP-0041: Total token supply
     TokenName,    // SEP-0041: Token name
@@ -37,8 +38,11 @@ pub enum DataKey {
 #[derive(Clone)]
 #[contracttype]
 pub struct UserStats {
+    pub charge_ups: u32,
     pub total_punches: u32,
     pub total_kicks: u32,
+    pub total_battles: u32,
+    pub total_raids: u32,
     pub last_action: u64,
 }
 
@@ -60,10 +64,10 @@ pub struct AllowanceValue {
 }
 
 #[contract]
-pub struct CounterContract;
+pub struct ArenaContract;
 
 #[contractimpl]
-impl CounterContract {
+impl ArenaContract {
     /// Initialize the contract with token metadata and admin
     /// SEP-0041 compliant initialization
     pub fn initialize(
@@ -82,7 +86,7 @@ impl CounterContract {
         env.storage().instance().set(&DataKey::Admin, &admin);
 
         // Initialize global counter in INSTANCE storage
-        env.storage().instance().set(&DataKey::GlobalCount, &0u32);
+        env.storage().instance().set(&DataKey::ActionCount, &0u32);
 
         // Set default cooldown to 1 hour (3600 seconds)
         env.storage().instance().set(&DataKey::CooldownSecs, &3600u64);
@@ -100,77 +104,69 @@ impl CounterContract {
         );
     }
 
-    /// PUNCH - Actor punches target, minting 1 token to target
-    /// Demonstrates: Token minting, action-based gameplay, TTL extension
-    pub fn punch(env: Env, from: Address, to: Address) -> i128 {
-        // Only the actor (from) needs to authorize
-        from.require_auth();
+    /// CHARGE UP - Actor mints 1 point to themselves
+    /// Demonstrates: Self-growth, cooldown management, TTL extension
+    pub fn charge_up(env: Env, user: Address) -> i128 {
+        user.require_auth();
 
-        // Check cooldown for actor (TEMPORARY STORAGE)
-        Self::check_cooldown(&env, &from);
-
-        // Mint 1 token to the target
-        Self::mint(&env, &to, 1);
-
-        // Update stats for the actor (who performed the punch)
-        Self::update_stats(&env, &from, true);
-
-        // Update global counter (INSTANCE STORAGE)
+        Self::check_cooldown(&env, &user);
+        Self::mint(&env, &user, 1);
+        Self::update_charge_stats(&env, &user);
         Self::increment_global(&env);
+        Self::set_cooldown(&env, &user);
 
-        // Set cooldown for actor (TEMPORARY STORAGE)
-        Self::set_cooldown(&env, &from);
+        let new_balance = Self::get_balance(&env, &user);
+        env.events()
+            .publish((symbol_short!("charge"), user.clone()), new_balance);
+        Self::check_milestone(&env, &user, new_balance as u32);
 
-        // Get target's new balance
-        let new_balance = Self::get_balance(&env, &to);
-
-        // Emit event
-        env.events().publish(
-            (symbol_short!("punch"), from.clone(), to.clone()),
-            new_balance,
-        );
-
-        // Check for milestones for target
-        Self::check_milestone(&env, &to, new_balance as u32);
-
-        new_balance
+        1
     }
 
-    /// KICK - Actor kicks target, minting 2 tokens to target
-    /// Demonstrates: Token minting with higher reward
-    pub fn kick(env: Env, from: Address, to: Address) -> i128 {
-        // Only the actor (from) needs to authorize
+    /// PUNCH - Actor drains up to 1 point from target and gains it
+    /// Demonstrates: Light unilateral attack, bounded drain, TTL extension
+    pub fn punch(env: Env, from: Address, to: Address) -> i128 {
         from.require_auth();
 
-        // Check cooldown for actor (TEMPORARY STORAGE)
         Self::check_cooldown(&env, &from);
 
-        // Mint 2 tokens to the target
-        Self::mint(&env, &to, 2);
+        let moved = Self::move_points(&env, &to, &from, 1);
 
-        // Update stats for the actor (who performed the kick)
-        Self::update_stats(&env, &from, false);
-
-        // Update global counter (INSTANCE STORAGE) - kick adds 2
+        Self::update_stats(&env, &from, true);
         Self::increment_global(&env);
-        Self::increment_global(&env);
-
-        // Set cooldown for actor (TEMPORARY STORAGE)
         Self::set_cooldown(&env, &from);
 
-        // Get target's new balance
-        let new_balance = Self::get_balance(&env, &to);
+        let actor_balance = Self::get_balance(&env, &from);
+        env.events().publish(
+            (symbol_short!("punch"), from.clone(), to.clone()),
+            (moved, actor_balance),
+        );
+        Self::check_milestone(&env, &from, actor_balance as u32);
 
-        // Emit event
+        moved
+    }
+
+    /// KICK - Actor drains up to 2 points from target and gains them
+    /// Demonstrates: Stronger unilateral attack, bounded drain, TTL extension
+    pub fn kick(env: Env, from: Address, to: Address) -> i128 {
+        from.require_auth();
+
+        Self::check_cooldown(&env, &from);
+
+        let moved = Self::move_points(&env, &to, &from, 2);
+
+        Self::update_stats(&env, &from, false);
+        Self::increment_global(&env);
+        Self::set_cooldown(&env, &from);
+
+        let actor_balance = Self::get_balance(&env, &from);
         env.events().publish(
             (symbol_short!("kick"), from.clone(), to.clone()),
-            new_balance,
+            (moved, actor_balance),
         );
+        Self::check_milestone(&env, &from, actor_balance as u32);
 
-        // Check for milestones for target
-        Self::check_milestone(&env, &to, new_balance as u32);
-
-        new_balance
+        moved
     }
 
     /// Manually extend TTL for your balance and stats
@@ -201,37 +197,25 @@ impl CounterContract {
 
     // ===== MULTI-SIGNATURE FUNCTIONS =====
 
-    /// JOINT PUNCH - Two users jointly punch a target, minting 4 tokens total
-    /// Demonstrates: Multi-signature authorization with require_auth() x2
+    /// JOINT PUNCH - Two allied users drain up to 4 points from a target
+    /// Demonstrates: Multi-signature raid with bounded point transfer
     pub fn joint_punch(env: Env, user1: Address, user2: Address, target: Address) -> i128 {
-        // Both users must authorize this action
         user1.require_auth();
         user2.require_auth();
 
-        // Check cooldowns for both actors
         Self::check_cooldown(&env, &user1);
         Self::check_cooldown(&env, &user2);
 
-        // Mint 4 tokens total to target (2 per user)
-        Self::mint(&env, &target, 4);
+        let moved = Self::distribute_points(&env, &target, &[user1.clone(), user2.clone()], 4);
 
-        // Update stats for both actors (mark as punches)
-        Self::update_stats(&env, &user1, true);
-        Self::update_stats(&env, &user2, true);
-
-        // Global counter gets fixed bonus of +10
-        for _ in 0..10 {
-            Self::increment_global(&env);
-        }
-
-        // Set cooldowns for both actors
+        Self::update_raid_stats(&env, &user1);
+        Self::update_raid_stats(&env, &user2);
+        Self::increment_global(&env);
         Self::set_cooldown(&env, &user1);
         Self::set_cooldown(&env, &user2);
 
-        // Get target's new balance
-        let new_balance = Self::get_balance(&env, &target);
-
-        // Emit event with both actors and target
+        let user1_balance = Self::get_balance(&env, &user1);
+        let user2_balance = Self::get_balance(&env, &user2);
         env.events().publish(
             (
                 symbol_short!("j_punch"),
@@ -239,14 +223,17 @@ impl CounterContract {
                 user2.clone(),
                 target.clone(),
             ),
-            new_balance,
+            (moved, user1_balance, user2_balance),
         );
 
-        new_balance
+        Self::check_milestone(&env, &user1, user1_balance as u32);
+        Self::check_milestone(&env, &user2, user2_balance as u32);
+
+        moved
     }
 
-    /// HEAVY KICK - Three users jointly kick a target, minting 6 tokens total
-    /// Demonstrates: Triple multi-signature authorization
+    /// HEAVY KICK - Three allied users drain up to 6 points from a target
+    /// Demonstrates: Triple-signature raid with bounded point transfer
     pub fn heavy_kick(
         env: Env,
         user1: Address,
@@ -254,38 +241,32 @@ impl CounterContract {
         user3: Address,
         target: Address,
     ) -> i128 {
-        // All three users must authorize
         user1.require_auth();
         user2.require_auth();
         user3.require_auth();
 
-        // Check cooldowns for all actors
         Self::check_cooldown(&env, &user1);
         Self::check_cooldown(&env, &user2);
         Self::check_cooldown(&env, &user3);
 
-        // Mint 6 tokens total to target (2 per user)
-        Self::mint(&env, &target, 6);
+        let moved = Self::distribute_points(
+            &env,
+            &target,
+            &[user1.clone(), user2.clone(), user3.clone()],
+            6,
+        );
 
-        // Update stats for all actors (mark as kicks)
-        Self::update_stats(&env, &user1, false);
-        Self::update_stats(&env, &user2, false);
-        Self::update_stats(&env, &user3, false);
-
-        // Global counter gets super bonus of +20
-        for _ in 0..20 {
-            Self::increment_global(&env);
-        }
-
-        // Set cooldowns for all actors
+        Self::update_raid_stats(&env, &user1);
+        Self::update_raid_stats(&env, &user2);
+        Self::update_raid_stats(&env, &user3);
+        Self::increment_global(&env);
         Self::set_cooldown(&env, &user1);
         Self::set_cooldown(&env, &user2);
         Self::set_cooldown(&env, &user3);
 
-        // Get target's new balance
-        let new_balance = Self::get_balance(&env, &target);
-
-        // Emit event with all three actors and target
+        let user1_balance = Self::get_balance(&env, &user1);
+        let user2_balance = Self::get_balance(&env, &user2);
+        let user3_balance = Self::get_balance(&env, &user3);
         env.events().publish(
             (
                 symbol_short!("h_kick"),
@@ -294,10 +275,14 @@ impl CounterContract {
                 user3.clone(),
                 target.clone(),
             ),
-            new_balance,
+            (moved, user1_balance, user2_balance, user3_balance),
         );
 
-        new_balance
+        Self::check_milestone(&env, &user1, user1_balance as u32);
+        Self::check_milestone(&env, &user2, user2_balance as u32);
+        Self::check_milestone(&env, &user3, user3_balance as u32);
+
+        moved
     }
 
     /// TRANSFER POINTS - Transfer tokens between two users
@@ -317,67 +302,41 @@ impl CounterContract {
         Self::set_cooldown(&env, &from);
     }
 
-    /// BATTLE - Two users battle, winner determined by token balance
-    /// Demonstrates: Competitive multi-sig with mint/burn mechanics
+    /// BATTLE - Two users duel, winner drains up to 3 points from the loser
+    /// Demonstrates: Opt-in PvP with bounded point transfer
     pub fn battle(env: Env, attacker: Address, defender: Address) -> bool {
-        // Both users must authorize the battle
         attacker.require_auth();
         defender.require_auth();
 
-        // Check cooldowns for both
         Self::check_cooldown(&env, &attacker);
         Self::check_cooldown(&env, &defender);
 
-        // Get current token balances
         let attacker_balance = Self::get_balance(&env, &attacker);
         let defender_balance = Self::get_balance(&env, &defender);
 
-        // Winner has higher balance (attacker wins ties)
         let attacker_wins = attacker_balance >= defender_balance;
 
-        // Update balances using mint/burn
-        if attacker_wins {
-            // Attacker wins: mint 5 to attacker, burn 3 from defender
-            Self::mint(&env, &attacker, 5);
-            if defender_balance >= 3 {
-                Self::burn_internal(&env, &defender, 3);
-            } else if defender_balance > 0 {
-                Self::burn_internal(&env, &defender, defender_balance);
-            }
+        let (winner, loser) = if attacker_wins {
+            (attacker.clone(), defender.clone())
         } else {
-            // Defender wins: mint 5 to defender, burn 3 from attacker
-            Self::mint(&env, &defender, 5);
-            if attacker_balance >= 3 {
-                Self::burn_internal(&env, &attacker, 3);
-            } else if attacker_balance > 0 {
-                Self::burn_internal(&env, &attacker, attacker_balance);
-            }
-        }
+            (defender.clone(), attacker.clone())
+        };
+        let drained = Self::move_points(&env, &loser, &winner, 3);
 
-        // Update battle records
         Self::update_battle_record(&env, &attacker, attacker_wins);
         Self::update_battle_record(&env, &defender, !attacker_wins);
-
-        // Global counter gets +2 (net gain from competition)
+        Self::update_battle_stats(&env, &attacker);
+        Self::update_battle_stats(&env, &defender);
         Self::increment_global(&env);
-        Self::increment_global(&env);
-
-        // Set cooldowns
         Self::set_cooldown(&env, &attacker);
         Self::set_cooldown(&env, &defender);
 
-        // Emit battle event
-        if attacker_wins {
-            env.events().publish(
-                (symbol_short!("battle"), symbol_short!("win")),
-                attacker.clone(),
-            );
-        } else {
-            env.events().publish(
-                (symbol_short!("battle"), symbol_short!("win")),
-                defender.clone(),
-            );
-        }
+        env.events().publish(
+            (symbol_short!("battle"), symbol_short!("win")),
+            (winner.clone(), loser.clone(), drained),
+        );
+
+        Self::check_milestone(&env, &winner, Self::get_balance(&env, &winner) as u32);
 
         attacker_wins
     }
@@ -393,7 +352,7 @@ impl CounterContract {
     pub fn get_global_count(env: Env) -> u32 {
         env.storage()
             .instance()
-            .get(&DataKey::GlobalCount)
+            .get(&DataKey::ActionCount)
             .unwrap_or(0)
     }
 
@@ -469,7 +428,7 @@ impl CounterContract {
         admin.require_auth();
         Self::require_admin(&env, &admin);
 
-        env.storage().instance().set(&DataKey::GlobalCount, &0u32);
+        env.storage().instance().set(&DataKey::ActionCount, &0u32);
     }
 
     /// Set cooldown duration in seconds (admin only)
@@ -510,11 +469,11 @@ impl CounterContract {
         let current: u32 = env
             .storage()
             .instance()
-            .get(&DataKey::GlobalCount)
+            .get(&DataKey::ActionCount)
             .unwrap_or(0);
         env.storage()
             .instance()
-            .set(&DataKey::GlobalCount, &(current + 1));
+            .set(&DataKey::ActionCount, &(current + 1));
     }
 
     fn update_stats(env: &Env, user: &Address, is_punch: bool) {
@@ -523,8 +482,11 @@ impl CounterContract {
             .persistent()
             .get(&DataKey::UserStats(user.clone()))
             .unwrap_or(UserStats {
+                charge_ups: 0,
                 total_punches: 0,
                 total_kicks: 0,
+                total_battles: 0,
+                total_raids: 0,
                 last_action: 0,
             });
 
@@ -540,6 +502,87 @@ impl CounterContract {
             .set(&DataKey::UserStats(user.clone()), &stats);
 
         // Extend stats TTL
+        env.storage().persistent().extend_ttl(
+            &DataKey::UserStats(user.clone()),
+            PERSISTENT_LIFETIME_THRESHOLD,
+            PERSISTENT_EXTEND_TO,
+        );
+    }
+
+    fn update_charge_stats(env: &Env, user: &Address) {
+        let mut stats: UserStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::UserStats(user.clone()))
+            .unwrap_or(UserStats {
+                charge_ups: 0,
+                total_punches: 0,
+                total_kicks: 0,
+                total_battles: 0,
+                total_raids: 0,
+                last_action: 0,
+            });
+
+        stats.charge_ups += 1;
+        stats.last_action = env.ledger().timestamp();
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserStats(user.clone()), &stats);
+        env.storage().persistent().extend_ttl(
+            &DataKey::UserStats(user.clone()),
+            PERSISTENT_LIFETIME_THRESHOLD,
+            PERSISTENT_EXTEND_TO,
+        );
+    }
+
+    fn update_raid_stats(env: &Env, user: &Address) {
+        let mut stats: UserStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::UserStats(user.clone()))
+            .unwrap_or(UserStats {
+                charge_ups: 0,
+                total_punches: 0,
+                total_kicks: 0,
+                total_battles: 0,
+                total_raids: 0,
+                last_action: 0,
+            });
+
+        stats.total_raids += 1;
+        stats.last_action = env.ledger().timestamp();
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserStats(user.clone()), &stats);
+        env.storage().persistent().extend_ttl(
+            &DataKey::UserStats(user.clone()),
+            PERSISTENT_LIFETIME_THRESHOLD,
+            PERSISTENT_EXTEND_TO,
+        );
+    }
+
+    fn update_battle_stats(env: &Env, user: &Address) {
+        let mut stats: UserStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::UserStats(user.clone()))
+            .unwrap_or(UserStats {
+                charge_ups: 0,
+                total_punches: 0,
+                total_kicks: 0,
+                total_battles: 0,
+                total_raids: 0,
+                last_action: 0,
+            });
+
+        stats.total_battles += 1;
+        stats.last_action = env.ledger().timestamp();
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserStats(user.clone()), &stats);
         env.storage().persistent().extend_ttl(
             &DataKey::UserStats(user.clone()),
             PERSISTENT_LIFETIME_THRESHOLD,
@@ -565,6 +608,44 @@ impl CounterContract {
             TEMPORARY_LIFETIME_THRESHOLD,
             TEMPORARY_EXTEND_TO,
         );
+    }
+
+    fn move_points(env: &Env, from: &Address, to: &Address, requested: i128) -> i128 {
+        let available = Self::get_balance(env, from);
+        let moved = min(available, requested);
+
+        if moved <= 0 {
+            return 0;
+        }
+
+        Self::set_balance(env, from, available - moved);
+        let target_balance = Self::get_balance(env, to);
+        Self::set_balance(env, to, target_balance + moved);
+
+        moved
+    }
+
+    fn distribute_points(env: &Env, from: &Address, recipients: &[Address], requested: i128) -> i128 {
+        let available = Self::get_balance(env, from);
+        let moved = min(available, requested);
+
+        if moved <= 0 || recipients.is_empty() {
+            return 0;
+        }
+
+        Self::set_balance(env, from, available - moved);
+
+        let count = recipients.len() as i128;
+        let base_share = moved / count;
+        let remainder = moved % count;
+
+        for (index, recipient) in recipients.iter().enumerate() {
+            let extra = if (index as i128) < remainder { 1 } else { 0 };
+            let current = Self::get_balance(env, recipient);
+            Self::set_balance(env, recipient, current + base_share + extra);
+        }
+
+        moved
     }
 
     fn check_milestone(env: &Env, user: &Address, count: u32) {
@@ -763,7 +844,7 @@ impl CounterContract {
 
 // SEP-0041 Token Interface Implementation
 #[contractimpl]
-impl token::TokenInterface for CounterContract {
+impl token::TokenInterface for ArenaContract {
     fn allowance(env: Env, from: Address, spender: Address) -> i128 {
         Self::get_allowance(&env, &from, &spender)
     }

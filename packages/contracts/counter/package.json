@@ -1,5 +1,5 @@
 {
-  "name": "@punch-counter/contracts-counter",
+  "name": "@punch-counter/contracts-arena",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",

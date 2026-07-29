@@ -8,7 +8,7 @@
     "lint": "pnpm --dir apps/web lint",
     "local:up": "node scripts/local-up.mjs",
     "local:down": "node scripts/local-down.mjs",
-    "contracts:build": "stellar contract build --package counter --out-dir target/wasm32-unknown-unknown/release",
+    "contracts:build": "stellar contract build --package arena --out-dir target/wasm32-unknown-unknown/release",
     "contracts:bindings": "node scripts/generate-bindings.mjs",
     "contracts:deploy:local": "node scripts/deploy-counter.mjs local",
     "contracts:deploy:testnet": "node scripts/deploy-counter.mjs testnet",
