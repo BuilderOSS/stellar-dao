@@ -36,6 +36,8 @@ run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/
 
 runQuiet('stellar', ['keys', 'generate', identityName]);
 
+const publicKey = runQuiet('stellar', ['keys', 'public-key', identityName]).stdout.trim();
+
 if (networkName === 'local') {
   runQuiet('stellar', ['network', 'add', networkName, '--rpc-url', rpcUrl, '--network-passphrase', networkPassphrase]);
   run('stellar', ['network', 'use', networkName]);
@@ -43,6 +45,7 @@ if (networkName === 'local') {
 } else {
   runQuiet('stellar', ['network', 'add', networkName, '--rpc-url', rpcUrl, '--network-passphrase', networkPassphrase]);
   run('stellar', ['network', 'use', networkName]);
+  runQuiet('stellar', ['keys', 'fund', identityName, '--network', networkName]);
 }
 
 const id = runQuiet('stellar', ['contract', 'id', 'wasm', '--salt', salt, '--source-account', identityName, '--network', networkName]).stdout.trim();
@@ -65,7 +68,7 @@ if (!exists.ok) {
   ]);
 }
 
-const admin = runQuiet('stellar', ['keys', 'public-key', identityName]).stdout.trim();
+const admin = publicKey;
 runQuiet('stellar', [
   'contract',
   'invoke',
