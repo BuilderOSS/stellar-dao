@@ -1,60 +1,35 @@
 # Frontend Roadmap
 
-## Phase 1: Product Shell
-- Build a strong dashboard layout with a clear landing area and a control area.
-- Persist wallet and network state in the UI.
-- Add a top bar for network, wallet, contract id, and refresh status.
-- Keep Park UI as the design system, but tighten hierarchy, spacing, and empty states.
+Mercury Retroshades are the only indexing source. On-chain reads stay for live state, but history/feed/leaderboard data comes from Mercury.
 
-## Phase 2: Contract Dashboard
-- Show token metadata, total supply, action count, balance, cooldown, allowance, stats, and battle record.
-- Make each panel refresh independently.
-- Add loading, error, and success states for every read operation.
+## Phase 1: Shell
+- Keep the current dark, game-first dashboard shell.
+- Keep network selection env-driven.
+- Keep wallet/session state, submit confirmation, and the submitted-state CTA.
 
-## Phase 3: Actions
-- Add forms for `punch`, `kick`, `transfer`, `approve`, `burn`, `battle`, `joint_punch`, `heavy_kick`, and `transfer_points`.
-- Separate single-signer, two-signer, and three-signer flows.
-- Validate inputs and show transaction previews before signing.
-- Show result summaries after successful submits.
+## Phase 2: Mercury Emitters
+- Add `mercury`-gated retroshade structs to `contracts/arena`.
+- Emit only the game data we want to index: actions, battles, raids, admin config changes, and useful snapshots.
+- Keep prod/mainnet contract builds free of Mercury code by default.
 
-## Phase 4: Account Center
-- Add a connected-account panel with address, balance, allowances, recent interactions, cooldown, and battle stats.
-- Add a "my activity" summary for punches, kicks, battles, wins, losses, and tokens held.
+## Phase 3: Mercury Index Client
+- Add a frontend data layer for Mercury Retroshades REST.
+- Read Retroshades tables for account history, activity feeds, and leaderboard inputs.
+- Do not add classic-event fallback for these views.
 
-## Phase 5: Admin and Dev Tools
-- Keep admin controls behind a dedicated section.
-- Include reset action count, set cooldown duration, extend TTL, and local bootstrap diagnostics.
-- Hide admin controls from the normal user flow unless the connected wallet is admin.
+## Phase 4: Indexed Views
+- Build a Mercury-backed activity feed.
+- Build account history from indexed rows.
+- Build leaderboards from indexed rows only.
 
-## Phase 6: Indexing Later
-- Add Mercury-backed discovery after the core frontend is solid.
-- Use indexing for leaderboards, event feeds, user history, and cross-user discovery.
-- Keep leaderboard surfaces out until there is a real indexed source of addresses.
+## Phase 5: Deployment
+- Add a Mercury build/deploy path for the retroshade program.
+- Verify table names, row shapes, and program status on testnet first.
+- Document the split between on-chain contract builds and Mercury index builds.
 
-## Recommended Structure
-- `app/page.tsx` for the dashboard entry.
-- `components/contract-overview`
-- `components/account-center`
-- `components/action-forms/*`
-- `components/leaderboard` later, after indexing exists.
-- `lib/stellar` for wallet and contract wiring.
-- `lib/tx` for transaction building, signing, and result parsing.
-
-## UI Priorities
-- Make primary actions visually dominant.
-- Keep read-only data compact and scannable.
-- Separate advanced actions intentionally.
-- Keep desktop as the primary optimization target, while staying mobile-safe.
-
-## First Build Targets
-- Contract overview
-- Connected account panel
-- Punch, kick, and transfer forms
-- Transaction feedback
-- Basic activity summary
-
-## Deferred
-- Leaderboards
-- Global activity feed
-- Cross-user discovery
-- Any indexed search
+## Done
+- Product shell.
+- Contract dashboard.
+- Action signing and confirmation.
+- Admin tools.
+- Live cooldown countdown.

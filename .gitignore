@@ -11,3 +11,4 @@ packages/contracts/counter/src/generated/dist
 # Local settings
 .soroban
 .stellar
+opencode.json
