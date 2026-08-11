@@ -27,6 +27,7 @@ type TransactionCardProps = {
 };
 
 const autoPrefillFields = new Set(['from', 'admin', 'user', 'attacker', 'user1']);
+const AUTO_RESET_DELAY_MS = 10_000;
 
 function buildHandoffId(network: NetworkName, contractId: string, actionId: string) {
   return `${network}:${contractId}:${actionId}`;
@@ -353,7 +354,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
 
     const timer = window.setTimeout(() => {
       resetXdr();
-    }, 5000);
+    }, AUTO_RESET_DELAY_MS);
 
     return () => window.clearTimeout(timer);
   }, [activeHandoff?.status, resetXdr]);

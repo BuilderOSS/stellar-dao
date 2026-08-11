@@ -21,6 +21,7 @@ export type MercuryLeaderboardEntry = {
   address: string;
   balance: number;
   wins: number;
+  chargeUps: number;
   punches: number;
   kicks: number;
   raids: number;

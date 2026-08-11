@@ -52,6 +52,7 @@ function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; met
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <Badge>{entry.wins} wins</Badge>
+          <Badge>{entry.chargeUps} charge ups</Badge>
           <Badge>{entry.punches} punches</Badge>
           <Badge>{entry.kicks} kicks</Badge>
           <Badge>{entry.raids} raids</Badge>

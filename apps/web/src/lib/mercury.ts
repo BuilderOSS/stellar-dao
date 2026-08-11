@@ -32,6 +32,7 @@ type ParticipantStats = {
   address: string;
   balance: number;
   wins: number;
+  chargeUps: number;
   punches: number;
   kicks: number;
   raids: number;
@@ -258,6 +259,7 @@ function ensureStats(store: Map<string, ParticipantStats>, address: string) {
     address,
     balance: 0,
     wins: 0,
+    chargeUps: 0,
     punches: 0,
     kicks: 0,
     raids: 0,
@@ -291,7 +293,9 @@ function applyStatsForRow(store: Map<string, ParticipantStats>, tableName: strin
   if (kind === 'charge_up') {
     const user = asString(row.user);
     if (user) {
-      applyBalance(ensureStats(store, user), asNumber(row.new_balance));
+      const stats = ensureStats(store, user);
+      stats.chargeUps += 1;
+      applyBalance(stats, asNumber(row.new_balance));
     }
     return;
   }
@@ -439,6 +443,7 @@ function toLeaderboardEntries(store: Map<string, ParticipantStats>, metric: Merc
       address: stat.address,
       balance: stat.balance,
       wins: stat.wins,
+      chargeUps: stat.chargeUps,
       punches: stat.punches,
       kicks: stat.kicks,
       raids: stat.raids,

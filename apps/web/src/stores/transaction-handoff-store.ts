@@ -235,7 +235,7 @@ export const useTransactionHandoffStore = create<TransactionHandoffStore>()(
                 signerCount: 0,
                 isReadCall: false,
                 status: 'draft',
-                lastMessage: 'Handoff reset',
+                lastMessage: '',
                 updatedAt: new Date().toISOString()
               }
             }
