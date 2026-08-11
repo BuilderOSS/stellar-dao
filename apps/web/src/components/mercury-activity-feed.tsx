@@ -43,6 +43,7 @@ export function MercuryActivityFeed() {
   const [page, setPage] = useState(1);
   const { data, isLoading, mutate, error } = useMercuryActivityFeed(page, PAGE_SIZE);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const showPager = totalPages > 1;
   const canGoPrev = page > 1;
   const canGoNext = Boolean(data?.hasMore);
 
@@ -71,19 +72,21 @@ export function MercuryActivityFeed() {
             {data.items.map((item) => (
               <ActivityCard key={item.id} item={item} />
             ))}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-              <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
-                Page {data.page} of {totalPages}
-              </Text>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Button type="button" variant="outline" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={!canGoPrev}>
-                  Prev
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setPage((current) => current + 1)} disabled={!canGoNext}>
-                  Next
-                </Button>
+            {showPager ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                  Page {data.page} of {totalPages}
+                </Text>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={!canGoPrev}>
+                    Prev
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPage((current) => current + 1)} disabled={!canGoNext}>
+                    Next
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : null}
           </Stack>
         )}
       </Stack>
