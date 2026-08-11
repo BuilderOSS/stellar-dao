@@ -56,15 +56,16 @@ impl DaoGovernorContract {
         voting_delay: u32,
         voting_period: u32,
         proposal_threshold: u128,
-        quorum: u128,
+        quorum_bps: u32,
     ) {
+        assert!(quorum_bps <= 10_000);
         governor::set_name(e, String::from_str(e, "MvpDaoGovernor"));
         governor::set_version(e, String::from_str(e, "1.0.0"));
         governor::set_token_contract(e, &token_contract);
         governor::set_voting_delay(e, voting_delay);
         governor::set_voting_period(e, voting_period);
         governor::set_proposal_threshold(e, proposal_threshold);
-        governor::set_quorum(e, quorum);
+        governor::set_quorum(e, quorum_bps as u128);
         e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
     }
 
@@ -129,6 +130,24 @@ impl Governor for DaoGovernorContract {
 
     fn voting_period(e: &Env) -> u32 {
         governor::get_voting_period(e)
+    }
+
+    fn quorum(e: &Env, ledger: u32) -> u128 {
+        let quorum_bps = governor::get_quorum(e, ledger);
+        let token = governor::get_token_contract(e);
+        let total_supply = VotesClient::new(e, &token).get_total_supply_at_checkpoint(&ledger);
+
+        if quorum_bps == 0 || total_supply == 0 {
+            return 0;
+        }
+
+        let Some(product) = total_supply.checked_mul(quorum_bps) else {
+            panic_with_error!(e, GovernorError::MathOverflow);
+        };
+        let Some(adjusted) = product.checked_add(9_999) else {
+            panic_with_error!(e, GovernorError::MathOverflow);
+        };
+        adjusted / 10_000
     }
 
     fn proposals_need_queuing(_e: &Env) -> bool {

@@ -51,7 +51,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
             10_u32,
             100_u32,
             1_u128,
-            1_u128,
+            1_000_u32,
         ),
     );
     let governor = DaoGovernorContractClient::new(&e, &governor_id);
@@ -177,4 +177,44 @@ fn execute_cannot_run_twice() {
 
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}
+
+#[test]
+fn quorum_uses_total_supply_bps() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let owner = Address::generate(&e);
+    let token_id = e.register(
+        DaoTokenContract,
+        (
+            owner.clone(),
+            String::from_str(&e, "https://example.com/"),
+            String::from_str(&e, "DAO Vote NFT"),
+            String::from_str(&e, "vDAO"),
+        ),
+    );
+    let token = DaoTokenContractClient::new(&e, &token_id);
+
+    let treasury_id = e.register(DaoTreasuryContract, (Address::generate(&e),));
+    let governor_id = e.register(
+        DaoGovernorContract,
+        (
+            token_id.clone(),
+            treasury_id.clone(),
+            0_u32,
+            100_u32,
+            1_u128,
+            3_000_u32,
+        ),
+    );
+    let governor = DaoGovernorContractClient::new(&e, &governor_id);
+
+    for token_id in 0..10_u32 {
+        token.mint(&owner, &token_id);
+    }
+
+    e.ledger().set_sequence_number(102);
+
+    assert_eq!(governor.quorum(&(e.ledger().sequence() - 1)), 3);
 }

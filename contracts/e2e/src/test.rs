@@ -50,7 +50,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
             10_u32,
             100_u32,
             1_u128,
-            1_u128,
+            1_000_u32,
         ),
     );
     let governor = DaoGovernorContractClient::new(&e, &governor_id);
