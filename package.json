@@ -7,10 +7,9 @@
     "build": "pnpm --dir apps/web build",
     "lint": "pnpm --dir apps/web lint",
     "typecheck": "pnpm --dir apps/web typecheck",
-    "arena:local:up": "node scripts/arena-local-up.mjs",
-    "arena:local:down": "node scripts/arena-local-down.mjs",
     "dao:build": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none",
-    "dao:build:mercury": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury"
+    "dao:build:mercury": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury",
+    "dao:test:e2e": "cargo test -p dao-e2e"
   },
   "workspaces": [
     "apps/*",
