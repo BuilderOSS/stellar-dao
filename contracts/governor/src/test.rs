@@ -108,3 +108,68 @@ fn full_governance_flow_executes_treasury_call() {
     assert_eq!(target.get_value(), 42);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
 }
+
+#[test]
+#[should_panic(expected = "#5002")]
+fn propose_fails_below_threshold() {
+    let (e, _token, _treasury, governor, target, _) = setup();
+    let proposer = Address::generate(&e);
+
+    e.ledger().set_sequence_number(200);
+
+    let treasury_address = governor.treasury();
+    let targets = vec![&e, treasury_address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Not enough votes");
+
+    let _ = governor.propose(&targets, &functions, &args, &description, &proposer);
+}
+
+#[test]
+#[should_panic]
+fn execute_rejects_non_treasury_target() {
+    let (e, token, _treasury, governor, target, _) = setup();
+    let proposer = Address::generate(&e);
+
+    token.mint(&proposer, &1);
+    e.ledger().set_sequence_number(200);
+
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = vec![&e, vec![&e, 42_u32].into_val(&e)];
+    let description = String::from_str(&e, "Call target directly");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+    e.ledger().set_sequence_number(211);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+    e.ledger().set_sequence_number(311);
+
+    let _ = governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}
+
+#[test]
+#[should_panic(expected = "#5008")]
+fn execute_cannot_run_twice() {
+    let (e, token, _treasury, governor, target, _) = setup();
+    let proposer = Address::generate(&e);
+
+    token.mint(&proposer, &1);
+    e.ledger().set_sequence_number(200);
+
+    let treasury_address = governor.treasury();
+    let targets = vec![&e, treasury_address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Execute twice");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+    e.ledger().set_sequence_number(211);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+    e.ledger().set_sequence_number(311);
+
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}
