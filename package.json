@@ -13,6 +13,10 @@
     "arena:bindings": "node scripts/arena-generate-bindings.mjs",
     "arena:deploy:local": "node scripts/deploy-arena.mjs local",
     "arena:deploy:testnet": "node scripts/deploy-arena.mjs testnet",
+    "arena:retroshade:deploy": "node scripts/arena-retroshade.mjs deploy",
+    "arena:retroshade:delete": "node scripts/arena-retroshade.mjs delete",
+    "arena:retroshade:list": "node scripts/arena-retroshade.mjs list",
+    "arena:retroshade:status": "node scripts/arena-retroshade.mjs status",
     "arena:setup:local": "node scripts/arena-setup-local.mjs"
   },
   "workspaces": [

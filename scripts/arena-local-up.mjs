@@ -157,7 +157,11 @@ function writeEnv(id) {
     'NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID='
   ];
 
-  writeFileSync(envPath, `${lines.join('\n')}\n`);
+  if (!existsSync(envPath)) {
+    writeFileSync(envPath, `${lines.join('\n')}\n`);
+  } else {
+    console.log(`Skipped writing ${envPath}; file already exists.`);
+  }
   writeFileSync(appExampleEnvPath, `${lines.join('\n')}\n`);
 }
 

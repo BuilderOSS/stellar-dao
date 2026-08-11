@@ -18,6 +18,7 @@ const rpcUrl =
 const networkPassphrase =
   networkName === 'local' ? 'Standalone Network ; February 2017' : 'Test SDF Network ; September 2015';
 const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
+const saltSuffix = process.env.ARENA_DEPLOY_SALT_SUFFIX?.trim() ?? '';
 
 function readLocalEnv(key) {
   if (!existsSync(envPath)) {
@@ -32,10 +33,38 @@ function readLocalEnv(key) {
   return line ? line.slice(key.length + 1).trim() : null;
 }
 
+function writeEnvIfMissing(id) {
+  if (existsSync(envPath)) {
+    console.log(`Skipped writing ${envPath}; file already exists.`);
+    console.log('Update NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID manually if needed:');
+    console.log(`NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID=${id}`);
+    return;
+  }
+
+  mkdirSync('apps/web', { recursive: true });
+  writeFileSync(
+    envPath,
+    [
+      `NEXT_PUBLIC_STELLAR_NETWORK=${networkName}`,
+      'NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=http://localhost:8000/rpc',
+      'NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=Standalone Network ; February 2017',
+      `NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS=${adminAddress}`,
+      `NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID=${networkName === 'local' ? id : ''}`,
+      'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
+      'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
+      `NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS=${adminAddress}`,
+      `NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID=${networkName === 'testnet' ? id : ''}`
+    ].join('\n') + '\n'
+  );
+}
+
 run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);
 
 const wasmHash = createHash('sha256').update(readFileSync(wasmPath)).digest('hex');
-const salt = createHash('sha256').update(`punch-arena:${networkName}:${wasmHash}`).digest('hex');
+const saltSeed = saltSuffix
+  ? `punch-arena:${networkName}:${wasmHash}:${saltSuffix}`
+  : `punch-arena:${networkName}:${wasmHash}`;
+const salt = createHash('sha256').update(saltSeed).digest('hex');
 
 runQuiet('stellar', ['keys', 'generate', identityName]);
 
@@ -90,20 +119,6 @@ runQuiet('stellar', [
   '7'
 ]);
 
-mkdirSync('apps/web', { recursive: true });
-writeFileSync(
-  envPath,
-  [
-    `NEXT_PUBLIC_STELLAR_NETWORK=${networkName}`,
-    'NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=http://localhost:8000/rpc',
-    'NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=Standalone Network ; February 2017',
-    `NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS=${adminAddress}`,
-    `NEXT_PUBLIC_STELLAR_LOCAL_CONTRACT_ID=${networkName === 'local' ? id : ''}`,
-    'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
-    'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
-    `NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS=${adminAddress}`,
-    `NEXT_PUBLIC_STELLAR_TESTNET_CONTRACT_ID=${networkName === 'testnet' ? id : ''}`
-  ].join('\n') + '\n'
-);
+writeEnvIfMissing(id);
 
 console.log(`Deployed ${networkName} contract ID: ${id}`);
