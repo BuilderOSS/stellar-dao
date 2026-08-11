@@ -1,39 +1,87 @@
 'use client';
 
 import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
+import { ArrowDown, ArrowUp, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric } from '@/lib/mercury-types';
 import { useMercuryLeaderboards } from '@/lib/mercury-queries';
 import { Stack } from 'styled-system/jsx';
 
-const METRIC_OPTIONS: Array<{ value: MercuryLeaderboardMetric; label: string }> = [
-  { value: 'balance', label: 'Balance' },
-  { value: 'combined', label: 'Combined' },
-  { value: 'wins', label: 'Wins' },
-  { value: 'punches', label: 'Punches' },
-  { value: 'raids', label: 'Raids' }
+const SORTABLE_COLUMNS: Array<{ key: MercuryLeaderboardMetric; label: string }> = [
+  { key: 'combined', label: 'Combined' },
+  { key: 'balance', label: 'Balance' },
+  { key: 'wins', label: 'Wins' },
+  { key: 'chargeUps', label: 'Charge ups' },
+  { key: 'punches', label: 'Punches' },
+  { key: 'kicks', label: 'Kicks' },
+  { key: 'raids', label: 'Raids' },
+  { key: 'losses', label: 'Losses' }
 ];
 
 const PAGE_SIZE = 10;
 
-function statValue(entry: MercuryLeaderboardEntry, metric: MercuryLeaderboardMetric) {
-  if (metric === 'combined') {
-    return entry.score;
+type SortDirection = 'asc' | 'desc';
+
+function sortIcon(metric: MercuryLeaderboardMetric, currentMetric: MercuryLeaderboardMetric, direction: SortDirection) {
+  if (metric !== currentMetric) {
+    return <ArrowUpDown size={12} />;
   }
 
-  return entry[metric as Exclude<MercuryLeaderboardMetric, 'combined'>];
+  return direction === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />;
 }
 
-function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; metric: MercuryLeaderboardMetric }) {
+function SortableHeader({
+  label,
+  metric,
+  currentMetric,
+  direction,
+  onSort
+}: {
+  label: string;
+  metric: MercuryLeaderboardMetric;
+  currentMetric: MercuryLeaderboardMetric;
+  direction: SortDirection;
+  onSort: (metric: MercuryLeaderboardMetric) => void;
+}) {
+  const active = metric === currentMetric;
+
+  return (
+    <th style={{ padding: '0 10px 10px', textAlign: 'right', verticalAlign: 'bottom' }} aria-sort={active ? (direction === 'desc' ? 'descending' : 'ascending') : 'none'}>
+      <button
+        type="button"
+        onClick={() => onSort(metric)}
+        style={{
+          appearance: 'none',
+          background: 'transparent',
+          border: 'none',
+          color: active ? 'white' : 'rgba(148, 163, 184, 0.9)',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          justifyContent: 'flex-end',
+          padding: 0,
+          width: '100%',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase'
+        }}
+      >
+        <span>{label}</span>
+        {sortIcon(metric, currentMetric, direction)}
+      </button>
+    </th>
+  );
+}
+
+function LeaderboardRow({ entry }: { entry: MercuryLeaderboardEntry }) {
   return (
     <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.18)' }}>
       <td style={{ padding: '12px 10px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
         <ShortId value={entry.address} label={`#${entry.rank}`} />
       </td>
-      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
-        {metric === 'combined' ? entry.score : statValue(entry, metric)}
-      </td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.score}</td>
       <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.balance}</td>
       <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.wins}</td>
       <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.chargeUps}</td>
@@ -46,11 +94,23 @@ function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; met
 }
 
 export function MercuryLeaderboards() {
-  const [metric, setMetric] = useState<MercuryLeaderboardMetric>('balance');
+  const [metric, setMetric] = useState<MercuryLeaderboardMetric>('combined');
+  const [direction, setDirection] = useState<SortDirection>('desc');
   const [page, setPage] = useState(1);
-  const { data, isLoading, mutate, error } = useMercuryLeaderboards(metric, page, PAGE_SIZE);
+  const { data, isLoading, mutate, error } = useMercuryLeaderboards(metric, page, PAGE_SIZE, direction);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const showPager = totalPages > 1;
+
+  function handleSort(nextMetric: MercuryLeaderboardMetric) {
+    setPage(1);
+    if (nextMetric === metric) {
+      setDirection((current) => (current === 'desc' ? 'asc' : 'desc'));
+      return;
+    }
+
+    setMetric(nextMetric);
+    setDirection('desc');
+  }
 
   return (
     <Card p="6">
@@ -66,25 +126,6 @@ export function MercuryLeaderboards() {
           </Button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
-          <Text className="label" style={{ margin: 0 }}>
-            Filter
-          </Text>
-          <Select
-            value={metric}
-            onChange={(event) => {
-              setMetric(event.currentTarget.value as MercuryLeaderboardMetric);
-              setPage(1);
-            }}
-          >
-            {METRIC_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-
         {data?.message ? <Text className="lede" style={{ margin: 0 }}>{data.message}</Text> : null}
         {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
         {!data?.items.length ? (
@@ -98,19 +139,21 @@ export function MercuryLeaderboards() {
                 <thead>
                   <tr>
                     <th style={{ padding: '0 10px 10px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Rank / wallet</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Sorted by</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Balance</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Wins</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Charge ups</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Punches</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Kicks</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Raids</th>
-                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Losses</th>
+                    {SORTABLE_COLUMNS.map((column) => (
+                      <SortableHeader
+                        key={column.key}
+                        label={column.label}
+                        metric={column.key}
+                        currentMetric={metric}
+                        direction={direction}
+                        onSort={handleSort}
+                      />
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {data.items.map((entry) => (
-                    <LeaderboardRow key={entry.address} entry={entry} metric={metric} />
+                    <LeaderboardRow key={entry.address} entry={entry} />
                   ))}
                 </tbody>
               </table>

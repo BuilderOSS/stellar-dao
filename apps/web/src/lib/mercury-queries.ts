@@ -25,7 +25,7 @@ export function useMercuryAccountHistory(address: string, limit = 8) {
   return useSWR<MercuryAccountHistoryResponse>(key, fetchJson, { keepPreviousData: true });
 }
 
-export function useMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'balance', page = 1, pageSize = 10) {
-  const key = `/api/mercury/leaderboards?metric=${metric}&page=${page}&pageSize=${pageSize}`;
+export function useMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'combined', page = 1, pageSize = 10, direction: 'asc' | 'desc' = 'desc') {
+  const key = `/api/mercury/leaderboards?metric=${metric}&direction=${direction}&page=${page}&pageSize=${pageSize}`;
   return useSWR<MercuryLeaderboardResponse>(key, fetchJson, { keepPreviousData: true });
 }

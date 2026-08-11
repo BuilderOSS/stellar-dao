@@ -435,8 +435,8 @@ function sortRowsChronologically(
   return left.tableName.localeCompare(right.tableName);
 }
 
-function toLeaderboardEntries(store: Map<string, ParticipantStats>, metric: MercuryLeaderboardMetric) {
-  const entries = [...store.values()].map((stat): MercuryLeaderboardEntry => {
+function toLeaderboardEntries(store: Map<string, ParticipantStats>) {
+  return [...store.values()].map((stat): MercuryLeaderboardEntry => {
     const score = stat.balance + stat.wins * 10 + stat.punches * 2 + stat.kicks * 2 + stat.raids * 4 + stat.battles * 3 - stat.losses * 2;
 
     return {
@@ -454,23 +454,6 @@ function toLeaderboardEntries(store: Map<string, ParticipantStats>, metric: Merc
       rank: 0
     };
   });
-
-  entries.sort((left, right) => {
-    const leftValue = metric === 'combined' ? left.score : left[metric as Exclude<MercuryLeaderboardMetric, 'combined'>];
-    const rightValue = metric === 'combined' ? right.score : right[metric as Exclude<MercuryLeaderboardMetric, 'combined'>];
-
-    if (rightValue !== leftValue) {
-      return rightValue - leftValue;
-    }
-
-    if (right.balance !== left.balance) {
-      return right.balance - left.balance;
-    }
-
-    return left.address.localeCompare(right.address);
-  });
-
-  return entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 export async function getMercuryActivityFeed(page = 1, pageSize = 20): Promise<MercuryActivityResponse> {
@@ -540,7 +523,7 @@ export async function getMercuryAccountHistory(address: string, limit = 20): Pro
   };
 }
 
-export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'balance', page = 1, pageSize = 20): Promise<MercuryLeaderboardResponse> {
+export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'combined', page = 1, pageSize = 20, direction: 'asc' | 'desc' = 'desc'): Promise<MercuryLeaderboardResponse> {
   const config = getConfig();
   if (!config) {
     return {
@@ -562,15 +545,30 @@ export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 
     applyStatsForRow(store, tableName, row, config.programId);
   }
 
-  const entries = toLeaderboardEntries(store, metric);
+  const entries = toLeaderboardEntries(store);
   const total = entries.length;
   const safePage = Math.max(1, Math.floor(page));
   const safePageSize = Math.max(1, Math.floor(pageSize));
   const start = (safePage - 1) * safePageSize;
+  const sortedEntries = entries.sort((left, right) => {
+    const leftValue = metric === 'combined' ? left.score : (left[metric] as number);
+    const rightValue = metric === 'combined' ? right.score : (right[metric] as number);
+
+    if (rightValue !== leftValue) {
+      return direction === 'asc' ? leftValue - rightValue : rightValue - leftValue;
+    }
+
+    if (right.balance !== left.balance) {
+      return right.balance - left.balance;
+    }
+
+    return left.address.localeCompare(right.address);
+  });
+  const rankedEntries = sortedEntries.map((entry, index) => ({ ...entry, rank: index + 1 }));
 
   return {
     metric,
-    items: entries.slice(start, start + safePageSize),
+    items: rankedEntries.slice(start, start + safePageSize),
     generatedAt: new Date().toISOString(),
     page: safePage,
     pageSize: safePageSize,

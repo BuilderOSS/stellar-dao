@@ -1,4 +1,4 @@
-export type MercuryLeaderboardMetric = 'balance' | 'combined' | 'wins' | 'punches' | 'raids';
+export type MercuryLeaderboardMetric = 'balance' | 'combined' | 'wins' | 'chargeUps' | 'punches' | 'kicks' | 'raids' | 'losses';
 
 export type MercuryActivityItem = {
   id: string;

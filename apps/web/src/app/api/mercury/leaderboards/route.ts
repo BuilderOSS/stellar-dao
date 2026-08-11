@@ -23,20 +23,25 @@ function parsePage(value: string | null) {
 }
 
 function parseMetric(value: string | null): MercuryLeaderboardMetric {
-  if (value === 'combined' || value === 'wins' || value === 'punches' || value === 'raids' || value === 'balance') {
+  if (value === 'combined' || value === 'wins' || value === 'chargeUps' || value === 'punches' || value === 'kicks' || value === 'raids' || value === 'losses' || value === 'balance') {
     return value;
   }
 
-  return 'balance';
+  return 'combined';
+}
+
+function parseDirection(value: string | null) {
+  return value === 'asc' ? 'asc' : 'desc';
 }
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const metric = parseMetric(url.searchParams.get('metric'));
+  const direction = parseDirection(url.searchParams.get('direction'));
   const page = parsePage(url.searchParams.get('page'));
   const pageSize = parseLimit(url.searchParams.get('pageSize') ?? url.searchParams.get('limit'), 10);
   try {
-    const payload = await getMercuryLeaderboards(metric, page, pageSize);
+    const payload = await getMercuryLeaderboards(metric, page, pageSize, direction);
     return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return NextResponse.json(
