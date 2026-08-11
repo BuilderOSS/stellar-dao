@@ -163,7 +163,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
 
         {view === 'overview' ? (
           <>
-            <Grid columns={{ base: 1, md: 3 }} gap="4">
+            <Grid columns={{ base: 1, md: 2 }} gap="4">
               <Metric label="Points" value={state.tokenName === '—' ? '—' : `${state.tokenName} (${state.tokenSymbol})`} hint="Game points metadata." />
               <Metric label="Decimals" value={state.decimals} hint="Smallest on-chain unit precision." />
               <Metric label="Total supply" value={state.totalSupply} hint="Current issued points." />
