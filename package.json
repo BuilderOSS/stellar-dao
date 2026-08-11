@@ -7,9 +7,14 @@
     "build": "pnpm --dir apps/web build",
     "lint": "pnpm --dir apps/web lint",
     "typecheck": "pnpm --dir apps/web typecheck",
-    "dao:build": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none",
-    "dao:build:mercury": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury",
-    "dao:test:e2e": "cargo test -p dao-e2e"
+    "dao:build": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none",
+    "dao:build:mercury": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury",
+    "dao:test:e2e": "cargo test -p dao-e2e",
+    "dao:deploy:local": "node scripts/deploy-dao.mjs local",
+    "dao:deploy:testnet": "node scripts/deploy-dao.mjs testnet",
+    "dao:local:up": "node scripts/dao-local-up.mjs",
+    "dao:local:down": "node scripts/dao-local-down.mjs",
+    "dao:setup:local": "node scripts/dao-setup-local.mjs"
   },
   "workspaces": [
     "apps/*",
