@@ -9,8 +9,8 @@
     "typecheck": "pnpm --dir apps/web typecheck",
     "arena:local:up": "node scripts/arena-local-up.mjs",
     "arena:local:down": "node scripts/arena-local-down.mjs",
-    "dao:build": "cargo build -p dao-token -p dao-governor -p dao-treasury --release --target wasm32v1-none",
-    "dao:build:mercury": "cargo build -p dao-token -p dao-governor -p dao-treasury --release --target wasm32v1-none --features mercury"
+    "dao:build": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none",
+    "dao:build:mercury": "cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury"
   },
   "workspaces": [
     "apps/*",

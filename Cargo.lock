@@ -403,37 +403,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dao-governor"
-version = "0.0.0"
-dependencies = [
- "dao-token",
- "dao-treasury",
- "retroshade-sdk",
- "soroban-sdk",
- "stellar-governance",
-]
-
-[[package]]
-name = "dao-token"
-version = "0.0.0"
-dependencies = [
- "retroshade-sdk",
- "soroban-sdk",
- "stellar-access",
- "stellar-governance",
- "stellar-macros",
- "stellar-tokens",
-]
-
-[[package]]
-name = "dao-treasury"
-version = "0.0.0"
-dependencies = [
- "retroshade-sdk",
- "soroban-sdk",
-]
-
-[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -764,6 +733,17 @@ dependencies = [
  "libc",
  "wasi",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "governor"
+version = "0.0.0"
+dependencies = [
+ "retroshade-sdk",
+ "soroban-sdk",
+ "stellar-governance",
+ "token",
+ "treasury",
 ]
 
 [[package]]
@@ -1809,6 +1789,26 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token"
+version = "0.0.0"
+dependencies = [
+ "retroshade-sdk",
+ "soroban-sdk",
+ "stellar-access",
+ "stellar-governance",
+ "stellar-macros",
+ "stellar-tokens",
+]
+
+[[package]]
+name = "treasury"
+version = "0.0.0"
+dependencies = [
+ "retroshade-sdk",
+ "soroban-sdk",
+]
 
 [[package]]
 name = "typenum"
