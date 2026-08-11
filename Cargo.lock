@@ -752,7 +752,9 @@ version = "0.0.0"
 dependencies = [
  "retroshade-sdk",
  "soroban-sdk",
+ "stellar-access",
  "stellar-governance",
+ "stellar-macros",
  "token",
  "treasury",
 ]
@@ -1819,6 +1821,8 @@ version = "0.0.0"
 dependencies = [
  "retroshade-sdk",
  "soroban-sdk",
+ "stellar-access",
+ "stellar-macros",
 ]
 
 [[package]]

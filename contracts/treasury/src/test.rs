@@ -25,8 +25,9 @@ fn treasury_executes_arbitrary_call_for_governor() {
     let e = Env::default();
     e.mock_all_auths();
 
+    let owner = Address::generate(&e);
     let governor = Address::generate(&e);
-    let treasury_id = e.register(DaoTreasuryContract, (governor.clone(),));
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), governor.clone()));
     let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
     let target_id = e.register(TargetContract, ());
     let target = TargetContractClient::new(&e, &target_id);
@@ -41,9 +42,10 @@ fn treasury_executes_arbitrary_call_for_governor() {
 #[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
 fn treasury_rejects_non_governor() {
     let e = Env::default();
+    let owner = Address::generate(&e);
     let governor = Address::generate(&e);
     let attacker = Address::generate(&e);
-    let treasury_id = e.register(DaoTreasuryContract, (governor.clone(),));
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), governor.clone()));
     let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
     let target_id = e.register(TargetContract, ());
     let target = TargetContractClient::new(&e, &target_id);
@@ -60,4 +62,27 @@ fn treasury_rejects_non_governor() {
     }]);
 
     treasury.execute(&target.address, &symbol_short!("set_value"), &args);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn set_governor_requires_owner() {
+    let e = Env::default();
+    let owner = Address::generate(&e);
+    let attacker = Address::generate(&e);
+    let new_governor = Address::generate(&e);
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
+    let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
+
+    e.mock_auths(&[MockAuth {
+        address: &attacker,
+        invoke: &MockAuthInvoke {
+            contract: &treasury.address,
+            fn_name: "set_governor",
+            args: (&new_governor,).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    treasury.set_governor(&new_governor);
 }

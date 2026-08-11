@@ -4,6 +4,8 @@ use soroban_sdk::{
     contract, contractimpl, contracttype, panic_with_error, Address, BytesN, Env, String,
     Symbol, Val, Vec,
 };
+use stellar_access::ownable::{set_owner, Ownable};
+use stellar_macros::only_owner;
 use stellar_governance::{
     governor::{
         self as governor, emit_proposal_cancelled, emit_proposal_created,
@@ -51,6 +53,7 @@ pub struct DaoGovernorContract;
 impl DaoGovernorContract {
     pub fn __constructor(
         e: &Env,
+        owner: Address,
         token_contract: Address,
         treasury_contract: Address,
         voting_delay: u32,
@@ -59,6 +62,7 @@ impl DaoGovernorContract {
         quorum_bps: u32,
     ) {
         assert!(quorum_bps <= 10_000);
+        set_owner(e, &owner);
         governor::set_name(e, String::from_str(e, "MvpDaoGovernor"));
         governor::set_version(e, String::from_str(e, "1.0.0"));
         governor::set_token_contract(e, &token_contract);
@@ -67,6 +71,37 @@ impl DaoGovernorContract {
         governor::set_proposal_threshold(e, proposal_threshold);
         governor::set_quorum(e, quorum_bps as u128);
         e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
+    }
+
+    #[only_owner]
+    pub fn set_treasury(e: &Env, treasury_contract: Address) {
+        e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
+    }
+
+    #[only_owner]
+    pub fn set_token_contract(e: &Env, token_contract: Address) {
+        governor::set_token_contract(e, &token_contract);
+    }
+
+    #[only_owner]
+    pub fn set_voting_delay(e: &Env, voting_delay: u32) {
+        governor::set_voting_delay(e, voting_delay);
+    }
+
+    #[only_owner]
+    pub fn set_voting_period(e: &Env, voting_period: u32) {
+        governor::set_voting_period(e, voting_period);
+    }
+
+    #[only_owner]
+    pub fn set_proposal_threshold(e: &Env, proposal_threshold: u128) {
+        governor::set_proposal_threshold(e, proposal_threshold);
+    }
+
+    #[only_owner]
+    pub fn set_quorum_bps(e: &Env, quorum_bps: u32) {
+        assert!(quorum_bps <= 10_000);
+        governor::set_quorum(e, quorum_bps as u128);
     }
 
     pub fn treasury(e: &Env) -> Address {
@@ -121,6 +156,9 @@ impl DaoGovernorContract {
         }
     }
 }
+
+#[contractimpl(contracttrait)]
+impl Ownable for DaoGovernorContract {}
 
 #[contractimpl(contracttrait)]
 impl Governor for DaoGovernorContract {

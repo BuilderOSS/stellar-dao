@@ -39,12 +39,13 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     );
     let token = DaoTokenContractClient::new(&e, &token_id);
 
-    let treasury_id = e.register(DaoTreasuryContract, (Address::generate(&e),));
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
     let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
 
     let governor_id = e.register(
         DaoGovernorContract,
         (
+            owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
             10_u32,

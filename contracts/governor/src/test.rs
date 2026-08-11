@@ -2,7 +2,7 @@ extern crate std;
 
 use token::{DaoTokenContract, DaoTokenContractClient};
 use treasury::{DaoTreasuryContract, DaoTreasuryContractClient};
-use soroban_sdk::{contract, contractimpl, symbol_short, testutils::{Address as _, Ledger}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
 use stellar_governance::governor::ProposalState;
 
 use crate::{DaoGovernorContract, DaoGovernorContractClient};
@@ -40,12 +40,13 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     );
     let token = DaoTokenContractClient::new(&e, &token_id);
 
-    let treasury_id = e.register(DaoTreasuryContract, (Address::generate(&e),));
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
     let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
 
     let governor_id = e.register(
         DaoGovernorContract,
         (
+            owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
             10_u32,
@@ -196,10 +197,11 @@ fn quorum_uses_total_supply_bps() {
     );
     let token = DaoTokenContractClient::new(&e, &token_id);
 
-    let treasury_id = e.register(DaoTreasuryContract, (Address::generate(&e),));
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
     let governor_id = e.register(
         DaoGovernorContract,
         (
+            owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
             0_u32,
@@ -217,4 +219,48 @@ fn quorum_uses_total_supply_bps() {
     e.ledger().set_sequence_number(102);
 
     assert_eq!(governor.quorum(&(e.ledger().sequence() - 1)), 3);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn set_treasury_requires_owner() {
+    let e = Env::default();
+    let owner = Address::generate(&e);
+    let attacker = Address::generate(&e);
+    let new_treasury = Address::generate(&e);
+    let token_id = e.register(
+        DaoTokenContract,
+        (
+            owner.clone(),
+            String::from_str(&e, "https://example.com/"),
+            String::from_str(&e, "DAO Vote NFT"),
+            String::from_str(&e, "vDAO"),
+        ),
+    );
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
+    let governor_id = e.register(
+        DaoGovernorContract,
+        (
+            owner.clone(),
+            token_id,
+            treasury_id,
+            10_u32,
+            100_u32,
+            1_u128,
+            1_000_u32,
+        ),
+    );
+    let governor = DaoGovernorContractClient::new(&e, &governor_id);
+
+    e.mock_auths(&[MockAuth {
+        address: &attacker,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_treasury",
+            args: (&new_treasury,).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_treasury(&new_treasury);
 }

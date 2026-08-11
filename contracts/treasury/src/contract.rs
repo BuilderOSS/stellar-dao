@@ -1,4 +1,6 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Symbol, Val, Vec};
+use stellar_access::ownable::{set_owner, Ownable};
+use stellar_macros::only_owner;
 
 #[cfg(feature = "mercury")]
 mod retroshade {
@@ -25,10 +27,12 @@ pub struct DaoTreasuryContract;
 
 #[contractimpl]
 impl DaoTreasuryContract {
-    pub fn __constructor(e: &Env, governor: Address) {
+    pub fn __constructor(e: &Env, owner: Address, governor: Address) {
+        set_owner(e, &owner);
         e.storage().instance().set(&TreasuryKey::Governor, &governor);
     }
 
+    #[only_owner]
     pub fn set_governor(e: &Env, governor: Address) {
         e.storage().instance().set(&TreasuryKey::Governor, &governor);
     }
@@ -43,3 +47,6 @@ impl DaoTreasuryContract {
         e.invoke_contract::<Val>(&target, &function, args)
     }
 }
+
+#[contractimpl(contracttrait)]
+impl Ownable for DaoTreasuryContract {}

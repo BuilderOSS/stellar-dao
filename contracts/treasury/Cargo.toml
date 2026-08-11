@@ -10,6 +10,8 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
+stellar-access = { workspace = true }
+stellar-macros = { workspace = true }
 retroshade-sdk = { version = "0.1.0", optional = true }
 
 [dev-dependencies]
