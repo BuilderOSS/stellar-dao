@@ -14,6 +14,68 @@ export type NetworkConfig = {
 };
 
 const defaultAdminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
+const knownArenaErrorMessages = [
+  'Still on cooldown',
+  'Contract already initialized',
+  'Not authorized',
+  'Insufficient balance to burn',
+  'Insufficient balance',
+  'Insufficient allowance',
+  'This wallet does not exist',
+  'Account not found'
+];
+
+function cleanErrorText(value: string) {
+  return value
+    .replace(/^Error:\s*/i, '')
+    .replace(/^Error\((.*)\)$/i, '$1')
+    .replace(/^HostError:\s*/i, '')
+    .trim();
+}
+
+function collectErrorTexts(value: unknown, seen = new Set<unknown>(), depth = 0): string[] {
+  if (value === null || typeof value === 'undefined' || depth > 5) return [];
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : [];
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return [String(value)];
+  if (seen.has(value)) return [];
+  seen.add(value);
+
+  if (value instanceof Error) {
+    return [value.name, value.message, ...collectErrorTexts(value.cause, seen, depth + 1)];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectErrorTexts(entry, seen, depth + 1));
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    return entries.flatMap(([key, entry]) => [key, ...collectErrorTexts(entry, seen, depth + 1)]);
+  }
+
+  return [];
+}
+
+export function formatArenaError(error: unknown, fallback = 'Transaction failed') {
+  const collected = collectErrorTexts(error)
+    .map(cleanErrorText)
+    .filter(Boolean);
+
+  const joined = collected.join(' | ').toLowerCase();
+
+  for (const message of knownArenaErrorMessages) {
+    if (joined.includes(message.toLowerCase())) {
+      return message;
+    }
+  }
+
+  if (joined.includes('cooldown')) {
+    return 'Still on cooldown';
+  }
+
+  const firstMeaningful = collected.find((message) => !message.toLowerCase().startsWith('hosterror'));
+  return firstMeaningful ?? fallback;
+}
 
 export function getNetworkConfig(name: NetworkName): NetworkConfig {
   if (name === 'testnet') {
@@ -58,12 +120,12 @@ export function createArenaClient(network: NetworkConfig) {
 }
 
 function normalizeWalletError(error: unknown) {
-  const message = error instanceof Error ? error.message : 'Wallet signing failed';
+  const message = formatArenaError(error, 'Wallet signing failed');
   return { code: -1, message };
 }
 
 function normalizeSubmitError(error: unknown) {
-  return error instanceof Error ? error : new Error('Transaction submission failed');
+  return new Error(formatArenaError(error, 'Transaction submission failed'));
 }
 
 function createRpcServer(network: NetworkConfig) {
@@ -131,9 +193,7 @@ export async function signArenaTransaction(network: NetworkConfig, xdr: string, 
     return result.signedTxXdr;
   }
 
-  const resultError = 'error' in result ? (result.error as { message?: string } | undefined) : undefined;
-  const message = resultError?.message ?? 'Wallet signing failed';
-  throw new Error(message);
+  throw new Error(formatArenaError('error' in result ? result.error : result, 'Wallet signing failed'));
 }
 
 export async function selectArenaWallet() {
@@ -147,7 +207,7 @@ export async function submitArenaTransaction(network: NetworkConfig, signedTxXdr
     const transaction = TransactionBuilder.fromXDR(signedTxXdr, network.passphrase);
     const response = await server.sendTransaction(transaction);
     if (response.status === 'ERROR') {
-      throw new Error(response.errorResult ? response.errorResult.toString() : 'Transaction rejected by network');
+      throw new Error(formatArenaError(response.errorResult ?? response, 'Transaction rejected by network'));
     }
     return response;
   } catch (error) {

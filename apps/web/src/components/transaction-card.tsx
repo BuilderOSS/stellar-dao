@@ -6,6 +6,7 @@ import {
   createArenaActionClient,
   ensureArenaAccountExists,
   getNetworkConfig,
+  formatArenaError,
   selectArenaWallet,
   submitAndConfirmArenaTransaction,
   signArenaTransaction,
@@ -41,16 +42,8 @@ function fieldInputMode(type: ActionSpec['fields'][number]['type']) {
   return 'text';
 }
 
-function errorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message?: unknown }).message ?? 'Submit failed');
-  }
-  return 'Submit failed';
-}
-
 function needsWalletSelection(error: unknown) {
-  const message = errorMessage(error).toLowerCase();
+  const message = formatArenaError(error, 'Wallet selection required').toLowerCase();
   return message.includes('please set the wallet first') || message.includes('no wallet has been connected');
 }
 
@@ -173,7 +166,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       });
       setStatus(preview.requiredSigners.length > 1 ? 'Saved for multisigner handoff' : 'Preview ready for signing');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Preview failed';
+      const message = formatArenaError(error, 'Preview failed');
       setStatus(message);
       markError(handoffId, message);
     }
@@ -200,7 +193,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       onRecord?.(record);
       setStatus(resultText);
     } catch (error) {
-      const message = errorMessage(error);
+      const message = formatArenaError(error, 'Submit failed');
       console.error('[transaction-card] confirmation failed', error);
       markError(handoffId, message);
       onRecord?.({
@@ -273,7 +266,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
 
       setStatus('Signature saved for handoff');
     } catch (error) {
-      const message = errorMessage(error);
+      const message = formatArenaError(error, 'Sign failed');
       console.error('[transaction-card] signing failed', error);
       markError(handoffId, message);
       onRecord?.({
@@ -306,7 +299,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     try {
       await sendSignedHandoff(activeHandoff.signedXdr, activeHandoff.signedBy, activeHandoff.previewResult);
     } catch (error) {
-      const message = errorMessage(error);
+      const message = formatArenaError(error, 'Submit failed');
       console.error('[transaction-card] submit failed', error);
       markError(handoffId, message);
       onRecord?.({
