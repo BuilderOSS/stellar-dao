@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import {
   createArenaActionClient,
@@ -67,28 +67,17 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [status, setStatus] = useState<string>('');
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordSeqRef = useRef(0);
-
-  function cancelAutoReset() {
-    if (resetTimerRef.current) {
-      clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = null;
-    }
-  }
 
   function nextRecordId() {
     recordSeqRef.current += 1;
     return `${spec.id}-${recordSeqRef.current}`;
   }
 
-  useEffect(() => {
-    return () => {
-      if (resetTimerRef.current) {
-        clearTimeout(resetTimerRef.current);
-      }
-    };
-  }, []);
+  const resetXdr = useCallback(() => {
+    useTransactionHandoffStore.getState().resetHandoff(handoffId);
+    setStatus('');
+  }, [handoffId]);
 
   function getFieldValue(fieldName: string, fieldType: ActionSpec['fields'][number]['type']) {
     const currentValue = draft[fieldName];
@@ -145,7 +134,6 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   );
 
   function updateField(name: string, value: string) {
-    cancelAutoReset();
     const nextDraft = { ...resolveDraft(), [name]: value };
     setDraft((current) => {
       saveDraft({
@@ -163,7 +151,6 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function buildPreview() {
-    cancelAutoReset();
     setStatus('');
 
     try {
@@ -212,11 +199,6 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       };
       onRecord?.(record);
       setStatus(resultText);
-      cancelAutoReset();
-      resetTimerRef.current = setTimeout(() => {
-        useTransactionHandoffStore.getState().resetHandoff(handoffId);
-        resetTimerRef.current = null;
-      }, 5000);
     } catch (error) {
       const message = errorMessage(error);
       console.error('[transaction-card] confirmation failed', error);
@@ -237,7 +219,6 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function signCurrentWallet() {
-    cancelAutoReset();
     const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
     if (!activeHandoff?.previewXdr) return;
 
@@ -313,7 +294,6 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function submitReadyHandoff() {
-    cancelAutoReset();
     const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
     if (!activeHandoff?.signedXdr) {
       setStatus('Add signatures first');
@@ -373,6 +353,18 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       ? 'Add signature'
       : 'Sign & submit';
 
+  useEffect(() => {
+    if (activeHandoff?.status !== 'submitted') {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      resetXdr();
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [activeHandoff?.status, resetXdr]);
+
   return (
     <Card p="5" className="stack">
       <Stack gap="4">
@@ -425,7 +417,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
             </Button>
           ) : null}
           {activeHandoff?.previewXdr ? (
-            <Button type="button" variant="plain" size="sm" onClick={() => useTransactionHandoffStore.getState().resetHandoff(handoffId)}>
+            <Button type="button" variant="plain" size="sm" onClick={resetXdr}>
               Reset XDR
             </Button>
           ) : null}

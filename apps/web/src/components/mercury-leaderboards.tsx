@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric } from '@/lib/mercury-types';
 import { useMercuryLeaderboards } from '@/lib/mercury-queries';
-import { Grid, Stack } from 'styled-system/jsx';
+import { Stack } from 'styled-system/jsx';
 
 const METRIC_OPTIONS: Array<{ value: MercuryLeaderboardMetric; label: string }> = [
   { value: 'balance', label: 'Balance' },
@@ -28,16 +28,30 @@ function statValue(entry: MercuryLeaderboardEntry, metric: MercuryLeaderboardMet
 
 function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; metric: MercuryLeaderboardMetric }) {
   return (
-    <Card p="4">
+    <Card p="4" style={{ width: '100%' }}>
       <Stack gap="2">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <ShortId value={entry.address} label={`#${entry.rank}`} />
           </div>
-          <Badge>{statValue(entry, metric)}</Badge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {metric !== 'balance' ? <Badge>{statValue(entry, metric)}</Badge> : null}
+            <Badge
+              style={{
+                width: '2.25rem',
+                height: '2.25rem',
+                padding: 0,
+                borderRadius: '9999px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {entry.balance}
+            </Badge>
+          </div>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <Badge>{entry.balance} bal</Badge>
           <Badge>{entry.wins} wins</Badge>
           <Badge>{entry.punches} punches</Badge>
           <Badge>{entry.raids} raids</Badge>
@@ -60,18 +74,25 @@ export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
             <Text className="label">Mercury leaderboards</Text>
             <Heading style={{ fontSize: '1.4rem' }}>Arena rankings</Heading>
           </Stack>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Select value={metric} onChange={(event) => setMetric(event.currentTarget.value as MercuryLeaderboardMetric)}>
-              {METRIC_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-            <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
-              {isLoading ? 'Syncing' : 'Refresh'}
-            </Button>
-          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
+            {isLoading ? 'Syncing' : 'Refresh'}
+          </Button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+          <Text className="label" style={{ margin: 0 }}>
+            Filter
+          </Text>
+          <Select
+            value={metric}
+            onChange={(event) => setMetric(event.currentTarget.value as MercuryLeaderboardMetric)}
+          >
+            {METRIC_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
         </div>
 
         {data?.message ? <Text className="lede" style={{ margin: 0 }}>{data.message}</Text> : null}
@@ -81,11 +102,11 @@ export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
             No leaderboard rows yet.
           </Text>
         ) : (
-          <Grid columns={{ base: 1, xl: 2 }} gap="3">
+          <Stack gap="3">
             {data.items.map((entry) => (
               <LeaderboardRow key={entry.address} entry={entry} metric={metric} />
             ))}
-          </Grid>
+          </Stack>
         )}
       </Stack>
     </Card>

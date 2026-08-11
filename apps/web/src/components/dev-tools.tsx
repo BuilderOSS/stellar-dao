@@ -23,7 +23,9 @@ export function DevTools({ network, networkConfig, address, status, history, onR
     <Stack gap="5">
       <Card p="6">
         <Stack gap="3">
-          <Badge>Developer tools</Badge>
+          <div>
+            <Badge>Developer tools</Badge>
+          </div>
           <Heading style={{ fontSize: '1.8rem' }}>Admin and arena diagnostics</Heading>
           <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
             Admin controls are intentionally separated from normal user flows. Use them here when the connected wallet

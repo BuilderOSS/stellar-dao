@@ -31,7 +31,9 @@ export function ActionCenter({ network, address, onRecord }: ActionCenterProps) 
     <Stack gap="5">
       <Card p="6">
         <Stack gap="3">
-          <Badge>Arena actions</Badge>
+          <div>
+            <Badge>Arena actions</Badge>
+          </div>
           <Heading style={{ fontSize: '1.8rem' }}>Playbook</Heading>
           <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
             Build each arena move, inspect the preview, then sign and submit from the connected wallet. Multi-signer
