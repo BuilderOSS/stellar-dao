@@ -4,6 +4,331 @@ use soroban_sdk::{
 };
 use core::cmp::min;
 
+#[cfg(feature = "mercury")]
+mod retroshade {
+    use super::*;
+    use retroshade_sdk::Retroshade;
+    use soroban_sdk::{contracttype, Symbol};
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct ChargeUpIndexed {
+        pub user: Address,
+        pub new_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct PunchIndexed {
+        pub from: Address,
+        pub to: Address,
+        pub moved: i128,
+        pub actor_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct KickIndexed {
+        pub from: Address,
+        pub to: Address,
+        pub moved: i128,
+        pub actor_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct JointPunchIndexed {
+        pub user1: Address,
+        pub user2: Address,
+        pub target: Address,
+        pub moved: i128,
+        pub user1_balance: i128,
+        pub user2_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct HeavyKickIndexed {
+        pub user1: Address,
+        pub user2: Address,
+        pub user3: Address,
+        pub target: Address,
+        pub moved: i128,
+        pub user1_balance: i128,
+        pub user2_balance: i128,
+        pub user3_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct TransferPointsIndexed {
+        pub from: Address,
+        pub to: Address,
+        pub amount: i128,
+        pub from_balance: i128,
+        pub to_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct BattleIndexed {
+        pub attacker: Address,
+        pub defender: Address,
+        pub winner: Address,
+        pub loser: Address,
+        pub drained: i128,
+        pub attacker_balance: i128,
+        pub defender_balance: i128,
+        pub action_count: u32,
+        pub cooldown_secs: u64,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct AdminIndexed {
+        pub admin: Address,
+        pub action: Symbol,
+        pub seconds: u64,
+        pub action_count: u32,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct MintIndexed {
+        pub to: Address,
+        pub amount: i128,
+        pub total_supply: i128,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct BurnIndexed {
+        pub from: Address,
+        pub amount: i128,
+        pub total_supply: i128,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct TransferIndexed {
+        pub from: Address,
+        pub to: Address,
+        pub amount: i128,
+        pub from_balance: i128,
+        pub to_balance: i128,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct ApproveIndexed {
+        pub from: Address,
+        pub spender: Address,
+        pub amount: i128,
+        pub live_until_ledger: u32,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    pub fn emit_charge_up(env: &Env, user: Address, new_balance: i128, action_count: u32, cooldown_secs: u64) {
+        ChargeUpIndexed {
+            user,
+            new_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_punch(env: &Env, from: Address, to: Address, moved: i128, actor_balance: i128, action_count: u32, cooldown_secs: u64) {
+        PunchIndexed {
+            from,
+            to,
+            moved,
+            actor_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_kick(env: &Env, from: Address, to: Address, moved: i128, actor_balance: i128, action_count: u32, cooldown_secs: u64) {
+        KickIndexed {
+            from,
+            to,
+            moved,
+            actor_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_joint_punch(env: &Env, user1: Address, user2: Address, target: Address, moved: i128, user1_balance: i128, user2_balance: i128, action_count: u32, cooldown_secs: u64) {
+        JointPunchIndexed {
+            user1,
+            user2,
+            target,
+            moved,
+            user1_balance,
+            user2_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_heavy_kick(env: &Env, user1: Address, user2: Address, user3: Address, target: Address, moved: i128, user1_balance: i128, user2_balance: i128, user3_balance: i128, action_count: u32, cooldown_secs: u64) {
+        HeavyKickIndexed {
+            user1,
+            user2,
+            user3,
+            target,
+            moved,
+            user1_balance,
+            user2_balance,
+            user3_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_transfer_points(env: &Env, from: Address, to: Address, amount: i128, from_balance: i128, to_balance: i128, action_count: u32, cooldown_secs: u64) {
+        TransferPointsIndexed {
+            from,
+            to,
+            amount,
+            from_balance,
+            to_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_battle(env: &Env, attacker: Address, defender: Address, winner: Address, loser: Address, drained: i128, attacker_balance: i128, defender_balance: i128, action_count: u32, cooldown_secs: u64) {
+        BattleIndexed {
+            attacker,
+            defender,
+            winner,
+            loser,
+            drained,
+            attacker_balance,
+            defender_balance,
+            action_count,
+            cooldown_secs,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_admin(env: &Env, admin: Address, action: Symbol, seconds: u64, action_count: u32) {
+        AdminIndexed {
+            admin,
+            action,
+            seconds,
+            action_count,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_mint(env: &Env, to: Address, amount: i128, total_supply: i128) {
+        MintIndexed {
+            to,
+            amount,
+            total_supply,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_burn(env: &Env, from: Address, amount: i128, total_supply: i128) {
+        BurnIndexed {
+            from,
+            amount,
+            total_supply,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_transfer(env: &Env, from: Address, to: Address, amount: i128, from_balance: i128, to_balance: i128) {
+        TransferIndexed {
+            from,
+            to,
+            amount,
+            from_balance,
+            to_balance,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+
+    pub fn emit_approve(env: &Env, from: Address, spender: Address, amount: i128, live_until_ledger: u32) {
+        ApproveIndexed {
+            from,
+            spender,
+            amount,
+            live_until_ledger,
+            ledger: env.ledger().sequence(),
+            timestamp: env.ledger().timestamp(),
+        }
+        .emit(env);
+    }
+}
+
 // Default TTL values (in ledgers, ~5 seconds per ledger)
 const DAY_IN_LEDGERS: u32 = 17280; // ~1 day
 const PERSISTENT_LIFETIME_THRESHOLD: u32 = 30 * DAY_IN_LEDGERS; // 30 days
@@ -251,6 +576,14 @@ impl ArenaContract {
             new_balance,
         }
         .publish(&env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_charge_up(&env, user.clone(), new_balance, action_count, cooldown_secs);
+        }
+
         Self::check_milestone(&env, &user, new_balance as u32);
 
         1
@@ -277,6 +610,22 @@ impl ArenaContract {
             actor_balance,
         }
         .publish(&env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_punch(
+                &env,
+                from.clone(),
+                to.clone(),
+                moved,
+                actor_balance,
+                action_count,
+                cooldown_secs,
+            );
+        }
+
         Self::check_milestone(&env, &from, actor_balance as u32);
 
         moved
@@ -303,6 +652,22 @@ impl ArenaContract {
             actor_balance,
         }
         .publish(&env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_kick(
+                &env,
+                from.clone(),
+                to.clone(),
+                moved,
+                actor_balance,
+                action_count,
+                cooldown_secs,
+            );
+        }
+
         Self::check_milestone(&env, &from, actor_balance as u32);
 
         moved
@@ -365,6 +730,23 @@ impl ArenaContract {
         }
         .publish(&env);
 
+        #[cfg(feature = "mercury")]
+        {
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_joint_punch(
+                &env,
+                user1.clone(),
+                user2.clone(),
+                target.clone(),
+                moved,
+                user1_balance,
+                user2_balance,
+                action_count,
+                cooldown_secs,
+            );
+        }
+
         Self::check_milestone(&env, &user1, user1_balance as u32);
         Self::check_milestone(&env, &user2, user2_balance as u32);
 
@@ -418,6 +800,25 @@ impl ArenaContract {
         }
         .publish(&env);
 
+        #[cfg(feature = "mercury")]
+        {
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_heavy_kick(
+                &env,
+                user1.clone(),
+                user2.clone(),
+                user3.clone(),
+                target.clone(),
+                moved,
+                user1_balance,
+                user2_balance,
+                user3_balance,
+                action_count,
+                cooldown_secs,
+            );
+        }
+
         Self::check_milestone(&env, &user1, user1_balance as u32);
         Self::check_milestone(&env, &user2, user2_balance as u32);
         Self::check_milestone(&env, &user3, user3_balance as u32);
@@ -444,6 +845,24 @@ impl ArenaContract {
             amount,
         }
         .publish(&env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let from_balance = Self::get_balance(&env, &from);
+            let to_balance = Self::get_balance(&env, &to);
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_transfer_points(
+                &env,
+                from.clone(),
+                to.clone(),
+                amount,
+                from_balance,
+                to_balance,
+                action_count,
+                cooldown_secs,
+            );
+        }
 
         // Set cooldown only for sender
         Self::set_cooldown(&env, &from);
@@ -486,6 +905,26 @@ impl ArenaContract {
             drained,
         }
         .publish(&env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let attacker_balance = Self::get_balance(&env, &attacker);
+            let defender_balance = Self::get_balance(&env, &defender);
+            let action_count = Self::get_action_count(env.clone());
+            let cooldown_secs = Self::get_cooldown_duration(env.clone());
+            retroshade::emit_battle(
+                &env,
+                attacker.clone(),
+                defender.clone(),
+                winner.clone(),
+                loser.clone(),
+                drained,
+                attacker_balance,
+                defender_balance,
+                action_count,
+                cooldown_secs,
+            );
+        }
 
         Self::check_milestone(&env, &winner, Self::get_balance(&env, &winner) as u32);
 
@@ -580,6 +1019,17 @@ impl ArenaContract {
         Self::require_admin(&env, &admin);
 
         env.storage().instance().set(&DataKey::ActionCount, &0u32);
+
+        #[cfg(feature = "mercury")]
+        {
+            retroshade::emit_admin(
+                &env,
+                admin.clone(),
+                soroban_sdk::Symbol::new(&env, "reset_action_count"),
+                0,
+                0,
+            );
+        }
     }
 
     /// Set cooldown duration in seconds (admin only)
@@ -590,6 +1040,18 @@ impl ArenaContract {
         env.storage()
             .instance()
             .set(&DataKey::CooldownSecs, &seconds);
+
+        #[cfg(feature = "mercury")]
+        {
+            let action_count = Self::get_action_count(env.clone());
+            retroshade::emit_admin(
+                &env,
+                admin.clone(),
+                soroban_sdk::Symbol::new(&env, "set_cooldown_duration"),
+                seconds,
+                action_count,
+            );
+        }
     }
 
     /// Get current cooldown configuration
@@ -849,6 +1311,16 @@ impl ArenaContract {
             amount,
         }
         .publish(env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let total_supply = env
+                .storage()
+                .instance()
+                .get(&DataKey::TotalSupply)
+                .unwrap_or(0);
+            retroshade::emit_mint(env, to.clone(), amount, total_supply);
+        }
     }
 
     fn burn_internal(env: &Env, from: &Address, amount: i128) {
@@ -872,6 +1344,16 @@ impl ArenaContract {
             amount,
         }
         .publish(env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let total_supply = env
+                .storage()
+                .instance()
+                .get(&DataKey::TotalSupply)
+                .unwrap_or(0);
+            retroshade::emit_burn(env, from.clone(), amount, total_supply);
+        }
     }
 
     fn transfer_internal(env: &Env, from: &Address, to: &Address, amount: i128) {
@@ -890,6 +1372,13 @@ impl ArenaContract {
             amount,
         }
         .publish(env);
+
+        #[cfg(feature = "mercury")]
+        {
+            let from_balance = Self::get_balance(env, from);
+            let to_balance = Self::get_balance(env, to);
+            retroshade::emit_transfer(env, from.clone(), to.clone(), amount, from_balance, to_balance);
+        }
     }
 
     fn get_allowance(env: &Env, from: &Address, spender: &Address) -> i128 {
@@ -941,6 +1430,11 @@ impl ArenaContract {
             live_until_ledger,
         }
         .publish(env);
+
+        #[cfg(feature = "mercury")]
+        {
+            retroshade::emit_approve(env, from.clone(), spender.clone(), amount, live_until_ledger);
+        }
     }
 
     fn spend_allowance(env: &Env, from: &Address, spender: &Address, amount: i128) {

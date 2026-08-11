@@ -199,6 +199,8 @@ extend_my_ttl(user: Address)                     // Manually extend user's data 
 make build
 # or
 stellar contract build --package arena
+# Mercury retroshade build
+cargo build -p arena --release --target wasm32v1-none --features mercury
 ```
 
 ### Test

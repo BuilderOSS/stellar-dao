@@ -9,6 +9,7 @@
     "arena:local:up": "node scripts/arena-local-up.mjs",
     "arena:local:down": "node scripts/arena-local-down.mjs",
     "arena:build": "stellar contract build --package arena --out-dir target/wasm32-unknown-unknown/release",
+    "arena:build:mercury": "cargo build -p arena --release --target wasm32v1-none --features mercury",
     "arena:bindings": "node scripts/arena-generate-bindings.mjs",
     "arena:deploy:local": "node scripts/deploy-arena.mjs local",
     "arena:deploy:testnet": "node scripts/deploy-arena.mjs testnet",
