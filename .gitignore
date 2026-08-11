@@ -6,6 +6,7 @@ node_modules
 .next
 apps/web/.env.local
 apps/web/styled-system
+apps/web/tsconfig.tsbuildinfo
 packages/contracts/counter/src/generated/dist
 
 # Local settings

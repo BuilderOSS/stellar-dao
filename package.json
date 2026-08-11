@@ -6,6 +6,7 @@
     "dev": "pnpm --dir apps/web dev",
     "build": "pnpm --dir apps/web build",
     "lint": "pnpm --dir apps/web lint",
+    "typecheck": "pnpm --dir apps/web typecheck",
     "arena:local:up": "node scripts/arena-local-up.mjs",
     "arena:local:down": "node scripts/arena-local-down.mjs",
     "arena:build": "stellar contract build --package arena --out-dir target/wasm32-unknown-unknown/release",
