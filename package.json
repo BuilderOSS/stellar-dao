@@ -9,16 +9,8 @@
     "typecheck": "pnpm --dir apps/web typecheck",
     "arena:local:up": "node scripts/arena-local-up.mjs",
     "arena:local:down": "node scripts/arena-local-down.mjs",
-    "arena:build": "stellar contract build --package arena --out-dir target/wasm32-unknown-unknown/release",
-    "arena:build:mercury": "cargo build -p arena --release --target wasm32v1-none --features mercury",
-    "arena:bindings": "node scripts/arena-generate-bindings.mjs",
-    "arena:deploy:local": "node scripts/deploy-arena.mjs local",
-    "arena:deploy:testnet": "node scripts/deploy-arena.mjs testnet",
-    "arena:retroshade:deploy": "node scripts/arena-retroshade.mjs deploy",
-    "arena:retroshade:delete": "node scripts/arena-retroshade.mjs delete",
-    "arena:retroshade:list": "node scripts/arena-retroshade.mjs list",
-    "arena:retroshade:status": "node scripts/arena-retroshade.mjs status",
-    "arena:setup:local": "node scripts/arena-setup-local.mjs"
+    "dao:build": "cargo build -p dao-token -p dao-governor -p dao-treasury --release --target wasm32v1-none",
+    "dao:build:mercury": "cargo build -p dao-token -p dao-governor -p dao-treasury --release --target wasm32v1-none --features mercury"
   },
   "workspaces": [
     "apps/*",

@@ -1,11 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-  "contracts/*",
+  "contracts/dao/*",
 ]
 
 [workspace.dependencies]
-soroban-sdk = "25"
+soroban-sdk = { version = "27.0.2", features = ["experimental_spec_shaking_v2"] }
+stellar-access = { path = "../../openzeppelin/stellar-contracts/packages/access", version = "0.7.1" }
+stellar-governance = { path = "../../openzeppelin/stellar-contracts/packages/governance", version = "0.7.1" }
+stellar-macros = { path = "../../openzeppelin/stellar-contracts/packages/macros", version = "0.7.1" }
+stellar-tokens = { path = "../../openzeppelin/stellar-contracts/packages/tokens", version = "0.7.1" }
 
 [profile.release]
 opt-level = "z"
