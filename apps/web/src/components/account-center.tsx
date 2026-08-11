@@ -1,9 +1,8 @@
 'use client';
 
 import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
-import type { MercuryAccountHistoryItem, MercuryAccountHistoryResponse } from '@/lib/mercury-types';
+import { useMercuryAccountHistory } from '@/lib/mercury-queries';
 import type { NetworkName } from '@/lib/stellar';
-import { useEffect, useState } from 'react';
 import { Grid, Stack } from 'styled-system/jsx';
 
 type AccountCenterProps = {
@@ -21,51 +20,23 @@ function formatTimestamp(timestamp: number) {
   }
 }
 
-function countBy(history: MercuryAccountHistoryItem[], predicate: (record: MercuryAccountHistoryItem) => boolean) {
+function countBy(history: Array<{ kind: string }>, predicate: (record: { kind: string }) => boolean) {
   return history.filter(predicate).length;
 }
 
 export function AccountCenter({ network, address, status }: AccountCenterProps) {
-  const [state, setState] = useState<MercuryAccountHistoryResponse>({ address, items: [], generatedAt: '' });
+  const { data, error, isLoading } = useMercuryAccountHistory(address, 8);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function load() {
-      if (!address) {
-        setState({ address, items: [], generatedAt: '', message: 'Connect a wallet to see indexed history.' });
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/mercury/account-history?address=${encodeURIComponent(address)}&limit=8`, {
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        const json = (await response.json()) as MercuryAccountHistoryResponse;
-        if (!controller.signal.aborted) {
-          setState(json);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setState({ address, items: [], generatedAt: '' });
-        }
-      }
-    }
-
-    void load();
-    return () => controller.abort();
-  }, [address]);
-
-  const recent = state.items.slice(0, 5);
-  const successCount = countBy(state.items, (record) => record.kind !== 'admin');
-  const uniqueActions = new Set(state.items.map((record) => record.kind)).size;
-  const lastAction = state.items[0];
-  const chargeUps = countBy(state.items, (record) => record.kind === 'charge_up');
-  const punches = countBy(state.items, (record) => record.kind === 'punch');
-  const kicks = countBy(state.items, (record) => record.kind === 'kick');
-  const battles = countBy(state.items, (record) => record.kind === 'battle');
-  const raids = countBy(state.items, (record) => record.kind === 'joint_punch' || record.kind === 'heavy_kick');
+  const items = data?.items ?? [];
+  const recent = items.slice(0, 5);
+  const successCount = countBy(items, (record) => record.kind !== 'admin');
+  const uniqueActions = new Set(items.map((record) => record.kind)).size;
+  const lastAction = items[0];
+  const chargeUps = countBy(items, (record) => record.kind === 'charge_up');
+  const punches = countBy(items, (record) => record.kind === 'punch');
+  const kicks = countBy(items, (record) => record.kind === 'kick');
+  const battles = countBy(items, (record) => record.kind === 'battle');
+  const raids = countBy(items, (record) => record.kind === 'joint_punch' || record.kind === 'heavy_kick');
 
   return (
     <Stack gap="5">
@@ -95,7 +66,7 @@ export function AccountCenter({ network, address, status }: AccountCenterProps) 
           <Stack gap="2">
             <Text className="label">Mercury activity</Text>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              <Badge>{state.items.length} actions</Badge>
+              <Badge>{items.length} actions</Badge>
               <Badge>{chargeUps} charge ups</Badge>
               <Badge>{punches} punches</Badge>
               <Badge>{kicks} kicks</Badge>
@@ -114,7 +85,9 @@ export function AccountCenter({ network, address, status }: AccountCenterProps) 
       <Card p="5">
         <Stack gap="4">
           <Text className="label">Recent interactions</Text>
-          {state.message ? <Text className="lede" style={{ margin: 0 }}>{state.message}</Text> : null}
+          {data?.message ? <Text className="lede" style={{ margin: 0 }}>{data.message}</Text> : null}
+          {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
+          {isLoading ? <Text className="lede" style={{ margin: 0 }}>Loading...</Text> : null}
           {recent.length ? (
             <Stack gap="3">
               {recent.map((record) => (

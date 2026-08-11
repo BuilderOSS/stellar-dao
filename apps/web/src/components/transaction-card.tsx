@@ -14,6 +14,7 @@ import type { ActionRecord, ActionSpec } from '@/lib/tx';
 import { safeStringify, summarizeValue } from '@/lib/tx';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
+import useSWRMutation from 'swr/mutation';
 import { useTransactionHandoffStore } from '@/stores/transaction-handoff-store';
 
 type TransactionCardProps = {
@@ -62,7 +63,6 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const markSubmitted = useTransactionHandoffStore((state) => state.markSubmitted);
   const markError = useTransactionHandoffStore((state) => state.markError);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copyLabel, setCopyLabel] = useState<'Copy XDR' | 'Copied'>('Copy XDR');
   const [status, setStatus] = useState<string>('');
@@ -89,6 +89,38 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     return Object.fromEntries(spec.fields.map((field) => [field.name, getFieldValue(field.name, field.type)]));
   }
 
+  const { trigger: previewAction, isMutating: isPreviewing } = useSWRMutation(
+    [network, currentNetwork.contractId, spec.id, address],
+    async () => {
+      if (!address) {
+        throw new Error('Connect a wallet first');
+      }
+
+      const client = createArenaActionClient(currentNetwork, address);
+      if (!client) {
+        throw new Error('Set a contract id first');
+      }
+
+      const accountExists = await ensureArenaAccountExists(currentNetwork, address);
+
+      if (!accountExists) {
+        throw new Error(`This wallet does not exist on ${currentNetwork.label} yet. Fund it, then preview again.`);
+      }
+
+      const currentDraft = resolveDraft();
+      const tx = await (client as any)[spec.method](spec.buildArgs(currentDraft, address));
+
+      return {
+        draft: currentDraft,
+        previewJson: tx.toJSON(),
+        previewXdr: tx.toXDR(),
+        previewResult: summarizeValue(tx.result),
+        requiredSigners: Array.from(new Set([address, ...(tx.needsNonInvokerSigningBy?.() ?? [])].filter(Boolean))),
+        isReadCall: tx.isReadCall
+      };
+    }
+  );
+
   function updateField(name: string, value: string) {
     const nextDraft = { ...resolveDraft(), [name]: value };
     setDraft((current) => {
@@ -107,34 +139,10 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function buildPreview() {
-    if (!address) {
-      setStatus('Connect a wallet first');
-      return;
-    }
-
-    const accountExists = await ensureArenaAccountExists(currentNetwork, address);
-    if (!accountExists) {
-      setStatus(`This wallet does not exist on ${currentNetwork.label} yet. Fund it, then preview again.`);
-      return;
-    }
-
-    const client = createArenaActionClient(currentNetwork, address);
-    if (!client) {
-      setStatus('Set a contract id first');
-      return;
-    }
-
-    setIsPreviewing(true);
     setStatus('');
 
     try {
-      const currentDraft = resolveDraft();
-      const args = spec.buildArgs(currentDraft, address);
-      const tx = await (client as any)[spec.method](args);
-      const requiredSigners = Array.from(new Set([address, ...(tx.needsNonInvokerSigningBy?.() ?? [])].filter(Boolean)));
-      const previewJson = tx.toJSON();
-      const previewXdr = tx.toXDR();
-      const previewResult = summarizeValue(tx.result);
+      const preview = await previewAction();
 
       savePreview({
         id: handoffId,
@@ -143,21 +151,19 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
-        draft: currentDraft,
-        previewJson,
-        previewXdr,
-        previewResult,
-        requiredSigners,
+        draft: preview.draft,
+        previewJson: preview.previewJson,
+        previewXdr: preview.previewXdr,
+        previewResult: preview.previewResult,
+        requiredSigners: preview.requiredSigners,
         signerCount: spec.signerCount,
-        isReadCall: tx.isReadCall
+        isReadCall: preview.isReadCall
       });
-      setStatus(requiredSigners.length > 1 ? 'Saved for multisigner handoff' : 'Preview ready for signing');
+      setStatus(preview.requiredSigners.length > 1 ? 'Saved for multisigner handoff' : 'Preview ready for signing');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Preview failed';
       setStatus(message);
       markError(handoffId, message);
-    } finally {
-      setIsPreviewing(false);
     }
   }
 

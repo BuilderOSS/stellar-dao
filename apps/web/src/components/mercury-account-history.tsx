@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
-import type { MercuryAccountHistoryItem, MercuryAccountHistoryResponse } from '@/lib/mercury-types';
+import { useMercuryAccountHistory } from '@/lib/mercury-queries';
 import { Grid, Stack } from 'styled-system/jsx';
 
 type MercuryAccountHistoryProps = {
@@ -19,49 +18,14 @@ function formatTimestamp(timestamp: number) {
   }
 }
 
-function historyCount(items: MercuryAccountHistoryItem[], predicate: (item: MercuryAccountHistoryItem) => boolean) {
+function historyCount(items: Array<{ kind: string }>, predicate: (item: { kind: string }) => boolean) {
   return items.filter(predicate).length;
 }
 
 export function MercuryAccountHistory({ address, limit = 8 }: MercuryAccountHistoryProps) {
-  const [state, setState] = useState<MercuryAccountHistoryResponse>({ address, items: [], generatedAt: '' });
-  const [loading, setLoading] = useState(false);
+  const { data, error, isLoading } = useMercuryAccountHistory(address, limit);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function load() {
-      if (!address) {
-        setState({ address, items: [], generatedAt: '', message: 'Connect a wallet to see indexed history.' });
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/mercury/account-history?address=${encodeURIComponent(address)}&limit=${limit}`, {
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        const json = (await response.json()) as MercuryAccountHistoryResponse;
-        if (!controller.signal.aborted) {
-          setState(json);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setState({ address, items: [], generatedAt: '' });
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    return () => controller.abort();
-  }, [address, limit]);
-
-  const items = state.items;
+  const items = data?.items ?? [];
   const charges = historyCount(items, (item) => item.kind === 'charge_up');
   const combat = historyCount(items, (item) => item.kind === 'punch' || item.kind === 'kick' || item.kind === 'battle');
   const raids = historyCount(items, (item) => item.kind === 'joint_punch' || item.kind === 'heavy_kick');
@@ -77,9 +41,10 @@ export function MercuryAccountHistory({ address, limit = 8 }: MercuryAccountHist
               <Text className="label">Mercury history</Text>
               <Heading style={{ fontSize: '1.6rem' }}>Indexed account log</Heading>
             </Stack>
-            <Badge>{loading ? 'Loading' : state.items.length ? `${state.items.length} rows` : 'Empty'}</Badge>
+            <Badge>{isLoading ? 'Loading' : items.length ? `${items.length} rows` : 'Empty'}</Badge>
           </div>
-          {state.message ? <Text className="lede" style={{ margin: 0 }}>{state.message}</Text> : null}
+          {data?.message ? <Text className="lede" style={{ margin: 0 }}>{data.message}</Text> : null}
+          {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
           {address ? <ShortId value={address} /> : <Text>Connect a wallet.</Text>}
         </Stack>
       </Card>

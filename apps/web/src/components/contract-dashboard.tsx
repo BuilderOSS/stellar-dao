@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createArenaClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
+import { getNetworkConfig, type NetworkName } from '@/lib/stellar';
+import { emptyContractDashboardState, useContractDashboardReads } from '@/lib/stellar-queries';
 
 type ContractDashboardProps = {
   network: NetworkName;
@@ -11,66 +12,6 @@ type ContractDashboardProps = {
   view: 'overview' | 'account' | 'dev';
   onSync?: (patch: { status?: string; syncedAt?: string }) => void;
 };
-
-type ReadState = {
-  loading: boolean;
-  error: string;
-  syncedAt: string;
-  tokenName: string;
-  tokenSymbol: string;
-  decimals: string;
-  totalSupply: string;
-  actionCount: string;
-  cooldownDuration: string;
-  balance: string;
-  isOnCooldown: string;
-  cooldownRemaining: string;
-  allowance: string;
-  totalPunches: string;
-  totalKicks: string;
-  lastAction: string;
-  battleWins: string;
-  battleLosses: string;
-  totalBattles: string;
-};
-
-const emptyState: ReadState = {
-  loading: false,
-  error: '',
-  syncedAt: '',
-  tokenName: '—',
-  tokenSymbol: '—',
-  decimals: '—',
-  totalSupply: '—',
-  actionCount: '—',
-  cooldownDuration: '—',
-  balance: '—',
-  isOnCooldown: '—',
-  cooldownRemaining: '—',
-  allowance: '—',
-  totalPunches: '—',
-  totalKicks: '—',
-  lastAction: '—',
-  battleWins: '—',
-  battleLosses: '—',
-  totalBattles: '—'
-};
-
-function formatDateTime(value: number) {
-  if (!value) return '—';
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(new Date(value * 1000));
-  } catch {
-    return String(value);
-  }
-}
-
-function formatBoolean(value: boolean) {
-  return value ? 'Yes' : 'No';
-}
 
 function SectionHeader({
   title,
@@ -134,127 +75,31 @@ function formatSyncedAt(syncedAt: string) {
 export function ContractDashboard({ network, address, view, onSync }: ContractDashboardProps) {
   const [spenderAddress, setSpenderAddress] = useState('');
   const [watchAddressDraft, setWatchAddressDraft] = useState('');
-  const [state, setState] = useState<ReadState>(emptyState);
+  const [cooldownDisplay, setCooldownDisplay] = useState<{ source: string; remaining: string; active: string } | null>(null);
   const cooldownEndsAtRef = useRef<number | null>(null);
   const watchAddress = watchAddressDraft || address;
+  const targetWatchAddress = view === 'overview' ? '' : watchAddress;
 
   const currentNetwork = useMemo(() => getNetworkConfig(network), [network]);
-
-  const loadReadState = useCallback(
-    async (targetWatchAddress = watchAddress, targetSpenderAddress = spenderAddress) => {
-    const client = createArenaClient(currentNetwork);
-    if (!client) {
-      return {
-        nextState: { ...emptyState, loading: false, error: 'Set a contract id first' },
-        status: 'Set a contract id first'
-      };
-    }
-
-    const overview = await Promise.all([
-      client.name(),
-      client.symbol(),
-      client.decimals(),
-      client.get_total_supply(),
-      client.get_action_count(),
-      client.get_cooldown_duration()
-    ]);
-
-    const nextState: ReadState = {
-      loading: false,
-      error: '',
-      syncedAt: new Date().toISOString(),
-      tokenName: overview[0].result,
-      tokenSymbol: overview[1].result,
-      decimals: String(overview[2].result),
-      totalSupply: overview[3].result.toString(),
-      actionCount: overview[4].result.toString(),
-      cooldownDuration: overview[5].result.toString(),
-      balance: '—',
-      isOnCooldown: '—',
-      cooldownRemaining: '—',
-      allowance: '—',
-      totalPunches: '—',
-      totalKicks: '—',
-      lastAction: '—',
-      battleWins: '—',
-      battleLosses: '—',
-      totalBattles: '—'
-    };
-
-    if (targetWatchAddress) {
-      const [balanceTx, cooldownTx, cooldownRemainingTx, statsTx, battleTx] = await Promise.all([
-        client.balance({ id: targetWatchAddress }),
-        client.is_on_cooldown({ user: targetWatchAddress }),
-        client.cooldown_remaining({ user: targetWatchAddress }),
-        client.get_stats({ user: targetWatchAddress }),
-        client.get_battle_record({ user: targetWatchAddress })
-      ]);
-
-      nextState.balance = balanceTx.result.toString();
-      nextState.isOnCooldown = formatBoolean(cooldownTx.result);
-      nextState.cooldownRemaining = cooldownRemainingTx.result.toString();
-      cooldownEndsAtRef.current = cooldownRemainingTx.result > 0 ? Date.now() + Number(cooldownRemainingTx.result) * 1000 : null;
-      nextState.totalPunches = statsTx.result?.total_punches?.toString() ?? '0';
-      nextState.totalKicks = statsTx.result?.total_kicks?.toString() ?? '0';
-      nextState.lastAction = statsTx.result?.last_action ? formatDateTime(Number(statsTx.result.last_action)) : '—';
-      nextState.battleWins = battleTx.result?.wins?.toString() ?? '0';
-      nextState.battleLosses = battleTx.result?.losses?.toString() ?? '0';
-      nextState.totalBattles = battleTx.result?.total_battles?.toString() ?? '0';
-    } else {
-      cooldownEndsAtRef.current = null;
-    }
-
-    if (targetWatchAddress && targetSpenderAddress) {
-      const allowanceTx = await client.allowance({ from: targetWatchAddress, spender: targetSpenderAddress });
-      nextState.allowance = allowanceTx.result.toString();
-    }
-
-    return {
-      nextState,
-      status: `Contract data loaded for ${currentNetwork.label}`
-    };
-    },
-    [currentNetwork, watchAddress, spenderAddress]
+  const { data, error: swrError, isLoading, isValidating, mutate } = useContractDashboardReads(
+    network,
+    targetWatchAddress,
+    spenderAddress
   );
-
-  const runRead = useCallback(
-    async (
-      targetWatchAddress = watchAddress,
-      targetSpenderAddress = spenderAddress,
-      isCancelled?: () => boolean
-    ) => {
-      await Promise.resolve();
-      setState((current) => ({ ...current, loading: true, error: '' }));
-
-      try {
-        const { nextState, status } = await loadReadState(targetWatchAddress, targetSpenderAddress);
-        if (isCancelled?.()) return;
-
-        setState(nextState);
-        onSync?.({ status, syncedAt: nextState.syncedAt });
-      } catch (error) {
-        if (isCancelled?.()) return;
-
-        const message = error instanceof Error ? error.message : 'Contract lookup failed';
-        setState((current) => ({ ...current, loading: false, error: message }));
-        onSync?.({ status: message });
-      }
-    },
-    [loadReadState, onSync, watchAddress, spenderAddress]
-  );
+  const state = data ?? emptyContractDashboardState;
 
   useEffect(() => {
-    let cancelled = false;
-    const targetWatchAddress = view === 'overview' ? '' : address || watchAddress;
+    if (state.syncedAt) {
+      onSync?.({ status: `Contract data loaded for ${currentNetwork.label}`, syncedAt: state.syncedAt });
+    } else if (state.error) {
+      onSync?.({ status: state.error });
+    }
+  }, [currentNetwork.label, onSync, state.error, state.syncedAt]);
 
-    queueMicrotask(() => {
-      void runRead(targetWatchAddress, spenderAddress, () => cancelled);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [address, runRead, spenderAddress, view, watchAddress]);
+  useEffect(() => {
+    const remainingSeconds = Number(state.cooldownRemaining);
+    cooldownEndsAtRef.current = Number.isFinite(remainingSeconds) && remainingSeconds > 0 ? Date.now() + remainingSeconds * 1000 : null;
+  }, [state.cooldownRemaining]);
 
   useEffect(() => {
     if (view !== 'account') {
@@ -264,24 +109,12 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
     const tickCooldown = () => {
       const endsAt = cooldownEndsAtRef.current;
       if (!endsAt) {
-        setState((current) => (current.cooldownRemaining === '0' && current.isOnCooldown === 'No' ? current : { ...current, cooldownRemaining: '0', isOnCooldown: 'No' }));
+        setCooldownDisplay((current) => (current?.source === state.cooldownRemaining && current.remaining === '0' && current.active === 'No' ? current : { source: state.cooldownRemaining, remaining: '0', active: 'No' }));
         return;
       }
 
       const remainingSeconds = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
-      setState((current) => {
-        const nextRemaining = String(remainingSeconds);
-        const nextCooldownState = remainingSeconds > 0 ? 'Yes' : 'No';
-        if (current.cooldownRemaining === nextRemaining && current.isOnCooldown === nextCooldownState) {
-          return current;
-        }
-
-        return {
-          ...current,
-          cooldownRemaining: nextRemaining,
-          isOnCooldown: nextCooldownState
-        };
-      });
+      setCooldownDisplay({ source: state.cooldownRemaining, remaining: String(remainingSeconds), active: remainingSeconds > 0 ? 'Yes' : 'No' });
 
       if (remainingSeconds <= 0) {
         cooldownEndsAtRef.current = null;
@@ -291,7 +124,14 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
     tickCooldown();
     const interval = window.setInterval(tickCooldown, 1000);
     return () => window.clearInterval(interval);
-  }, [view, watchAddress]);
+  }, [view, state.cooldownRemaining]);
+
+  const cooldownRemaining = (() => {
+    if (cooldownDisplay?.source === state.cooldownRemaining) return cooldownDisplay.remaining;
+    return state.cooldownRemaining;
+  })();
+
+  const isOnCooldown = cooldownDisplay?.source === state.cooldownRemaining ? cooldownDisplay.active : state.isOnCooldown;
 
   return (
     <Card className="stack">
@@ -305,13 +145,13 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
                 ? 'Reads for the selected arena profile'
                 : 'Low-level arena and network diagnostics'
           }
-          action={state.loading ? 'Loading...' : 'Refresh'}
-          onAction={() => void runRead()}
+          action={isLoading || isValidating ? 'Loading...' : 'Refresh'}
+          onAction={() => void mutate()}
         />
 
-        {state.error ? (
+        {state.error || swrError ? (
           <Badge style={{ background: 'rgba(248,113,113,0.18)', color: 'white', borderColor: 'rgba(248,113,113,0.24)' }}>
-            {state.error}
+            {state.error || swrError?.message}
           </Badge>
         ) : null}
 
@@ -334,12 +174,12 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
             <Grid columns={{ base: 1, lg: 2 }} gap="4">
               <Field>
                 <FieldLabel htmlFor="watch-address">Account address</FieldLabel>
-                  <Input
-                    id="watch-address"
-                    value={watchAddress}
-                    onChange={(event) => setWatchAddressDraft(event.target.value)}
-                    placeholder="Enter an address to inspect"
-                  />
+                <Input
+                  id="watch-address"
+                  value={watchAddress}
+                  onChange={(event) => setWatchAddressDraft(event.target.value)}
+                  placeholder="Enter an address to inspect"
+                />
                 <FieldHelperText>Defaults to the connected wallet address.</FieldHelperText>
               </Field>
               <Field>
@@ -356,8 +196,8 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
 
             <Grid columns={{ base: 1, md: 3 }} gap="4">
               <Metric label="Points" value={state.balance} hint="Points for the inspected account." />
-              <Metric label="On cooldown" value={state.isOnCooldown} hint="Whether the inspected account is blocked." />
-              <Metric label="Cooldown remaining" value={formatWithUnit(state.cooldownRemaining, 's')} hint="Seconds until the next action." />
+              <Metric label="On cooldown" value={isOnCooldown} hint="Whether the inspected account is blocked." />
+              <Metric label="Cooldown remaining" value={formatWithUnit(cooldownRemaining, 's')} hint="Seconds until the next action." />
               <Metric label="Allowance" value={state.allowance} hint="Allowance for the selected spender." />
               <Metric label="Last synced" value={formatSyncedAt(state.syncedAt)} hint="Last completed refresh." />
               <Metric label="Last action" value={state.lastAction} hint="Most recent on-chain action timestamp." />
@@ -391,7 +231,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
                 {address ? <ShortId value={address} /> : <Text>Not connected</Text>}
               </Stack>
             </Card>
-            <Metric label="Refresh status" value={state.loading ? 'Loading' : 'Idle'} hint={state.error || 'Ready to inspect the network.'} />
+            <Metric label="Refresh status" value={isLoading || isValidating ? 'Loading' : 'Idle'} hint={state.error || swrError?.message || 'Ready to inspect the network.'} />
           </Grid>
         ) : null}
       </Stack>

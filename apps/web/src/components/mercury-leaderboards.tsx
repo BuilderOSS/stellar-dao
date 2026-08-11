@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
-import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric, MercuryLeaderboardResponse } from '@/lib/mercury-types';
+import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric } from '@/lib/mercury-types';
+import { useMercuryLeaderboards } from '@/lib/mercury-queries';
 import { Grid, Stack } from 'styled-system/jsx';
 
 const METRIC_OPTIONS: Array<{ value: MercuryLeaderboardMetric; label: string }> = [
@@ -49,38 +50,7 @@ function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; met
 
 export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
   const [metric, setMetric] = useState<MercuryLeaderboardMetric>('balance');
-  const [state, setState] = useState<MercuryLeaderboardResponse>({ metric, items: [], generatedAt: '' });
-  const [loading, setLoading] = useState(false);
-  const [refreshTick, setRefreshTick] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function load() {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/mercury/leaderboards?metric=${metric}&limit=${limit}`, {
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        const json = (await response.json()) as MercuryLeaderboardResponse;
-        if (!controller.signal.aborted) {
-          setState(json);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setState({ metric, items: [], generatedAt: '' });
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    return () => controller.abort();
-  }, [limit, metric, refreshTick]);
+  const { data, isLoading, mutate, error } = useMercuryLeaderboards(metric, limit);
 
   return (
     <Card p="6">
@@ -98,20 +68,21 @@ export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
                 </option>
               ))}
             </Select>
-            <Button type="button" variant="outline" size="sm" onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
-              {loading ? 'Syncing' : 'Refresh'}
+            <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
+              {isLoading ? 'Syncing' : 'Refresh'}
             </Button>
           </div>
         </div>
 
-        {state.message ? <Text className="lede" style={{ margin: 0 }}>{state.message}</Text> : null}
-        {!state.items.length ? (
+        {data?.message ? <Text className="lede" style={{ margin: 0 }}>{data.message}</Text> : null}
+        {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
+        {!data?.items.length ? (
           <Text className="lede" style={{ margin: 0 }}>
             No leaderboard rows yet.
           </Text>
         ) : (
           <Grid columns={{ base: 1, xl: 2 }} gap="3">
-            {state.items.map((entry) => (
+            {data.items.map((entry) => (
               <LeaderboardRow key={entry.address} entry={entry} metric={metric} />
             ))}
           </Grid>
