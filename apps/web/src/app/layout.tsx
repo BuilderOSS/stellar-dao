@@ -4,8 +4,8 @@ import '../../styled-system/styles.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Punch Arena',
-  description: 'Soroban arena dashboard with contract reads, signing, and action forms'
+  title: 'DAO Test Stellar',
+  description: 'DAO governance web app with proposals, profiles, treasury, admin minting, and token metadata.'
 };
 
 export default function RootLayout({

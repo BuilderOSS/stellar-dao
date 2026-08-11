@@ -14,6 +14,21 @@ The app should support:
 - token metadata pages
 - deterministic token metadata API
 
+## Implementation Status
+
+Done:
+
+- committed deploy env wiring for base URL, admin address, and RPC settings
+- added deterministic token metadata helpers and API routes
+- scaffolded the DAO shell and route pages for overview, proposals, treasury, members, profile, token, and admin
+- removed the legacy arena web routes, stores, and Mercury-only components
+- verified the web app with `pnpm --dir apps/web typecheck` and `pnpm --dir apps/web build`
+
+In progress:
+
+- wiring the DAO pages to live contract and indexing data
+- replacing remaining placeholder content with real governance, treasury, and profile reads
+
 ## Contract Shape
 
 - `token`: transferable NFT voting token
