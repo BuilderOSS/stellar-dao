@@ -172,10 +172,10 @@ export function DashboardShell() {
       <div style={{ width: '100%' }}>
         {session.activeTab === 'overview' ? (
           <Stack gap="6">
-            <ContractDashboard network={network} address={session.address} view="overview" onSync={updateSession} />
+            <MercuryLeaderboards />
             <Grid columns={{ base: 1, xl: 2 }} gap="6">
+              <ContractDashboard network={network} address={session.address} view="overview" onSync={updateSession} />
               <MercuryActivityFeed />
-              <MercuryLeaderboards />
             </Grid>
             <Card p="6">
               <Stack gap="3">
