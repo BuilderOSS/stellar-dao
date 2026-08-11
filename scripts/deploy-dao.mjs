@@ -9,18 +9,21 @@ if (!networkName || !['local', 'testnet'].includes(networkName)) {
 }
 
 const identityName = networkName === 'local' ? 'local-dev' : 'testnet-dev';
-const adminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 const envPath = 'apps/web/.env.local';
 const rootEnv = readEnvFile('.env');
+const adminAddress =
+  rootEnv.DAO_ADMIN_ADDRESS ?? 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 const webBaseUrl =
   process.env.DAO_WEB_BASE_URL ?? rootEnv.DAO_WEB_BASE_URL ?? 'https://test-dao-stellar-web.vercel.app';
 const tokenBaseUri = `${webBaseUrl.replace(/\/$/, '')}/api/token/`;
 const rpcUrl =
   networkName === 'local'
-    ? process.env.NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL ?? readLocalEnv('NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL') ?? 'http://localhost:8000/rpc'
-    : 'https://soroban-testnet.stellar.org';
+    ? process.env.DAO_LOCAL_RPC_URL ?? rootEnv.DAO_LOCAL_RPC_URL ?? 'http://localhost:8000/rpc'
+    : process.env.DAO_TESTNET_RPC_URL ?? rootEnv.DAO_TESTNET_RPC_URL ?? 'https://soroban-testnet.stellar.org';
 const networkPassphrase =
-  networkName === 'local' ? 'Standalone Network ; February 2017' : 'Test SDF Network ; September 2015';
+  networkName === 'local'
+    ? process.env.DAO_LOCAL_NETWORK_PASSPHRASE ?? rootEnv.DAO_LOCAL_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017'
+    : process.env.DAO_TESTNET_NETWORK_PASSPHRASE ?? rootEnv.DAO_TESTNET_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015';
 const saltSuffix = process.env.DAO_DEPLOY_SALT_SUFFIX?.trim() ?? '';
 const contractBuildDir = 'target/wasm32v1-none/release';
 
@@ -41,16 +44,6 @@ function readEnvFile(filePath) {
         return [key, value];
       })
   );
-}
-
-function readLocalEnv(key) {
-  if (!existsSync(envPath)) {
-    return null;
-  }
-
-  const content = readFileSync(envPath, 'utf8');
-  const line = content.split('\n').find((entry) => entry.startsWith(`${key}=`));
-  return line ? line.slice(key.length + 1).trim() : null;
 }
 
 function ensureNetwork() {
@@ -134,14 +127,14 @@ function writeEnvIfMissing(contracts) {
     envPath,
     [
       `NEXT_PUBLIC_STELLAR_NETWORK=${networkName}`,
-      'NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=http://localhost:8000/rpc',
-      'NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=Standalone Network ; February 2017',
+      `NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=${rootEnv.DAO_LOCAL_RPC_URL ?? 'http://localhost:8000/rpc'}`,
+      `NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=${rootEnv.DAO_LOCAL_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017'}`,
       `NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS=${adminAddress}`,
       `NEXT_PUBLIC_STELLAR_LOCAL_TOKEN_CONTRACT_ID=${networkName === 'local' ? contracts.token : ''}`,
       `NEXT_PUBLIC_STELLAR_LOCAL_GOVERNOR_CONTRACT_ID=${networkName === 'local' ? contracts.governor : ''}`,
       `NEXT_PUBLIC_STELLAR_LOCAL_TREASURY_CONTRACT_ID=${networkName === 'local' ? contracts.treasury : ''}`,
-      'NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=https://soroban-testnet.stellar.org',
-      'NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=Test SDF Network ; September 2015',
+      `NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=${rootEnv.DAO_TESTNET_RPC_URL ?? 'https://soroban-testnet.stellar.org'}`,
+      `NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=${rootEnv.DAO_TESTNET_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015'}`,
       `NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS=${adminAddress}`,
       `NEXT_PUBLIC_STELLAR_TESTNET_TOKEN_CONTRACT_ID=${networkName === 'testnet' ? contracts.token : ''}`,
       `NEXT_PUBLIC_STELLAR_TESTNET_GOVERNOR_CONTRACT_ID=${networkName === 'testnet' ? contracts.governor : ''}`,
