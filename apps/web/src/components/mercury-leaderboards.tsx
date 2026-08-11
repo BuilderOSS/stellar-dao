@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
+import { Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric } from '@/lib/mercury-types';
 import { useMercuryLeaderboards } from '@/lib/mercury-queries';
 import { Stack } from 'styled-system/jsx';
@@ -27,39 +27,21 @@ function statValue(entry: MercuryLeaderboardEntry, metric: MercuryLeaderboardMet
 
 function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; metric: MercuryLeaderboardMetric }) {
   return (
-    <Card p="4" style={{ width: '100%' }}>
-      <Stack gap="2">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <ShortId value={entry.address} label={`#${entry.rank}`} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {metric !== 'balance' ? <Badge>{statValue(entry, metric)}</Badge> : null}
-            <Badge
-              style={{
-                width: '2.25rem',
-                height: '2.25rem',
-                padding: 0,
-                borderRadius: '9999px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {entry.balance}
-            </Badge>
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <Badge>{entry.wins} wins</Badge>
-          <Badge>{entry.chargeUps} charge ups</Badge>
-          <Badge>{entry.punches} punches</Badge>
-          <Badge>{entry.kicks} kicks</Badge>
-          <Badge>{entry.raids} raids</Badge>
-          <Badge>{entry.losses} losses</Badge>
-        </div>
-      </Stack>
-    </Card>
+    <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.18)' }}>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+        <ShortId value={entry.address} label={`#${entry.rank}`} />
+      </td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
+        {metric === 'combined' ? entry.score : statValue(entry, metric)}
+      </td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.balance}</td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.wins}</td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.chargeUps}</td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.punches}</td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.kicks}</td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.raids}</td>
+      <td style={{ padding: '12px 10px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>{entry.losses}</td>
+    </tr>
   );
 }
 
@@ -111,9 +93,28 @@ export function MercuryLeaderboards() {
           </Text>
         ) : (
           <Stack gap="3">
-            {data.items.map((entry) => (
-              <LeaderboardRow key={entry.address} entry={entry} metric={metric} />
-            ))}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Rank / wallet</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Sorted by</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Balance</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Wins</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Charge ups</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Punches</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Kicks</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Raids</th>
+                    <th style={{ padding: '0 10px 10px', textAlign: 'right', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>Losses</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((entry) => (
+                    <LeaderboardRow key={entry.address} entry={entry} metric={metric} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {showPager ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
