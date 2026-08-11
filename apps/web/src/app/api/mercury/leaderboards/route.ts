@@ -13,6 +13,15 @@ function parseLimit(value: string | null, fallback: number) {
   return Math.min(parsed, 100);
 }
 
+function parsePage(value: string | null) {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 1;
+  }
+
+  return parsed;
+}
+
 function parseMetric(value: string | null): MercuryLeaderboardMetric {
   if (value === 'combined' || value === 'wins' || value === 'punches' || value === 'raids' || value === 'balance') {
     return value;
@@ -24,9 +33,10 @@ function parseMetric(value: string | null): MercuryLeaderboardMetric {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const metric = parseMetric(url.searchParams.get('metric'));
-  const limit = parseLimit(url.searchParams.get('limit'), 20);
+  const page = parsePage(url.searchParams.get('page'));
+  const pageSize = parseLimit(url.searchParams.get('pageSize') ?? url.searchParams.get('limit'), 10);
   try {
-    const payload = await getMercuryLeaderboards(metric, limit);
+    const payload = await getMercuryLeaderboards(metric, page, pageSize);
     return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return NextResponse.json(
@@ -34,6 +44,10 @@ export async function GET(request: Request) {
         metric,
         items: [],
         generatedAt: new Date().toISOString(),
+        page,
+        pageSize,
+        total: 0,
+        hasMore: false,
         message: error instanceof Error ? error.message : 'Mercury leaderboards unavailable'
       },
       { headers: { 'Cache-Control': 'no-store' } }

@@ -15,8 +15,8 @@ async function fetchJson<T>(url: string) {
   return json;
 }
 
-export function useMercuryActivityFeed(limit = 8) {
-  const key = `/api/mercury/activity-feed?limit=${limit}`;
+export function useMercuryActivityFeed(page = 1, pageSize = 10) {
+  const key = `/api/mercury/activity-feed?page=${page}&pageSize=${pageSize}`;
   return useSWR<MercuryActivityResponse>(key, fetchJson, { keepPreviousData: true });
 }
 
@@ -25,7 +25,7 @@ export function useMercuryAccountHistory(address: string, limit = 8) {
   return useSWR<MercuryAccountHistoryResponse>(key, fetchJson, { keepPreviousData: true });
 }
 
-export function useMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'balance', limit = 8) {
-  const key = `/api/mercury/leaderboards?metric=${metric}&limit=${limit}`;
+export function useMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'balance', page = 1, pageSize = 10) {
+  const key = `/api/mercury/leaderboards?metric=${metric}&page=${page}&pageSize=${pageSize}`;
   return useSWR<MercuryLeaderboardResponse>(key, fetchJson, { keepPreviousData: true });
 }

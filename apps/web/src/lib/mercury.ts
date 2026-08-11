@@ -468,12 +468,16 @@ function toLeaderboardEntries(store: Map<string, ParticipantStats>, metric: Merc
   return entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
-export async function getMercuryActivityFeed(limit = 20): Promise<MercuryActivityResponse> {
+export async function getMercuryActivityFeed(page = 1, pageSize = 20): Promise<MercuryActivityResponse> {
   const config = getConfig();
   if (!config) {
     return {
       items: [],
       generatedAt: new Date().toISOString(),
+      page,
+      pageSize,
+      total: 0,
+      hasMore: false,
       message: 'Mercury is not configured yet.'
     };
   }
@@ -482,10 +486,19 @@ export async function getMercuryActivityFeed(limit = 20): Promise<MercuryActivit
   const items = dataset
     .map(({ tableName, row }) => toActivityItem(tableName, row, config.programId))
     .filter((item): item is MercuryActivityItem => Boolean(item));
+  const total = items.length;
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.max(1, Math.floor(pageSize));
+  const start = (safePage - 1) * safePageSize;
+  const pagedItems = sortActivities(items).slice(start, start + safePageSize);
 
   return {
-    items: sortActivities(items).slice(0, limit),
-    generatedAt: new Date().toISOString()
+    items: pagedItems,
+    generatedAt: new Date().toISOString(),
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    hasMore: start + safePageSize < total
   };
 }
 
@@ -509,7 +522,7 @@ export async function getMercuryAccountHistory(address: string, limit = 20): Pro
     };
   }
 
-  const feed = await getMercuryActivityFeed(500);
+  const feed = await getMercuryActivityFeed(1, 500);
   const items = feed.items
     .filter((item) => item.addresses.includes(address))
     .map((item): MercuryAccountHistoryItem => ({ ...item, matchedAddress: address }));
@@ -522,13 +535,17 @@ export async function getMercuryAccountHistory(address: string, limit = 20): Pro
   };
 }
 
-export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'balance', limit = 20): Promise<MercuryLeaderboardResponse> {
+export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 'balance', page = 1, pageSize = 20): Promise<MercuryLeaderboardResponse> {
   const config = getConfig();
   if (!config) {
     return {
       metric,
       items: [],
       generatedAt: new Date().toISOString(),
+      page,
+      pageSize,
+      total: 0,
+      hasMore: false,
       message: 'Mercury is not configured yet.'
     };
   }
@@ -540,9 +557,19 @@ export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 
     applyStatsForRow(store, tableName, row, config.programId);
   }
 
+  const entries = toLeaderboardEntries(store, metric);
+  const total = entries.length;
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.max(1, Math.floor(pageSize));
+  const start = (safePage - 1) * safePageSize;
+
   return {
     metric,
-    items: toLeaderboardEntries(store, metric).slice(0, limit),
-    generatedAt: new Date().toISOString()
+    items: entries.slice(start, start + safePageSize),
+    generatedAt: new Date().toISOString(),
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    hasMore: start + safePageSize < total
   };
 }

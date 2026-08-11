@@ -34,6 +34,10 @@ export type MercuryLeaderboardEntry = {
 export type MercuryActivityResponse = {
   items: MercuryActivityItem[];
   generatedAt: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
   message?: string;
 };
 
@@ -48,5 +52,9 @@ export type MercuryLeaderboardResponse = {
   metric: MercuryLeaderboardMetric;
   items: MercuryLeaderboardEntry[];
   generatedAt: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
   message?: string;
 };

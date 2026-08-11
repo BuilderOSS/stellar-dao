@@ -15,9 +15,7 @@ const METRIC_OPTIONS: Array<{ value: MercuryLeaderboardMetric; label: string }> 
   { value: 'raids', label: 'Raids' }
 ];
 
-type MercuryLeaderboardsProps = {
-  limit?: number;
-};
+const PAGE_SIZE = 10;
 
 function statValue(entry: MercuryLeaderboardEntry, metric: MercuryLeaderboardMetric) {
   if (metric === 'combined') {
@@ -63,9 +61,11 @@ function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; met
   );
 }
 
-export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
+export function MercuryLeaderboards() {
   const [metric, setMetric] = useState<MercuryLeaderboardMetric>('balance');
-  const { data, isLoading, mutate, error } = useMercuryLeaderboards(metric, limit);
+  const [page, setPage] = useState(1);
+  const { data, isLoading, mutate, error } = useMercuryLeaderboards(metric, page, PAGE_SIZE);
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
     <Card p="6">
@@ -87,7 +87,10 @@ export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
           </Text>
           <Select
             value={metric}
-            onChange={(event) => setMetric(event.currentTarget.value as MercuryLeaderboardMetric)}
+            onChange={(event) => {
+              setMetric(event.currentTarget.value as MercuryLeaderboardMetric);
+              setPage(1);
+            }}
           >
             {METRIC_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -108,6 +111,19 @@ export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
             {data.items.map((entry) => (
               <LeaderboardRow key={entry.address} entry={entry} metric={metric} />
             ))}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                Page {data.page} of {totalPages}
+              </Text>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <Button type="button" variant="outline" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>
+                  Prev
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setPage((current) => current + 1)} disabled={!data.hasMore}>
+                  Next
+                </Button>
+              </div>
+            </div>
           </Stack>
         )}
       </Stack>
