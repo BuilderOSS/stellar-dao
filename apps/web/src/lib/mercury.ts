@@ -277,6 +277,11 @@ function applyStatsForRow(store: Map<string, ParticipantStats>, tableName: strin
   const suffix = normalized.suffix;
   const kind = suffix.replace(/_indexed$/, '');
   const meta = PROGRAM_TABLE_SUFFIXES[suffix];
+
+  if (kind === 'mint' || kind === 'burn' || kind === 'transfer' || kind === 'approve') {
+    return;
+  }
+
   const participants = meta?.addresses(row) ?? [];
 
   for (const address of participants) {
@@ -411,6 +416,21 @@ function sortActivities(items: MercuryActivityItem[]) {
   });
 }
 
+function sortRowsChronologically(
+  left: { tableName: string; row: MercuryTableRow },
+  right: { tableName: string; row: MercuryTableRow }
+) {
+  const leftLedger = asNumber(left.row.ledger);
+  const rightLedger = asNumber(right.row.ledger);
+  if (leftLedger !== rightLedger) return leftLedger - rightLedger;
+
+  const leftTimestamp = asNumber(left.row.timestamp);
+  const rightTimestamp = asNumber(right.row.timestamp);
+  if (leftTimestamp !== rightTimestamp) return leftTimestamp - rightTimestamp;
+
+  return left.tableName.localeCompare(right.tableName);
+}
+
 function toLeaderboardEntries(store: Map<string, ParticipantStats>, metric: MercuryLeaderboardMetric) {
   const entries = [...store.values()].map((stat): MercuryLeaderboardEntry => {
     const score = stat.balance + stat.wins * 10 + stat.punches * 2 + stat.kicks * 2 + stat.raids * 4 + stat.battles * 3 - stat.losses * 2;
@@ -516,7 +536,7 @@ export async function getMercuryLeaderboards(metric: MercuryLeaderboardMetric = 
   const dataset = await loadDataset(config, 500);
   const store = new Map<string, ParticipantStats>();
 
-  for (const { tableName, row } of dataset) {
+  for (const { tableName, row } of [...dataset].sort(sortRowsChronologically)) {
     applyStatsForRow(store, tableName, row, config.programId);
   }
 

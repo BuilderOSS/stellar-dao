@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import {
   createArenaActionClient,
   ensureArenaAccountExists,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/stellar';
 import type { ActionRecord, ActionSpec } from '@/lib/tx';
 import { safeStringify, summarizeValue } from '@/lib/tx';
-import { Badge, Button, Card, CopyIconButton, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import useSWRMutation from 'swr/mutation';
 import { useTransactionHandoffStore } from '@/stores/transaction-handoff-store';
@@ -66,6 +67,28 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [status, setStatus] = useState<string>('');
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordSeqRef = useRef(0);
+
+  function cancelAutoReset() {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  }
+
+  function nextRecordId() {
+    recordSeqRef.current += 1;
+    return `${spec.id}-${recordSeqRef.current}`;
+  }
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
 
   function getFieldValue(fieldName: string, fieldType: ActionSpec['fields'][number]['type']) {
     const currentValue = draft[fieldName];
@@ -122,6 +145,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   );
 
   function updateField(name: string, value: string) {
+    cancelAutoReset();
     const nextDraft = { ...resolveDraft(), [name]: value };
     setDraft((current) => {
       saveDraft({
@@ -139,6 +163,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function buildPreview() {
+    cancelAutoReset();
     setStatus('');
 
     try {
@@ -175,7 +200,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       const resultText = previewResult || (spec.formatResult ? spec.formatResult((confirmation as any).returnValue ?? confirmation) : `${spec.title} confirmed`);
       markSubmitted(handoffId, resultText);
       const record: ActionRecord = {
-        id: `${spec.id}-${Date.now()}`,
+        id: nextRecordId(),
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
@@ -187,12 +212,17 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       };
       onRecord?.(record);
       setStatus(resultText);
+      cancelAutoReset();
+      resetTimerRef.current = setTimeout(() => {
+        useTransactionHandoffStore.getState().resetHandoff(handoffId);
+        resetTimerRef.current = null;
+      }, 5000);
     } catch (error) {
       const message = errorMessage(error);
       console.error('[transaction-card] confirmation failed', error);
       markError(handoffId, message);
       onRecord?.({
-        id: `${spec.id}-${Date.now()}`,
+        id: nextRecordId(),
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
@@ -207,6 +237,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function signCurrentWallet() {
+    cancelAutoReset();
     const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
     if (!activeHandoff?.previewXdr) return;
 
@@ -265,7 +296,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       console.error('[transaction-card] signing failed', error);
       markError(handoffId, message);
       onRecord?.({
-        id: `${spec.id}-${Date.now()}`,
+        id: nextRecordId(),
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
@@ -282,6 +313,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   }
 
   async function submitReadyHandoff() {
+    cancelAutoReset();
     const activeHandoff = useTransactionHandoffStore.getState().handoffs[handoffId];
     if (!activeHandoff?.signedXdr) {
       setStatus('Add signatures first');
@@ -298,7 +330,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
       console.error('[transaction-card] submit failed', error);
       markError(handoffId, message);
       onRecord?.({
-        id: `${spec.id}-${Date.now()}`,
+        id: nextRecordId(),
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
@@ -386,7 +418,12 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
           >
             {isSubmitting ? 'Working...' : primaryLabel}
           </Button>
-          {activeHandoff?.previewXdr ? <CopyIconButton copied={isCopied} onClick={() => void copyPreview()} label="Copy XDR" /> : null}
+          {activeHandoff?.previewXdr ? (
+            <Button type="button" variant="plain" size="sm" onClick={() => void copyPreview()}>
+              {isCopied ? <Check size={14} /> : <Copy size={14} />}
+              {isCopied ? 'Copied XDR' : 'Copy XDR'}
+            </Button>
+          ) : null}
           {activeHandoff?.previewXdr ? (
             <Button type="button" variant="plain" size="sm" onClick={() => useTransactionHandoffStore.getState().resetHandoff(handoffId)}>
               Reset XDR
