@@ -60,6 +60,8 @@ Out of scope:
 - cancellation
 - reads voting power from token snapshots
 - proposal execution routes through treasury
+- quorum is configured as basis points against total NFT supply at the proposal snapshot
+- proposal threshold remains an absolute minimum voting-power requirement to create proposals
 
 ### Treasury
 
@@ -118,6 +120,7 @@ This keeps voting intuitive while allowing explicit delegation without extra com
 - user can delegate to another address
 - transfers preserve prior delegation
 - governor can pass a proposal
+- quorum scales from total supply using basis points
 - governor can make treasury execute an arbitrary contract call
 - unauthorized callers cannot invoke treasury execution
 
