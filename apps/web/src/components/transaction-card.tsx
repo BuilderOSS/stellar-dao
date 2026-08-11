@@ -12,7 +12,7 @@ import {
 } from '@/lib/stellar';
 import type { ActionRecord, ActionSpec } from '@/lib/tx';
 import { safeStringify, summarizeValue } from '@/lib/tx';
-import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Card, CopyIconButton, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import useSWRMutation from 'swr/mutation';
 import { useTransactionHandoffStore } from '@/stores/transaction-handoff-store';
@@ -64,7 +64,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const markError = useTransactionHandoffStore((state) => state.markError);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copyLabel, setCopyLabel] = useState<'Copy XDR' | 'Copied'>('Copy XDR');
+  const [isCopied, setIsCopied] = useState(false);
   const [status, setStatus] = useState<string>('');
 
   function getFieldValue(fieldName: string, fieldType: ActionSpec['fields'][number]['type']) {
@@ -319,8 +319,8 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     if (!activeHandoff?.previewXdr) return;
     try {
       await navigator.clipboard.writeText(activeHandoff.signedXdr || activeHandoff.previewXdr);
-      setCopyLabel('Copied');
-      window.setTimeout(() => setCopyLabel('Copy XDR'), 1000);
+      setIsCopied(true);
+      window.setTimeout(() => setIsCopied(false), 1000);
     } catch {
       setStatus('Copy failed');
     }
@@ -386,11 +386,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
           >
             {isSubmitting ? 'Working...' : primaryLabel}
           </Button>
-          {activeHandoff?.previewXdr ? (
-            <Button type="button" variant="plain" size="sm" onClick={() => void copyPreview()}>
-              {copyLabel}
-            </Button>
-          ) : null}
+          {activeHandoff?.previewXdr ? <CopyIconButton copied={isCopied} onClick={() => void copyPreview()} label="Copy XDR" /> : null}
           {activeHandoff?.previewXdr ? (
             <Button type="button" variant="plain" size="sm" onClick={() => useTransactionHandoffStore.getState().resetHandoff(handoffId)}>
               Reset XDR

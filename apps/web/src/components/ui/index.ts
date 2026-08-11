@@ -1,5 +1,6 @@
 export { Badge } from './badge';
 export { Button } from './button';
+export { CopyIconButton } from './copy-icon-button';
 export { Card } from './card';
 export { Field, FieldHelperText, FieldLabel } from './field';
 export { Heading, Text } from './text';

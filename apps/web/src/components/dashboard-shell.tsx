@@ -117,9 +117,6 @@ export function DashboardShell() {
               <Badge>{currentNetwork.label}</Badge>
               <Badge>{session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
               <Badge>{session.status}</Badge>
-              <Button type="button" size="sm" variant="surface" onClick={session.address ? disconnectWallet : connectWallet}>
-                {session.address ? 'Disconnect wallet' : 'Connect wallet'}
-              </Button>
             </div>
           </div>
 
@@ -128,6 +125,18 @@ export function DashboardShell() {
               <Stack gap="2">
                 <Text className="label">Wallet</Text>
                 {session.address ? <ShortId value={session.address} /> : <Text>Not connected</Text>}
+                <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>
+                  {session.address ? 'Disconnect this wallet or swap to another one.' : 'Connect a wallet to start reading and signing.'}
+                </Text>
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="solid"
+                  onClick={session.address ? disconnectWallet : connectWallet}
+                  style={{ width: '100%' }}
+                >
+                  {session.address ? 'Disconnect wallet' : 'Connect wallet'}
+                </Button>
               </Stack>
             </Card>
             <Card p="4">

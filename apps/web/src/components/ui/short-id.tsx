@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Text } from '@/components/ui';
+import { CopyIconButton, Text } from '@/components/ui';
 import { HStack } from 'styled-system/jsx';
 
 function shorten(value: string) {
@@ -32,9 +32,7 @@ export function ShortId({ value, label }: { value: string; label?: string }) {
         </Text>
       </div>
       <HStack gap="1">
-        <Button type="button" size="sm" variant="plain" onClick={copyValue}>
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
+        <CopyIconButton copied={copied} onClick={copyValue} label="Copy address" />
       </HStack>
     </HStack>
   );
