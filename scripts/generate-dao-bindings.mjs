@@ -7,19 +7,19 @@ const contracts = [
     packageName: 'token',
     wasmPath: `${buildDir}/token.wasm`,
     outputDir: 'packages/token-bindings',
-    packageJsonName: '@punch-arena/token-bindings'
+    packageJsonName: '@dao-test-stellar/token-bindings'
   },
   {
     packageName: 'governor',
     wasmPath: `${buildDir}/governor.wasm`,
     outputDir: 'packages/governor-bindings',
-    packageJsonName: '@punch-arena/governor-bindings'
+    packageJsonName: '@dao-test-stellar/governor-bindings'
   },
   {
     packageName: 'treasury',
     wasmPath: `${buildDir}/treasury.wasm`,
     outputDir: 'packages/treasury-bindings',
-    packageJsonName: '@punch-arena/treasury-bindings'
+    packageJsonName: '@dao-test-stellar/treasury-bindings'
   }
 ];
 

@@ -1,4 +1,4 @@
-import { Client as ArenaClient } from '@punch-arena/arena-bindings';
+import { Client as ArenaClient } from '@dao-test-stellar/token-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { TransactionBuilder, rpc } from '@stellar/stellar-sdk';
 

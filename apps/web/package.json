@@ -1,5 +1,5 @@
 {
-  "name": "@punch-arena/web",
+  "name": "@dao-test-stellar/web",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.5.0",
-    "@punch-arena/arena-bindings": "workspace:*",
+    "@dao-test-stellar/token-bindings": "workspace:*",
     "@stellar/stellar-sdk": "^16.1.0",
     "buffer": "^6.0.3",
     "next": "^15.4.0",

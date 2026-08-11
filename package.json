@@ -1,5 +1,5 @@
 {
-  "name": "punch-arena",
+  "name": "dao-test-stellar",
   "private": true,
   "packageManager": "pnpm@10.12.4",
   "scripts": {

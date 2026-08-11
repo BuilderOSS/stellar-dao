@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@punch-arena/arena-bindings'],
+  transpilePackages: ['@dao-test-stellar/token-bindings'],
   typedRoutes: true
 };
 
