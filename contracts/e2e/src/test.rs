@@ -25,6 +25,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().set_sequence_number(100);
+    e.ledger().set_timestamp(1_000);
 
     let owner = Address::generate(&e);
     let token_id = e.register(
@@ -83,6 +84,7 @@ fn dao_flow_executes_treasury_call() {
 
     token.mint(&proposer, &1);
     e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
     let targets = vec![&e, treasury_address.clone()];
@@ -93,10 +95,10 @@ fn dao_flow_executes_treasury_call() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_sequence_number(211);
+    e.ledger().set_timestamp(2_011);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_sequence_number(311);
+    e.ledger().set_timestamp(2_111);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
 
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
@@ -113,6 +115,7 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
 
     token.mint(&alice, &1);
     e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
     let targets = vec![&e, treasury_address.clone()];
@@ -123,11 +126,11 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &alice);
 
-    e.ledger().set_sequence_number(211);
+    e.ledger().set_timestamp(2_011);
     token.transfer(&alice, &bob, &1);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "bob yes"), &bob);
 
-    e.ledger().set_sequence_number(311);
+    e.ledger().set_timestamp(2_111);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Defeated);
 
     let _ = desc_hash;

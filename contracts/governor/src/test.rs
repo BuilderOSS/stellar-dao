@@ -26,6 +26,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().set_sequence_number(100);
+    e.ledger().set_timestamp(1_000);
 
     let owner = Address::generate(&e);
     let token_id = e.register(
@@ -86,6 +87,7 @@ fn full_governance_flow_executes_treasury_call() {
     assert_eq!(token.get_votes(&proposer), 1);
 
     e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
     let targets = vec![&e, treasury_address.clone()];
@@ -97,10 +99,10 @@ fn full_governance_flow_executes_treasury_call() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
 
-    e.ledger().set_sequence_number(211);
+    e.ledger().set_timestamp(2_011);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_sequence_number(311);
+    e.ledger().set_timestamp(2_111);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
 
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
@@ -116,6 +118,7 @@ fn propose_fails_below_threshold() {
     let proposer = Address::generate(&e);
 
     e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
     let targets = vec![&e, treasury_address.clone()];
@@ -134,6 +137,7 @@ fn execute_rejects_non_treasury_target() {
 
     token.mint(&proposer, &1);
     e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
 
     let targets = vec![&e, target.address.clone()];
     let functions = vec![&e, symbol_short!("set_value")];
@@ -142,9 +146,9 @@ fn execute_rejects_non_treasury_target() {
     let desc_hash = description_hash(&e, &description);
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
-    e.ledger().set_sequence_number(211);
+    e.ledger().set_timestamp(2_011);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
-    e.ledger().set_sequence_number(311);
+    e.ledger().set_timestamp(2_111);
 
     let _ = governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 }
@@ -157,6 +161,7 @@ fn execute_cannot_run_twice() {
 
     token.mint(&proposer, &1);
     e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
     let targets = vec![&e, treasury_address.clone()];
@@ -166,9 +171,9 @@ fn execute_cannot_run_twice() {
     let desc_hash = description_hash(&e, &description);
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
-    e.ledger().set_sequence_number(211);
+    e.ledger().set_timestamp(2_011);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
-    e.ledger().set_sequence_number(311);
+    e.ledger().set_timestamp(2_111);
 
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
