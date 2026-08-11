@@ -36,7 +36,7 @@ export function ActionCenter({ network, address, onRecord }: ActionCenterProps) 
           <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
             Build each arena move, inspect the preview, then sign and submit from the connected wallet. Multi-signer
             flows persist their XDR and collected signatures in the browser so you can disconnect, reconnect, and finish
-            the handoff later. Use Reset XDR if you want to discard one action's stored payload.
+            the handoff later. Use Reset XDR if you want to discard one action&apos;s stored payload.
           </Text>
         </Stack>
       </Card>

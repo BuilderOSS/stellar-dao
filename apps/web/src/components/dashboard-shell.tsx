@@ -1,6 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { KitEventType } from '@creit.tech/stellar-wallets-kit/types';
+import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { AccountCenter } from '@/components/account-center';
 import { ActionCenter } from '@/components/action-center';
 import { ContractDashboard } from '@/components/contract-dashboard';
@@ -58,6 +61,45 @@ export function DashboardShell() {
   const network = useMemo(() => getDefaultNetwork(), []);
   const currentNetwork: NetworkConfig = useMemo(() => getNetworkConfig(network), [network]);
 
+  useEffect(() => {
+    StellarWalletsKit.init({ modules: defaultModules() });
+
+    const onStateUpdated = StellarWalletsKit.on(KitEventType.STATE_UPDATED, (event) => {
+      const nextAddress = event.payload.address ?? '';
+      updateSession({
+        address: nextAddress,
+        status: nextAddress ? `Connected on ${currentNetwork.label}` : 'Disconnected'
+      });
+    });
+
+    const onDisconnect = StellarWalletsKit.on(KitEventType.DISCONNECT, () => {
+      updateSession({ address: '', status: 'Disconnected', syncedAt: '' });
+    });
+
+    return () => {
+      onStateUpdated();
+      onDisconnect();
+    };
+  }, [currentNetwork.label, updateSession]);
+
+  async function connectWallet() {
+    try {
+      const result = await StellarWalletsKit.authModal();
+      updateSession({ address: result.address, status: `Connected on ${currentNetwork.label}` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Wallet connection failed';
+      updateSession({ status: message });
+    }
+  }
+
+  async function disconnectWallet() {
+    try {
+      await StellarWalletsKit.disconnect();
+    } finally {
+      updateSession({ address: '', status: 'Disconnected', syncedAt: '' });
+    }
+  }
+
   return (
     <main className="page-shell">
       <Card p="8">
@@ -75,6 +117,9 @@ export function DashboardShell() {
               <Badge>{currentNetwork.label}</Badge>
               <Badge>{session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
               <Badge>{session.status}</Badge>
+              <Button type="button" size="sm" variant="surface" onClick={session.address ? disconnectWallet : connectWallet}>
+                {session.address ? 'Disconnect wallet' : 'Connect wallet'}
+              </Button>
             </div>
           </div>
 

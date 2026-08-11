@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Badge, Button, Card, Heading, Select, Text } from '@/components/ui';
+import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric, MercuryLeaderboardResponse } from '@/lib/mercury-types';
 import { Grid, Stack } from 'styled-system/jsx';
 
@@ -30,9 +30,9 @@ function LeaderboardRow({ entry, metric }: { entry: MercuryLeaderboardEntry; met
     <Card p="4">
       <Stack gap="2">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <Text style={{ margin: 0, color: 'white', fontWeight: 700 }}>
-            #{entry.rank} <span style={{ color: 'var(--fg-muted)' }}>{entry.address}</span>
-          </Text>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <ShortId value={entry.address} label={`#${entry.rank}`} />
+          </div>
           <Badge>{statValue(entry, metric)}</Badge>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>

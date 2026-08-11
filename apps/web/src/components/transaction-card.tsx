@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   createArenaActionClient,
   ensureArenaAccountExists,
@@ -61,35 +61,37 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
   const recordSignature = useTransactionHandoffStore((state) => state.recordSignature);
   const markSubmitted = useTransactionHandoffStore((state) => state.markSubmitted);
   const markError = useTransactionHandoffStore((state) => state.markError);
-  const [draft, setDraft] = useState<Record<string, string>>(() =>
-    Object.fromEntries(spec.fields.map((field) => [field.name, '']))
-  );
+  const [draft, setDraft] = useState<Record<string, string>>({});
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copyLabel, setCopyLabel] = useState<'Copy XDR' | 'Copied'>('Copy XDR');
   const [status, setStatus] = useState<string>('');
 
-  useEffect(() => {
-    if (handoff?.draft) {
-      setDraft(handoff.draft);
+  function getFieldValue(fieldName: string, fieldType: ActionSpec['fields'][number]['type']) {
+    const currentValue = draft[fieldName];
+    if (typeof currentValue !== 'undefined') {
+      return currentValue;
     }
-  }, [handoff?.id]);
 
-  useEffect(() => {
-    setDraft((current) => {
-      const next = { ...current };
-      for (const field of spec.fields) {
-        if (field.type === 'address' && autoPrefillFields.has(field.name) && !next[field.name] && address) {
-          next[field.name] = address;
-        }
-      }
-      return next;
-    });
-  }, [address, spec.fields]);
+    const savedValue = handoff?.draft?.[fieldName];
+    if (typeof savedValue !== 'undefined') {
+      return savedValue;
+    }
+
+    if (fieldType === 'address' && autoPrefillFields.has(fieldName) && address) {
+      return address;
+    }
+
+    return '';
+  }
+
+  function resolveDraft() {
+    return Object.fromEntries(spec.fields.map((field) => [field.name, getFieldValue(field.name, field.type)]));
+  }
 
   function updateField(name: string, value: string) {
+    const nextDraft = { ...resolveDraft(), [name]: value };
     setDraft((current) => {
-      const next = { ...current, [name]: value };
       saveDraft({
         id: handoffId,
         network,
@@ -97,9 +99,9 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
-        draft: next
+        draft: nextDraft
       });
-      return next;
+      return { ...current, [name]: value };
     });
     setStatus('');
   }
@@ -126,7 +128,8 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
     setStatus('');
 
     try {
-      const args = spec.buildArgs(draft, address);
+      const currentDraft = resolveDraft();
+      const args = spec.buildArgs(currentDraft, address);
       const tx = await (client as any)[spec.method](args);
       const requiredSigners = Array.from(new Set([address, ...(tx.needsNonInvokerSigningBy?.() ?? [])].filter(Boolean)));
       const previewJson = tx.toJSON();
@@ -140,7 +143,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
         actionId: spec.id,
         actionTitle: spec.title,
         group: spec.group,
-        draft,
+        draft: currentDraft,
         previewJson,
         previewXdr,
         previewResult,
@@ -354,7 +357,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
               <FieldLabel htmlFor={`${spec.id}-${field.name}`}>{field.label}</FieldLabel>
               <Input
                 id={`${spec.id}-${field.name}`}
-                value={draft[field.name] ?? ''}
+                value={getFieldValue(field.name, field.type)}
                 onChange={(event) => updateField(field.name, event.target.value)}
                 placeholder={field.placeholder}
                 type={fieldTypeFor(field.type)}

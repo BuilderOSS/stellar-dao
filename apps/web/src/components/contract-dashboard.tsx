@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createArenaClient, getNetworkConfig, type NetworkName } from '@/lib/stellar';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -133,108 +133,128 @@ function formatSyncedAt(syncedAt: string) {
 
 export function ContractDashboard({ network, address, view, onSync }: ContractDashboardProps) {
   const [spenderAddress, setSpenderAddress] = useState('');
-  const [watchAddress, setWatchAddress] = useState(address);
+  const [watchAddressDraft, setWatchAddressDraft] = useState('');
   const [state, setState] = useState<ReadState>(emptyState);
   const cooldownEndsAtRef = useRef<number | null>(null);
+  const watchAddress = watchAddressDraft || address;
 
   const currentNetwork = useMemo(() => getNetworkConfig(network), [network]);
 
-  useEffect(() => {
-    setWatchAddress(address);
-  }, [address]);
-
-  async function refresh(targetWatchAddress = watchAddress, targetSpenderAddress = spenderAddress) {
+  const loadReadState = useCallback(
+    async (targetWatchAddress = watchAddress, targetSpenderAddress = spenderAddress) => {
     const client = createArenaClient(currentNetwork);
     if (!client) {
-      const error = 'Set a contract id first';
-      setState((current) => ({ ...current, loading: false, error }));
-      onSync?.({ status: error });
-      return;
+      return {
+        nextState: { ...emptyState, loading: false, error: 'Set a contract id first' },
+        status: 'Set a contract id first'
+      };
     }
 
-    setState((current) => ({ ...current, loading: true, error: '' }));
+    const overview = await Promise.all([
+      client.name(),
+      client.symbol(),
+      client.decimals(),
+      client.get_total_supply(),
+      client.get_action_count(),
+      client.get_cooldown_duration()
+    ]);
 
-    try {
-      const overview = await Promise.all([
-        client.name(),
-        client.symbol(),
-        client.decimals(),
-        client.get_total_supply(),
-        client.get_action_count(),
-        client.get_cooldown_duration()
+    const nextState: ReadState = {
+      loading: false,
+      error: '',
+      syncedAt: new Date().toISOString(),
+      tokenName: overview[0].result,
+      tokenSymbol: overview[1].result,
+      decimals: String(overview[2].result),
+      totalSupply: overview[3].result.toString(),
+      actionCount: overview[4].result.toString(),
+      cooldownDuration: overview[5].result.toString(),
+      balance: '—',
+      isOnCooldown: '—',
+      cooldownRemaining: '—',
+      allowance: '—',
+      totalPunches: '—',
+      totalKicks: '—',
+      lastAction: '—',
+      battleWins: '—',
+      battleLosses: '—',
+      totalBattles: '—'
+    };
+
+    if (targetWatchAddress) {
+      const [balanceTx, cooldownTx, cooldownRemainingTx, statsTx, battleTx] = await Promise.all([
+        client.balance({ id: targetWatchAddress }),
+        client.is_on_cooldown({ user: targetWatchAddress }),
+        client.cooldown_remaining({ user: targetWatchAddress }),
+        client.get_stats({ user: targetWatchAddress }),
+        client.get_battle_record({ user: targetWatchAddress })
       ]);
 
-      const nextState: ReadState = {
-        loading: false,
-        error: '',
-        syncedAt: new Date().toISOString(),
-        tokenName: overview[0].result,
-        tokenSymbol: overview[1].result,
-        decimals: String(overview[2].result),
-        totalSupply: overview[3].result.toString(),
-        actionCount: overview[4].result.toString(),
-        cooldownDuration: overview[5].result.toString(),
-        balance: '—',
-        isOnCooldown: '—',
-        cooldownRemaining: '—',
-        allowance: '—',
-        totalPunches: '—',
-        totalKicks: '—',
-        lastAction: '—',
-        battleWins: '—',
-        battleLosses: '—',
-        totalBattles: '—'
-      };
-
-      if (targetWatchAddress) {
-        const [balanceTx, cooldownTx, cooldownRemainingTx, statsTx, battleTx] = await Promise.all([
-          client.balance({ id: targetWatchAddress }),
-          client.is_on_cooldown({ user: targetWatchAddress }),
-          client.cooldown_remaining({ user: targetWatchAddress }),
-          client.get_stats({ user: targetWatchAddress }),
-          client.get_battle_record({ user: targetWatchAddress })
-        ]);
-
-        nextState.balance = balanceTx.result.toString();
-        nextState.isOnCooldown = formatBoolean(cooldownTx.result);
-        nextState.cooldownRemaining = cooldownRemainingTx.result.toString();
-        cooldownEndsAtRef.current = cooldownRemainingTx.result > 0 ? Date.now() + Number(cooldownRemainingTx.result) * 1000 : null;
-        nextState.totalPunches = statsTx.result?.total_punches?.toString() ?? '0';
-        nextState.totalKicks = statsTx.result?.total_kicks?.toString() ?? '0';
-        nextState.lastAction = statsTx.result?.last_action ? formatDateTime(Number(statsTx.result.last_action)) : '—';
-        nextState.battleWins = battleTx.result?.wins?.toString() ?? '0';
-        nextState.battleLosses = battleTx.result?.losses?.toString() ?? '0';
-        nextState.totalBattles = battleTx.result?.total_battles?.toString() ?? '0';
-      } else {
-        cooldownEndsAtRef.current = null;
-      }
-
-      if (targetWatchAddress && targetSpenderAddress) {
-        const allowanceTx = await client.allowance({ from: targetWatchAddress, spender: targetSpenderAddress });
-        nextState.allowance = allowanceTx.result.toString();
-      }
-
-      setState(nextState);
-      onSync?.({ status: `Contract data loaded for ${currentNetwork.label}`, syncedAt: nextState.syncedAt });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Contract lookup failed';
-      setState((current) => ({ ...current, loading: false, error: message }));
-      onSync?.({ status: message });
+      nextState.balance = balanceTx.result.toString();
+      nextState.isOnCooldown = formatBoolean(cooldownTx.result);
+      nextState.cooldownRemaining = cooldownRemainingTx.result.toString();
+      cooldownEndsAtRef.current = cooldownRemainingTx.result > 0 ? Date.now() + Number(cooldownRemainingTx.result) * 1000 : null;
+      nextState.totalPunches = statsTx.result?.total_punches?.toString() ?? '0';
+      nextState.totalKicks = statsTx.result?.total_kicks?.toString() ?? '0';
+      nextState.lastAction = statsTx.result?.last_action ? formatDateTime(Number(statsTx.result.last_action)) : '—';
+      nextState.battleWins = battleTx.result?.wins?.toString() ?? '0';
+      nextState.battleLosses = battleTx.result?.losses?.toString() ?? '0';
+      nextState.totalBattles = battleTx.result?.total_battles?.toString() ?? '0';
+    } else {
+      cooldownEndsAtRef.current = null;
     }
-  }
+
+    if (targetWatchAddress && targetSpenderAddress) {
+      const allowanceTx = await client.allowance({ from: targetWatchAddress, spender: targetSpenderAddress });
+      nextState.allowance = allowanceTx.result.toString();
+    }
+
+    return {
+      nextState,
+      status: `Contract data loaded for ${currentNetwork.label}`
+    };
+    },
+    [currentNetwork, watchAddress, spenderAddress]
+  );
+
+  const runRead = useCallback(
+    async (
+      targetWatchAddress = watchAddress,
+      targetSpenderAddress = spenderAddress,
+      isCancelled?: () => boolean
+    ) => {
+      await Promise.resolve();
+      setState((current) => ({ ...current, loading: true, error: '' }));
+
+      try {
+        const { nextState, status } = await loadReadState(targetWatchAddress, targetSpenderAddress);
+        if (isCancelled?.()) return;
+
+        setState(nextState);
+        onSync?.({ status, syncedAt: nextState.syncedAt });
+      } catch (error) {
+        if (isCancelled?.()) return;
+
+        const message = error instanceof Error ? error.message : 'Contract lookup failed';
+        setState((current) => ({ ...current, loading: false, error: message }));
+        onSync?.({ status: message });
+      }
+    },
+    [loadReadState, onSync, watchAddress, spenderAddress]
+  );
 
   useEffect(() => {
-    if (view === 'overview') {
-      void refresh('');
-      return;
-    }
+    let cancelled = false;
+    const targetWatchAddress = view === 'overview' ? '' : address || watchAddress;
 
-    if (address) {
-      setWatchAddress(address);
-    }
-    void refresh(address || watchAddress, spenderAddress);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [network, currentNetwork.contractId, address, view]);
+    queueMicrotask(() => {
+      void runRead(targetWatchAddress, spenderAddress, () => cancelled);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, runRead, spenderAddress, view, watchAddress]);
 
   useEffect(() => {
     if (view !== 'account') {
@@ -286,7 +306,7 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
                 : 'Low-level arena and network diagnostics'
           }
           action={state.loading ? 'Loading...' : 'Refresh'}
-          onAction={() => void refresh()}
+          onAction={() => void runRead()}
         />
 
         {state.error ? (
@@ -314,12 +334,12 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
             <Grid columns={{ base: 1, lg: 2 }} gap="4">
               <Field>
                 <FieldLabel htmlFor="watch-address">Account address</FieldLabel>
-                <Input
-                  id="watch-address"
-                  value={watchAddress}
-                  onChange={(event) => setWatchAddress(event.target.value)}
-                  placeholder="Enter an address to inspect"
-                />
+                  <Input
+                    id="watch-address"
+                    value={watchAddress}
+                    onChange={(event) => setWatchAddressDraft(event.target.value)}
+                    placeholder="Enter an address to inspect"
+                  />
                 <FieldHelperText>Defaults to the connected wallet address.</FieldHelperText>
               </Field>
               <Field>

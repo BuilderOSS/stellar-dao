@@ -54,32 +54,32 @@ const PROGRAM_TABLE_SUFFIXES: Record<string, ActivityMeta> = {
   },
   punch_indexed: {
     title: 'Punch',
-    summarize: (row) => `Drained ${stringifyCell(row.moved)} point(s) from ${stringifyCell(row.to)}`,
+    summarize: (row) => `Drained ${stringifyCell(row.moved)} point(s) from ${shortenValue(asString(row.to))}`,
     addresses: (row) => collectAddresses(row, ['from', 'to'])
   },
   kick_indexed: {
     title: 'Kick',
-    summarize: (row) => `Drained ${stringifyCell(row.moved)} point(s) from ${stringifyCell(row.to)}`,
+    summarize: (row) => `Drained ${stringifyCell(row.moved)} point(s) from ${shortenValue(asString(row.to))}`,
     addresses: (row) => collectAddresses(row, ['from', 'to'])
   },
   joint_punch_indexed: {
     title: 'Joint Punch',
-    summarize: (row) => `Allies drained ${stringifyCell(row.moved)} point(s) from ${stringifyCell(row.target)}`,
+    summarize: (row) => `Allies drained ${stringifyCell(row.moved)} point(s) from ${shortenValue(asString(row.target))}`,
     addresses: (row) => collectAddresses(row, ['user1', 'user2', 'target'])
   },
   heavy_kick_indexed: {
     title: 'Heavy Kick',
-    summarize: (row) => `Allies drained ${stringifyCell(row.moved)} point(s) from ${stringifyCell(row.target)}`,
+    summarize: (row) => `Allies drained ${stringifyCell(row.moved)} point(s) from ${shortenValue(asString(row.target))}`,
     addresses: (row) => collectAddresses(row, ['user1', 'user2', 'user3', 'target'])
   },
   transfer_points_indexed: {
     title: 'Transfer Points',
-    summarize: (row) => `Moved ${stringifyCell(row.amount)} point(s) from ${stringifyCell(row.from)} to ${stringifyCell(row.to)}`,
+    summarize: (row) => `Moved ${stringifyCell(row.amount)} point(s) from ${shortenValue(asString(row.from))} to ${shortenValue(asString(row.to))}`,
     addresses: (row) => collectAddresses(row, ['from', 'to'])
   },
   battle_indexed: {
     title: 'Battle',
-    summarize: (row) => `Winner ${stringifyCell(row.winner)} drained ${stringifyCell(row.drained)} point(s)`,
+    summarize: (row) => `Winner ${shortenValue(asString(row.winner))} drained ${stringifyCell(row.drained)} point(s)`,
     addresses: (row) => collectAddresses(row, ['attacker', 'defender', 'winner', 'loser'])
   },
   admin_indexed: {
@@ -89,22 +89,22 @@ const PROGRAM_TABLE_SUFFIXES: Record<string, ActivityMeta> = {
   },
   mint_indexed: {
     title: 'Mint',
-    summarize: (row) => `Minted ${stringifyCell(row.amount)} point(s) to ${stringifyCell(row.to)}`,
+    summarize: (row) => `Minted ${stringifyCell(row.amount)} point(s) to ${shortenValue(asString(row.to))}`,
     addresses: (row) => collectAddresses(row, ['to'])
   },
   burn_indexed: {
     title: 'Burn',
-    summarize: (row) => `Burned ${stringifyCell(row.amount)} point(s) from ${stringifyCell(row.from)}`,
+    summarize: (row) => `Burned ${stringifyCell(row.amount)} point(s) from ${shortenValue(asString(row.from))}`,
     addresses: (row) => collectAddresses(row, ['from'])
   },
   transfer_indexed: {
     title: 'Transfer',
-    summarize: (row) => `Transferred ${stringifyCell(row.amount)} point(s) from ${stringifyCell(row.from)} to ${stringifyCell(row.to)}`,
+    summarize: (row) => `Transferred ${stringifyCell(row.amount)} point(s) from ${shortenValue(asString(row.from))} to ${shortenValue(asString(row.to))}`,
     addresses: (row) => collectAddresses(row, ['from', 'to'])
   },
   approve_indexed: {
     title: 'Approve',
-    summarize: (row) => `Approved ${stringifyCell(row.amount)} point(s) for ${stringifyCell(row.spender)}`,
+    summarize: (row) => `Approved ${stringifyCell(row.amount)} point(s) for ${shortenValue(asString(row.spender))}`,
     addresses: (row) => collectAddresses(row, ['from', 'spender'])
   }
 };
@@ -129,6 +129,11 @@ function stringifyCell(value: unknown) {
   if (typeof value === 'bigint') return value.toString();
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') return String(value);
   return '—';
+}
+
+function shortenValue(value: string) {
+  if (value.length <= 16) return value;
+  return `${value.slice(0, 6)}…${value.slice(-6)}`;
 }
 
 function asNumber(value: unknown) {

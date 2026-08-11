@@ -91,19 +91,6 @@ export function WalletSessionPanel({ network, address, onSessionUpdate }: Wallet
           </Text>
         </Stack>
 
-        {!address ? (
-          <Field>
-            <FieldLabel>Wallet kit button</FieldLabel>
-            <div ref={buttonRef} className="wallet-kit-button" />
-            <FieldHelperText>Use the kit button or the manual connect button below.</FieldHelperText>
-          </Field>
-        ) : (
-          <Field>
-            <FieldLabel>Wallet kit button</FieldLabel>
-            <FieldHelperText>Wallet already connected. Disconnect below to show the kit launcher again.</FieldHelperText>
-          </Field>
-        )}
-
         <Button type="button" size="lg" onClick={address ? disconnect : connect}>
           {address ? 'Disconnect wallet' : 'Connect wallet'}
         </Button>

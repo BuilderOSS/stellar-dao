@@ -71,7 +71,9 @@ export function AccountCenter({ network, address, status }: AccountCenterProps) 
     <Stack gap="5">
       <Card p="6">
         <Stack gap="3">
-          <Badge>{network === 'local' ? 'Local account' : 'Testnet account'}</Badge>
+          <div>
+            <Badge>{network === 'local' ? 'Local account' : 'Testnet account'}</Badge>
+          </div>
           <Heading style={{ fontSize: '1.6rem' }}>Arena profile</Heading>
           <Text className="lede" style={{ margin: 0 }}>
             {address ? 'Wallet connected and ready for indexed reads.' : 'Connect a wallet to unlock arena actions.'}
