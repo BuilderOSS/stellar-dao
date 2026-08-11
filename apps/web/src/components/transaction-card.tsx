@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Trash2 } from 'lucide-react';
 import {
   createArenaActionClient,
   ensureArenaAccountExists,
@@ -418,6 +418,7 @@ export function TransactionCard({ spec, network, address, onRecord }: Transactio
           ) : null}
           {activeHandoff?.previewXdr ? (
             <Button type="button" variant="plain" size="sm" onClick={resetXdr}>
+              <Trash2 size={14} />
               Reset XDR
             </Button>
           ) : null}

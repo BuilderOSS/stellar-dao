@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Badge, Button, Card, Heading, Select, ShortId, Text } from '@/components/ui';
 import type { MercuryLeaderboardEntry, MercuryLeaderboardMetric } from '@/lib/mercury-types';
 import { useMercuryLeaderboards } from '@/lib/mercury-queries';
@@ -75,6 +76,7 @@ export function MercuryLeaderboards({ limit = 8 }: MercuryLeaderboardsProps) {
             <Heading style={{ fontSize: '1.4rem' }}>Arena rankings</Heading>
           </Stack>
           <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
+            <RefreshCw size={14} />
             {isLoading ? 'Syncing' : 'Refresh'}
           </Button>
         </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { RefreshCw } from 'lucide-react';
 import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { Stack } from 'styled-system/jsx';
@@ -54,6 +55,7 @@ export function MercuryActivityFeed({ limit = 8 }: MercuryActivityFeedProps) {
             <Heading style={{ fontSize: '1.4rem' }}>Recent indexed activity</Heading>
           </Stack>
           <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
+            <RefreshCw size={14} />
             {isLoading ? 'Syncing' : 'Refresh'}
           </Button>
         </div>

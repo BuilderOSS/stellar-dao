@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Badge, Button, Card, Field, FieldHelperText, FieldLabel, Input, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
 import { getNetworkConfig, type NetworkName } from '@/lib/stellar';
@@ -21,7 +22,7 @@ function SectionHeader({
 }: {
   title: string;
   hint: string;
-  action: string;
+  action: ReactNode;
   onAction: () => void;
 }) {
   return (
@@ -145,7 +146,12 @@ export function ContractDashboard({ network, address, view, onSync }: ContractDa
                 ? 'Reads for the selected arena profile'
                 : 'Low-level arena and network diagnostics'
           }
-          action={isLoading || isValidating ? 'Loading...' : 'Refresh'}
+          action={
+            <>
+              <RefreshCw size={14} />
+              {isLoading || isValidating ? 'Loading...' : 'Refresh'}
+            </>
+          }
           onAction={() => void mutate()}
         />
 
