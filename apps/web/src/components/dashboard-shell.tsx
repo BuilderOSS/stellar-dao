@@ -5,6 +5,8 @@ import { AccountCenter } from '@/components/account-center';
 import { ActionCenter } from '@/components/action-center';
 import { ContractDashboard } from '@/components/contract-dashboard';
 import { DevTools } from '@/components/dev-tools';
+import { MercuryActivityFeed } from '@/components/mercury-activity-feed';
+import { MercuryLeaderboards } from '@/components/mercury-leaderboards';
 import { WalletSessionPanel } from '@/components/wallet-session-panel';
 import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -117,9 +119,13 @@ export function DashboardShell() {
         {session.activeTab === 'overview' ? (
           <Stack gap="6">
             <ContractDashboard network={network} address={session.address} view="overview" onSync={updateSession} />
+            <Grid columns={{ base: 1, xl: 2 }} gap="6">
+              <MercuryActivityFeed />
+              <MercuryLeaderboards />
+            </Grid>
             <Card p="6">
               <Stack gap="3">
-                <Text className="label">Arena activity</Text>
+                <Text className="label">Local arena activity</Text>
                 <Text className="lede" style={{ margin: 0 }}>
                   Track submitted arena actions here without indexing. Recent submissions stay local to this browser session.
                 </Text>
@@ -137,7 +143,7 @@ export function DashboardShell() {
           <Stack gap="6">
             <WalletSessionPanel network={network} address={session.address} onSessionUpdate={updateSession} />
             <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>
-              <AccountCenter network={network} address={session.address} status={session.status} history={session.history} />
+              <AccountCenter network={network} address={session.address} status={session.status} />
               <ContractDashboard network={network} address={session.address} view="account" onSync={updateSession} />
             </div>
           </Stack>

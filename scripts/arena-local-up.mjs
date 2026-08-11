@@ -10,7 +10,6 @@ const networkPassphrase = 'Standalone Network ; February 2017';
 const wasmPath = 'target/wasm32-unknown-unknown/release/arena.wasm';
 const envPath = 'apps/web/.env.local';
 const appExampleEnvPath = 'apps/web/.env.example';
-const exampleEnvPath = '.env.example';
 let rpcUrl = 'http://localhost:8000/rpc';
 
 function inspectContainerHostPort() {
@@ -160,7 +159,6 @@ function writeEnv(id) {
 
   writeFileSync(envPath, `${lines.join('\n')}\n`);
   writeFileSync(appExampleEnvPath, `${lines.join('\n')}\n`);
-  writeFileSync(exampleEnvPath, `${lines.join('\n')}\n`);
 }
 
 run('stellar', ['contract', 'build', '--package', 'arena', '--out-dir', 'target/wasm32-unknown-unknown/release']);
