@@ -11,6 +11,10 @@ if (!networkName || !['local', 'testnet'].includes(networkName)) {
 const identityName = networkName === 'local' ? 'local-dev' : 'testnet-dev';
 const adminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
 const envPath = 'apps/web/.env.local';
+const rootEnv = readEnvFile('.env');
+const webBaseUrl =
+  process.env.DAO_WEB_BASE_URL ?? rootEnv.DAO_WEB_BASE_URL ?? 'https://test-dao-stellar-web.vercel.app';
+const tokenBaseUri = `${webBaseUrl.replace(/\/$/, '')}/api/token/`;
 const rpcUrl =
   networkName === 'local'
     ? process.env.NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL ?? readLocalEnv('NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL') ?? 'http://localhost:8000/rpc'
@@ -19,6 +23,25 @@ const networkPassphrase =
   networkName === 'local' ? 'Standalone Network ; February 2017' : 'Test SDF Network ; September 2015';
 const saltSuffix = process.env.DAO_DEPLOY_SALT_SUFFIX?.trim() ?? '';
 const contractBuildDir = 'target/wasm32v1-none/release';
+
+function readEnvFile(filePath) {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    readFileSync(filePath, 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#') && line.includes('='))
+      .map((line) => {
+        const index = line.indexOf('=');
+        const key = line.slice(0, index).trim();
+        const value = line.slice(index + 1).trim();
+        return [key, value];
+      })
+  );
+}
 
 function readLocalEnv(key) {
   if (!existsSync(envPath)) {
@@ -144,7 +167,7 @@ deployIfMissing('token', `dao-token-${networkName}`, [
   '--owner',
   adminAddress,
   '--uri',
-  'https://example.com/',
+  tokenBaseUri,
   '--name',
   'DAO Vote NFT',
   '--symbol',
