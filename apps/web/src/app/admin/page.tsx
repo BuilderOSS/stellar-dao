@@ -42,10 +42,10 @@ export default function AdminPage() {
       return;
     }
 
-    setBusy(true);
-    setStatus('Preparing mint transaction...');
+      setBusy(true);
+      setStatus('Preparing mint transaction...');
 
-    try {
+      try {
       const client = await ContractClient.from<TokenMintClient>({
         contractId: config.tokenContractId,
         rpcUrl: config.rpcUrl,

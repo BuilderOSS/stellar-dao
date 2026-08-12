@@ -104,6 +104,16 @@ function ensureIdentity() {
   runQuiet('stellar', ['keys', 'fund', identityName, '--network', networkName]);
 }
 
+function upsertEnvValue(content, key, value) {
+  const line = `${key}=${value}`;
+  const pattern = new RegExp(`^${key}=.*$`, 'm');
+  if (pattern.test(content)) {
+    return content.replace(pattern, line);
+  }
+
+  return content ? `${content.trimEnd()}\n${line}` : `${line}`;
+}
+
 function wasmPath(packageName) {
   return `${contractBuildDir}/${packageName}.wasm`;
 }
@@ -115,8 +125,8 @@ function wasmHash(packageName) {
 function saltFor(packageName) {
   const hash = wasmHash(packageName);
   const seed = saltSuffix
-    ? `dao:${networkName}:${packageName}:${hash}:${saltSuffix}`
-    : `dao:${networkName}:${packageName}:${hash}`;
+    ? `dao:${config.label}:${networkName}:${packageName}:${hash}:${saltSuffix}`
+    : `dao:${config.label}:${networkName}:${packageName}:${hash}`;
   return createHash('sha256').update(seed).digest('hex');
 }
 
@@ -161,31 +171,15 @@ function deployIfMissing(packageName, alias, initArgs) {
 }
 
 function writeEnvIfMissing(contracts) {
-  if (existsSync(envPath)) {
-    console.log(`Skipped writing ${envPath}; file already exists.`);
-    console.log('Contract IDs:');
-    console.log(`TOKEN=${contracts.token}`);
-    console.log(`GOVERNOR=${contracts.governor}`);
-    console.log(`TREASURY=${contracts.treasury}`);
-    return;
-  }
+  const lines = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
+  const updated = [
+    ['NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID', contracts.token],
+    ['NEXT_PUBLIC_STELLAR_GOVERNOR_CONTRACT_ID', contracts.governor],
+    ['NEXT_PUBLIC_STELLAR_TREASURY_CONTRACT_ID', contracts.treasury]
+  ].reduce((content, [key, value]) => upsertEnvValue(content, key, value), lines);
 
   mkdirSync('apps/web', { recursive: true });
-  writeFileSync(
-    envPath,
-    [
-      `NEXT_PUBLIC_STELLAR_NETWORK=${networkName}`,
-      `NEXT_PUBLIC_STELLAR_RPC_URL=${rpcUrl}`,
-      `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=${networkPassphrase}`,
-      `NEXT_PUBLIC_STELLAR_ADMIN_ADDRESS=${adminAddress}`,
-      `NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID=${contracts.token}`,
-      `NEXT_PUBLIC_STELLAR_GOVERNOR_ID=${contracts.governor}`,
-      `NEXT_PUBLIC_STELLAR_TREASURY_ID=${contracts.treasury}`,
-      `NEXT_PUBLIC_STELLAR_TOKEN_NAME=${config.token.name}`,
-      `NEXT_PUBLIC_STELLAR_TOKEN_SYMBOL=${config.token.symbol}`,
-      `NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION=${config.token.description}`
-    ].join('\n') + '\n'
-  );
+  writeFileSync(envPath, `${updated.trimEnd()}\n`);
 }
 
 async function writeDeployArtifact(contracts) {

@@ -21,6 +21,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@dao-test-stellar/token-bindings": [
+        "../../packages/token-bindings/src/index.ts"
       ]
     },
     "plugins": [

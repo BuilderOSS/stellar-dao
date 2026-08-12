@@ -1,16 +1,16 @@
 {
   "network": "testnet",
-  "label": "testnet",
+  "label": "builder",
   "config": {
-    "label": "testnet",
+    "label": "builder",
     "adminAddress": "GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO",
     "webBaseUrl": "https://test-dao-stellar-web.vercel.app",
     "rpcUrl": "https://soroban-testnet.stellar.org",
     "networkPassphrase": "Test SDF Network ; September 2015",
     "token": {
-      "name": "DAO Vote NFT",
-      "symbol": "vDAO",
-      "description": "Default DAO voting NFT"
+      "name": "Builder Test",
+      "symbol": "BUILD",
+      "description": "Unlock the possibilities of collective creation"
     },
     "governor": {
       "votingDelay": 300,
@@ -21,14 +21,14 @@
     }
   },
   "contracts": {
-    "token": "CB5L75AFPRYYBMDROOULOJSSCBH2FICNJKV2RHPXNPC3IP2FBKD7TYRF",
-    "governor": "CCSKDSVSOVK3IBPM5VURFWPHW2H6CV7M26ZAIIFGUR2PRWVATRMHYXJV",
-    "treasury": "CBHUJTONEKL4BIQXC3LF3WQMPGOW5EG2M3TJTYV7OIMTCWIHAKQDJ2GW"
+    "token": "CAVMYA35TPTJVXRBOTUBBUN3UBMR5MV3NF7F6FZHZZIX67RCVUI3OAJ2",
+    "governor": "CDSLAAP6YABQEVAT25YGPSWXA7G7ZEJ3OEAURGQZTRERWX4BNEH7S5MA",
+    "treasury": "CBIXFSIJB2RI25AUU5I7WDKBU2COGMAKHG75D37ZO3CU6OHUW2LJF7IG"
   },
   "outputs": {
     "tokenBaseUri": "https://test-dao-stellar-web.vercel.app/api/token/",
     "identityName": "testnet-dev",
     "saltSuffix": null,
-    "deployArtifactPath": "deploys/testnet-testnet.json"
+    "deployArtifactPath": "deploys/builder-testnet.json"
   }
 }

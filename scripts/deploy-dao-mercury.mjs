@@ -29,7 +29,12 @@ function loadEnvValue(filePath, key) {
 }
 
 function projectName(label, network, contractName) {
-  return `dao-${label}-${contractName}-${network}-v4`;
+  return `dao-${label}-${contractName}-${network}-v5`;
+}
+
+function deriveDeployArtifactPath(filePath) {
+  const config = loadConfig(filePath);
+  return `deploys/${config.label}-${config.network}.json`;
 }
 
 function deployMercuryProgram(codePath, project, contractId) {
@@ -76,10 +81,13 @@ function upsertEnvValue(content, key, value) {
 }
 
 const config = loadConfig(configPath);
-const deployArtifactPath = `deploys/${config.label}-${config.network}.json`;
+const deployArtifactPath = deriveDeployArtifactPath(configPath);
+
+if (!existsSync(deployArtifactPath)) {
+  throw new Error(`Deploy artifact not found: ${deployArtifactPath}`);
+}
 
 run('pnpm', ['dao:build:mercury']);
-run('node', ['scripts/deploy-dao.mjs', configPath, '--force']);
 
 const deployed = JSON.parse(readFileSync(deployArtifactPath, 'utf8'));
 const tokenId = deployed.contracts.token;

@@ -1,6 +1,6 @@
-const defaultTokenName = 'DAO Vote NFT';
-const defaultTokenSymbol = 'vDAO';
-const defaultTokenDescription = 'Voting token for the DAO MVP.';
+const defaultTokenName = 'Builder Test';
+const defaultTokenSymbol = 'BUILD';
+const defaultTokenDescription = 'Unlock the possibilities of collective creation';
 
 export const TOKEN_NAME = process.env.NEXT_PUBLIC_STELLAR_TOKEN_NAME ?? defaultTokenName;
 export const TOKEN_SYMBOL = process.env.NEXT_PUBLIC_STELLAR_TOKEN_SYMBOL ?? defaultTokenSymbol;
