@@ -13,7 +13,7 @@ import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
 const BASE_NAV_ITEMS: Array<{ href: Route; label: string }> = [
-  { href: '/', label: 'Overview' },
+  { href: '/', label: 'Dashboard' },
   { href: '/proposals', label: 'Proposals' },
   { href: '/treasury', label: 'Treasury' },
   { href: '/members', label: 'Members' },

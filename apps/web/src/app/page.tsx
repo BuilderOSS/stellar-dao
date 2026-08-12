@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <DaoShell>
       <PageSection
-        eyebrow="Overview"
+        eyebrow="Dashboard"
         title="Governance at a glance"
         description="Track the current network, contract status, and the most important DAO actions from one clean home screen."
       >
