@@ -58,6 +58,6 @@ export function buildTokenImageSvg(tokenId: number) {
   ${shapeMarkup}
   ${innerMarkup}
   <text x="24" y="220" fill="white" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="700">${escapeXml(title)}</text>
-  <text x="24" y="244" fill="rgba(255,255,255,0.72)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">${escapeXml(TOKEN_SYMBOL)} governance token</text>
+  <text x="24" y="244" fill="rgba(171,200,229,0.9)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">${escapeXml(TOKEN_SYMBOL)} governance token</text>
 </svg>`;
 }

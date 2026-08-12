@@ -27,9 +27,9 @@ function NavLink({ href, label, active }: { href: Route; label: string; active: 
       style={{
         padding: '10px 14px',
         borderRadius: '999px',
-        border: active ? '1px solid rgba(251,191,36,0.42)' : '1px solid rgba(148,163,184,0.2)',
-        background: active ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.03)',
-        color: active ? 'white' : 'rgba(226,232,240,0.82)',
+        border: active ? '1px solid rgba(0,133,255,0.42)' : '1px solid rgba(148,163,184,0.2)',
+        background: active ? 'rgba(0,133,255,0.12)' : 'rgba(255,255,255,0.03)',
+        color: active ? 'white' : 'rgba(177,198,220,0.88)',
         textDecoration: 'none',
         fontSize: '0.92rem',
         fontWeight: 600,
@@ -124,7 +124,11 @@ export function DaoShell({ children }: { children: ReactNode }) {
             <Text className="lede" style={{ margin: 0, fontSize: '0.92rem' }}>
               RPC: {currentNetwork.rpcUrl}
             </Text>
-            <Button type="button" size="lg" onClick={session.address ? disconnectWallet : connectWallet}>
+            <Button
+              type="button"
+              size="lg"
+              onClick={session.address ? disconnectWallet : connectWallet}
+            >
               {session.address ? 'Disconnect wallet' : 'Connect wallet'}
             </Button>
           </div>
