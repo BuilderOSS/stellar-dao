@@ -51,6 +51,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
             treasury_id.clone(),
             10_u32,
             100_u32,
+            300_u32,
             1_u128,
             1_000_u32,
         ),
@@ -106,6 +107,10 @@ fn full_governance_flow_executes_treasury_call() {
     e.ledger().set_timestamp(2_111);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
 
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
@@ -155,7 +160,34 @@ fn execute_rejects_non_treasury_target() {
 }
 
 #[test]
-#[should_panic(expected = "#5008")]
+#[should_panic(expected = "#5007")]
+fn execute_fails_before_queue_delay_elapses() {
+    let (e, token, _treasury, governor, target, _) = setup();
+    let proposer = Address::generate(&e);
+
+    token.mint(&proposer, &1);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let treasury_address = governor.treasury();
+    let targets = vec![&e, treasury_address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Queue delay check");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+    e.ledger().set_timestamp(2_111);
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+
+    e.ledger().set_timestamp(2_410);
+    let _ = governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}
+
+#[test]
+#[should_panic(expected = "#5007")]
 fn execute_cannot_run_twice() {
     let (e, token, _treasury, governor, target, _) = setup();
     let proposer = Address::generate(&e);
@@ -206,6 +238,7 @@ fn quorum_uses_total_supply_bps() {
             treasury_id.clone(),
             0_u32,
             100_u32,
+            300_u32,
             1_u128,
             3_000_u32,
         ),
@@ -246,6 +279,7 @@ fn set_treasury_requires_owner() {
             treasury_id,
             10_u32,
             100_u32,
+            300_u32,
             1_u128,
             1_000_u32,
         ),

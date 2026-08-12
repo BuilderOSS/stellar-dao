@@ -799,6 +799,14 @@
                 "map": [
                   {
                     "key": {
+                      "symbol": "eta"
+                    },
+                    "val": {
+                      "u64": "0"
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "proposer"
                     },
                     "val": {
@@ -1002,6 +1010,18 @@
                       },
                       "val": {
                         "u128": "1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "vec": [
+                          {
+                            "symbol": "QueueDelay"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "u32": 300
                       }
                     },
                     {

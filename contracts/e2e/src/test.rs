@@ -50,6 +50,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
             treasury_id.clone(),
             10_u32,
             100_u32,
+            300_u32,
             1_u128,
             1_000_u32,
         ),
@@ -102,6 +103,10 @@ fn dao_flow_executes_treasury_call() {
     e.ledger().set_timestamp(2_111);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
 
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
