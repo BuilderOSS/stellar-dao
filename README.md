@@ -56,6 +56,10 @@ pnpm dao:deploy:local
 pnpm dao:deploy:testnet
 ```
 
+Use `configs/local.json` or `configs/testnet.json` to change token metadata, governor timing, quorum, RPC defaults, and admin address.
+
+Each deployment also writes `deploys/<label>-<network>.json` with the inputs used plus the resulting contract IDs and derived outputs.
+
 ## Environment
 
 Use `apps/web/.env.example` as the template.

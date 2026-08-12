@@ -11,8 +11,8 @@
     "dao:build:mercury": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury",
     "dao:bindings": "node scripts/generate-dao-bindings.mjs",
     "dao:test:e2e": "cargo test -p dao-e2e",
-    "dao:deploy:local": "node scripts/deploy-dao.mjs local",
-    "dao:deploy:testnet": "node scripts/deploy-dao.mjs testnet",
+    "dao:deploy:local": "node scripts/deploy-dao.mjs configs/local.json",
+    "dao:deploy:testnet": "node scripts/deploy-dao.mjs configs/testnet.json",
     "dao:local:up": "node scripts/dao-local-up.mjs",
     "dao:local:down": "node scripts/dao-local-down.mjs",
     "dao:setup:local": "node scripts/dao-setup-local.mjs"

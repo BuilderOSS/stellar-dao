@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { run, runQuiet } from './lib.mjs';
 
 const containerName = 'stellar-stellar-dao-local';
 const requestedContainerName = 'stellar-dao-local';
+const configPath = 'configs/local.json';
 
 function inspectContainerHostPort() {
   const inspect = runQuiet('docker', [
@@ -53,9 +56,21 @@ function ensureContainer() {
 ensureContainer();
 
 const mapped = inspectContainerHostPort();
-run('node', ['scripts/deploy-dao.mjs', 'local'], {
+const tempConfigPath = writeLocalDeployConfig(mapped);
+
+run('node', ['scripts/deploy-dao.mjs', tempConfigPath, '--force'], {
   env: {
-    ...process.env,
-    NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL: mapped ? `http://localhost:${mapped}/rpc` : 'http://localhost:8000/rpc'
+    ...process.env
   }
 });
+
+function writeLocalDeployConfig(mappedHostPort) {
+  const config = JSON.parse(readFileSync(configPath, 'utf8'));
+  const rpcUrl = mappedHostPort ? `http://localhost:${mappedHostPort}/rpc` : config.rpcUrl;
+  const suffix = createHash('sha256').update(`${configPath}:${rpcUrl}`).digest('hex').slice(0, 8);
+  const tempPath = `/tmp/opencode/deploy-config-local-${suffix}.json`;
+
+  mkdirSync('/tmp/opencode', { recursive: true });
+  writeFileSync(tempPath, `${JSON.stringify({ ...config, rpcUrl }, null, 2)}\n`);
+  return tempPath;
+}

@@ -1,49 +1,96 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import readline from 'node:readline/promises';
 import { run, runQuiet } from './lib.mjs';
 
-const networkName = process.argv[2];
+const args = process.argv.slice(2);
+const force = args.includes('--force');
+const configPath = args.find((arg) => arg !== '--force');
 
-if (!networkName || !['local', 'testnet'].includes(networkName)) {
-  throw new Error('Usage: node scripts/deploy-dao.mjs <local|testnet>');
+if (!configPath) {
+  throw new Error('Usage: node scripts/deploy-dao.mjs <config.json> [--force]');
 }
 
-const identityName = networkName === 'local' ? 'local-dev' : 'testnet-dev';
+const defaultDeployConfig = {
+  network: 'local',
+  label: 'local',
+  adminAddress: 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO',
+  webBaseUrl: 'https://test-dao-stellar-web.vercel.app',
+  rpcUrl: 'http://localhost:8000/rpc',
+  networkPassphrase: 'Standalone Network ; February 2017',
+  token: {
+    name: 'DAO Vote NFT',
+    symbol: 'vDAO',
+    description: 'Default DAO voting NFT'
+  },
+  governor: {
+    votingDelay: 10,
+    votingPeriod: 100,
+    proposalThreshold: 1,
+    quorumBps: 1000
+  }
+};
+
+const config = loadDeployConfig(configPath);
+const networkName = config.network;
+const identityName = `${networkName}-dev`;
 const envPath = 'apps/web/.env.local';
-const rootEnv = readEnvFile('.env');
-const adminAddress =
-  rootEnv.DAO_ADMIN_ADDRESS ?? 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
-const webBaseUrl =
-  process.env.DAO_WEB_BASE_URL ?? rootEnv.DAO_WEB_BASE_URL ?? 'https://test-dao-stellar-web.vercel.app';
+const adminAddress = config.adminAddress;
+const webBaseUrl = config.webBaseUrl;
 const tokenBaseUri = `${webBaseUrl.replace(/\/$/, '')}/api/token/`;
-const rpcUrl =
-  networkName === 'local'
-    ? process.env.DAO_LOCAL_RPC_URL ?? rootEnv.DAO_LOCAL_RPC_URL ?? 'http://localhost:8000/rpc'
-    : process.env.DAO_TESTNET_RPC_URL ?? rootEnv.DAO_TESTNET_RPC_URL ?? 'https://soroban-testnet.stellar.org';
-const networkPassphrase =
-  networkName === 'local'
-    ? process.env.DAO_LOCAL_NETWORK_PASSPHRASE ?? rootEnv.DAO_LOCAL_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017'
-    : process.env.DAO_TESTNET_NETWORK_PASSPHRASE ?? rootEnv.DAO_TESTNET_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015';
+const rpcUrl = config.rpcUrl;
+const networkPassphrase = config.networkPassphrase;
 const saltSuffix = process.env.DAO_DEPLOY_SALT_SUFFIX?.trim() ?? '';
 const contractBuildDir = 'target/wasm32v1-none/release';
+const deployArtifactPath = `deploys/${config.label}-${networkName}.json`;
 
-function readEnvFile(filePath) {
+function loadDeployConfig(filePath) {
   if (!existsSync(filePath)) {
-    return {};
+    throw new Error(`Config file not found: ${filePath}`);
   }
 
-  return Object.fromEntries(
-    readFileSync(filePath, 'utf8')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#') && line.includes('='))
-      .map((line) => {
-        const index = line.indexOf('=');
-        const key = line.slice(0, index).trim();
-        const value = line.slice(index + 1).trim();
-        return [key, value];
-      })
-  );
+  const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+  if (!['local', 'testnet', 'mainnet'].includes(parsed.network)) {
+    throw new Error(`Config ${filePath} must define network as local, testnet, or mainnet`);
+  }
+  if (!parsed.label) {
+    throw new Error(`Config ${filePath} must define label`);
+  }
+  if (!parsed.rpcUrl || !parsed.networkPassphrase) {
+    throw new Error(`Config ${filePath} must define rpcUrl and networkPassphrase`);
+  }
+  if (!parsed.token?.description) {
+    throw new Error(`Config ${filePath} must define token.description`);
+  }
+
+  return {
+    ...defaultDeployConfig,
+    ...parsed,
+    token: {
+      ...defaultDeployConfig.token,
+      ...parsed.token
+    },
+    governor: {
+      ...defaultDeployConfig.governor,
+      ...parsed.governor
+    }
+  };
+}
+
+async function confirmOverwrite(filePath) {
+  if (force || !existsSync(filePath)) {
+    return true;
+  }
+
+  if (!process.stdin.isTTY) {
+    throw new Error(`Refusing to overwrite ${filePath} without --force in non-interactive mode`);
+  }
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question(`Overwrite ${filePath}? [y/N] `);
+  rl.close();
+
+  return ['y', 'yes'].includes(answer.trim().toLowerCase());
 }
 
 function ensureNetwork() {
@@ -127,73 +174,127 @@ function writeEnvIfMissing(contracts) {
     envPath,
     [
       `NEXT_PUBLIC_STELLAR_NETWORK=${networkName}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_RPC_URL=${rootEnv.DAO_LOCAL_RPC_URL ?? 'http://localhost:8000/rpc'}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_NETWORK_PASSPHRASE=${rootEnv.DAO_LOCAL_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017'}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_ADMIN_ADDRESS=${adminAddress}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_TOKEN_CONTRACT_ID=${networkName === 'local' ? contracts.token : ''}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_GOVERNOR_CONTRACT_ID=${networkName === 'local' ? contracts.governor : ''}`,
-      `NEXT_PUBLIC_STELLAR_LOCAL_TREASURY_CONTRACT_ID=${networkName === 'local' ? contracts.treasury : ''}`,
-      `NEXT_PUBLIC_STELLAR_TESTNET_RPC_URL=${rootEnv.DAO_TESTNET_RPC_URL ?? 'https://soroban-testnet.stellar.org'}`,
-      `NEXT_PUBLIC_STELLAR_TESTNET_NETWORK_PASSPHRASE=${rootEnv.DAO_TESTNET_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015'}`,
-      `NEXT_PUBLIC_STELLAR_TESTNET_ADMIN_ADDRESS=${adminAddress}`,
-      `NEXT_PUBLIC_STELLAR_TESTNET_TOKEN_CONTRACT_ID=${networkName === 'testnet' ? contracts.token : ''}`,
-      `NEXT_PUBLIC_STELLAR_TESTNET_GOVERNOR_CONTRACT_ID=${networkName === 'testnet' ? contracts.governor : ''}`,
-      `NEXT_PUBLIC_STELLAR_TESTNET_TREASURY_CONTRACT_ID=${networkName === 'testnet' ? contracts.treasury : ''}`
+      `NEXT_PUBLIC_STELLAR_RPC_URL=${rpcUrl}`,
+      `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=${networkPassphrase}`,
+      `NEXT_PUBLIC_STELLAR_ADMIN_ADDRESS=${adminAddress}`,
+      `NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID=${contracts.token}`,
+      `NEXT_PUBLIC_STELLAR_GOVERNOR_ID=${contracts.governor}`,
+      `NEXT_PUBLIC_STELLAR_TREASURY_ID=${contracts.treasury}`,
+      `NEXT_PUBLIC_STELLAR_TOKEN_NAME=${config.token.name}`,
+      `NEXT_PUBLIC_STELLAR_TOKEN_SYMBOL=${config.token.symbol}`,
+      `NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION=${config.token.description}`
     ].join('\n') + '\n'
   );
 }
 
-run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '--release', '--target', 'wasm32v1-none'], {
-  env: {
-    ...process.env,
-    SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2: '0'
+async function writeDeployArtifact(contracts) {
+  if (!(await confirmOverwrite(deployArtifactPath))) {
+    console.log(`Skipped writing ${deployArtifactPath}.`);
+    return;
   }
-});
-ensureNetwork();
-ensureIdentity();
 
-const token = contractId('token');
-const treasury = contractId('treasury');
-const governor = contractId('governor');
+  mkdirSync('deploys', { recursive: true });
+  writeFileSync(
+    deployArtifactPath,
+    `${JSON.stringify(
+      {
+        network: networkName,
+        label: config.label,
+        config: {
+          label: config.label,
+          adminAddress,
+          webBaseUrl,
+          rpcUrl,
+          networkPassphrase,
+          token: config.token,
+          governor: config.governor
+        },
+        contracts,
+        outputs: {
+          tokenBaseUri,
+          identityName,
+          saltSuffix: saltSuffix || null,
+          deployArtifactPath
+        }
+      },
+      null,
+      2
+    )}\n`
+  );
+}
 
-deployIfMissing('token', `dao-token-${networkName}`, [
-  '--owner',
-  adminAddress,
-  '--uri',
-  tokenBaseUri,
-  '--name',
-  'DAO Vote NFT',
-  '--symbol',
-  'vDAO'
-]);
+function cleanupTempConfig() {
+  if (!configPath.startsWith('/tmp/') && !configPath.includes('.tmp.')) {
+    return;
+  }
 
-deployIfMissing('treasury', `dao-treasury-${networkName}`, [
-  '--owner',
-  adminAddress,
-  '--governor',
-  governor
-]);
+  try {
+    rmSync(configPath);
+  } catch {
+    // best effort cleanup
+  }
+}
 
-deployIfMissing('governor', `dao-governor-${networkName}`, [
-  '--owner',
-  adminAddress,
-  '--token_contract',
-  token,
-  '--treasury_contract',
-  treasury,
-  '--voting_delay',
-  '10',
-  '--voting_period',
-  '100',
-  '--proposal_threshold',
-  '1',
-  '--quorum_bps',
-  '1000'
-]);
+async function main() {
+  try {
+    run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '--release', '--target', 'wasm32v1-none'], {
+      env: {
+        ...process.env,
+        SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2: '0'
+      }
+    });
+    ensureNetwork();
+    ensureIdentity();
 
-writeEnvIfMissing({ token, governor, treasury });
+    const token = contractId('token');
+    const treasury = contractId('treasury');
+    const governor = contractId('governor');
 
-console.log(`Deployed ${networkName} DAO contracts:`);
-console.log(`TOKEN=${token}`);
-console.log(`GOVERNOR=${governor}`);
-console.log(`TREASURY=${treasury}`);
+    deployIfMissing('token', `dao-token-${networkName}`, [
+      '--owner',
+      adminAddress,
+      '--uri',
+      tokenBaseUri,
+      '--name',
+      config.token.name,
+      '--symbol',
+      config.token.symbol
+    ]);
+
+    deployIfMissing('treasury', `dao-treasury-${networkName}`, [
+      '--owner',
+      adminAddress,
+      '--governor',
+      governor
+    ]);
+
+    deployIfMissing('governor', `dao-governor-${networkName}`, [
+      '--owner',
+      adminAddress,
+      '--token_contract',
+      token,
+      '--treasury_contract',
+      treasury,
+      '--voting_delay',
+      String(config.governor.votingDelay),
+      '--voting_period',
+      String(config.governor.votingPeriod),
+      '--proposal_threshold',
+      String(config.governor.proposalThreshold),
+      '--quorum_bps',
+      String(config.governor.quorumBps)
+    ]);
+
+    writeEnvIfMissing({ token, governor, treasury });
+    await writeDeployArtifact({ token, governor, treasury });
+
+    console.log(`Deployed ${networkName} DAO contracts:`);
+    console.log(`TOKEN=${token}`);
+    console.log(`GOVERNOR=${governor}`);
+    console.log(`TREASURY=${treasury}`);
+  } finally {
+    cleanupTempConfig();
+  }
+}
+
+await main();
