@@ -61,6 +61,7 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     let target = TargetContractClient::new(&e, &target_id);
 
     treasury.set_governor(&governor_id);
+    token.set_mint_authority(&treasury.address, &true);
 
     (e, token, treasury, governor, target, owner)
 }
@@ -75,16 +76,22 @@ fn proposal_args(e: &Env, target: &Address) -> Vec<Vec<Val>> {
     vec![e, call_args]
 }
 
+fn mint_proposal_args(e: &Env, token: &Address, treasury: &Address, recipient: &Address) -> Vec<Vec<Val>> {
+    let mint_args: Vec<Val> = vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e)];
+    let call_args: Vec<Val> = vec![e, token.clone().into_val(e), symbol_short!("mint").into_val(e), mint_args.into_val(e)];
+    vec![e, call_args]
+}
+
 fn description_hash(e: &Env, description: &String) -> BytesN<32> {
     e.crypto().keccak256(&description.to_bytes()).to_bytes()
 }
 
 #[test]
 fn dao_flow_executes_treasury_call() {
-    let (e, token, _treasury, governor, target, _) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
-    let token_id = token.mint(&proposer);
+    let token_id = token.mint(&owner, &proposer);
     assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
@@ -116,11 +123,11 @@ fn dao_flow_executes_treasury_call() {
 
 #[test]
 fn transfer_after_snapshot_does_not_change_vote_outcome() {
-    let (e, token, _treasury, governor, target, _) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let alice = Address::generate(&e);
     let bob = Address::generate(&e);
 
-    let token_id = token.mint(&alice);
+    let token_id = token.mint(&owner, &alice);
     assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
@@ -142,4 +149,40 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Defeated);
 
     let _ = desc_hash;
+}
+
+#[test]
+fn dao_flow_mints_token_via_treasury_execution() {
+    let (e, token, _treasury, governor, _target, owner) = setup();
+    let proposer = Address::generate(&e);
+    let recipient = Address::generate(&e);
+
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let treasury_address = governor.treasury();
+    let targets = vec![&e, treasury_address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = mint_proposal_args(&e, &token.address, &treasury_address, &recipient);
+    let description = String::from_str(&e, "Mint token through treasury");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(token.balance(&recipient), 1);
+    assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
 }

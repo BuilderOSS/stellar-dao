@@ -82,10 +82,10 @@ fn description_hash(e: &Env, description: &String) -> BytesN<32> {
 
 #[test]
 fn full_governance_flow_executes_treasury_call() {
-    let (e, token, _treasury, governor, target, _) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
-    let token_id = token.mint(&proposer);
+    let token_id = token.mint(&owner, &proposer);
     assert_eq!(token_id, 0);
     assert_eq!(token.get_votes(&proposer), 1);
 
@@ -139,10 +139,10 @@ fn propose_fails_below_threshold() {
 #[test]
 #[should_panic]
 fn execute_rejects_non_treasury_target() {
-    let (e, token, _treasury, governor, target, _) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
-    let token_id = token.mint(&proposer);
+    let token_id = token.mint(&owner, &proposer);
     assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
@@ -164,10 +164,10 @@ fn execute_rejects_non_treasury_target() {
 #[test]
 #[should_panic(expected = "#5007")]
 fn execute_fails_before_queue_delay_elapses() {
-    let (e, token, _treasury, governor, target, _) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
-    let token_id = token.mint(&proposer);
+    let token_id = token.mint(&owner, &proposer);
     assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
@@ -192,10 +192,10 @@ fn execute_fails_before_queue_delay_elapses() {
 #[test]
 #[should_panic(expected = "#5007")]
 fn execute_cannot_run_twice() {
-    let (e, token, _treasury, governor, target, _) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
-    let token_id = token.mint(&proposer);
+    let token_id = token.mint(&owner, &proposer);
     assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
@@ -250,7 +250,7 @@ fn quorum_uses_total_supply_bps() {
     let governor = DaoGovernorContractClient::new(&e, &governor_id);
 
     for token_id in 0..10_u32 {
-        let minted_token_id = token.mint(&owner);
+        let minted_token_id = token.mint(&owner, &owner);
         assert_eq!(minted_token_id, token_id);
     }
 

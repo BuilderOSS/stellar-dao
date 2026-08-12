@@ -1,5 +1,5 @@
-use soroban_sdk::{contract, contractimpl, Address, Env, String};
-use stellar_access::ownable::{set_owner, Ownable};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
+use stellar_access::ownable::{get_owner, set_owner, Ownable};
 use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
@@ -37,6 +37,11 @@ mod retroshade {
     }
 }
 
+#[contracttype]
+enum TokenKey {
+    MintAuthority(Address),
+}
+
 #[contract]
 pub struct DaoTokenContract;
 
@@ -48,7 +53,17 @@ impl DaoTokenContract {
     }
 
     #[only_owner]
-    pub fn mint(e: &Env, to: &Address) -> u32 {
+    pub fn set_mint_authority(e: &Env, authority: Address, enabled: bool) {
+        e.storage().instance().set(&TokenKey::MintAuthority(authority), &enabled);
+    }
+
+    pub fn mint_authority(e: &Env, authority: Address) -> bool {
+        e.storage().instance().get(&TokenKey::MintAuthority(authority)).unwrap_or(false)
+    }
+
+    pub fn mint(e: &Env, minter: &Address, to: &Address) -> u32 {
+        minter.require_auth();
+        Self::ensure_mint_authority(e, minter);
         Self::ensure_self_delegate(e, to);
         let token_id = NonFungibleVotes::sequential_mint(e, to);
 
@@ -117,6 +132,18 @@ impl DaoTokenContract {
             }
             .emit(e);
         }
+    }
+
+    fn ensure_mint_authority(e: &Env, minter: &Address) {
+        let Some(owner) = get_owner(e) else {
+            panic!("owner not set");
+        };
+
+        if minter == &owner || Self::mint_authority(e, minter.clone()) {
+            return;
+        }
+
+        panic!("mint authority not allowed");
     }
 }
 

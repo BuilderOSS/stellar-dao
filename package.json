@@ -8,7 +8,7 @@
     "lint": "pnpm --dir apps/web lint",
     "typecheck": "pnpm --dir apps/web typecheck",
     "dao:build": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none",
-    "dao:build:mercury": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p dao-mercury --release --target wasm32v1-none --features mercury",
+    "dao:build:mercury": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury",
     "dao:bindings": "node scripts/generate-dao-bindings.mjs",
     "dao:test:e2e": "cargo test -p dao-e2e",
     "dao:deploy:local": "node scripts/deploy-dao.mjs configs/local.json",

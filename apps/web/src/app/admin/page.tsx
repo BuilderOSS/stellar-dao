@@ -11,7 +11,8 @@ import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
 type TokenMintClient = {
-  mint: (args: { to: string }, options?: MethodOptions) => Promise<AssembledTransaction<number>>;
+  mint: (args: { minter: string; to: string }, options?: MethodOptions) => Promise<AssembledTransaction<number>>;
+  set_mint_authority: (args: { authority: string; enabled: boolean }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
 };
 
 export default function AdminPage() {
@@ -19,6 +20,7 @@ export default function AdminPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const isAdmin = session.address && session.address === config.adminAddress;
   const [recipient, setRecipient] = useState('');
+  const [authority, setAuthority] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
 
@@ -55,12 +57,56 @@ export default function AdminPage() {
         }) as SignTransaction
       });
 
-      const assembled = await client.mint({ to: recipient });
+      const assembled = await client.mint({ minter: session.address, to: recipient });
       const sent = await assembled.signAndSend();
       setStatus(`Minted token #${sent.result}${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
       setRecipient('');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Mint failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setMintAuthority(enabled: boolean) {
+    if (!session.address || !isAdmin) {
+      setStatus('Connect the admin wallet first.');
+      return;
+    }
+
+    if (!config.tokenContractId) {
+      setStatus('Missing token contract id in the active network config.');
+      return;
+    }
+
+    if (!authority) {
+      setStatus('Authority address is required.');
+      return;
+    }
+
+    setBusy(true);
+    setStatus(enabled ? 'Whitelisting mint authority...' : 'Removing mint authority...');
+
+    try {
+      const client = await ContractClient.from<TokenMintClient>({
+        contractId: config.tokenContractId,
+        rpcUrl: config.rpcUrl,
+        networkPassphrase: config.passphrase,
+        publicKey: session.address,
+        signTransaction: (async (xdr, opts) => {
+          return StellarWalletsKit.signTransaction(xdr, {
+            networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+            address: opts?.address ?? session.address
+          });
+        }) as SignTransaction
+      });
+
+      const assembled = await client.set_mint_authority({ authority, enabled });
+      const sent = await assembled.signAndSend();
+      setStatus(`${enabled ? 'Whitelisted' : 'Removed'} mint authority${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setAuthority('');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Mint authority update failed');
     } finally {
       setBusy(false);
     }
@@ -99,9 +145,19 @@ export default function AdminPage() {
             </Card>
             <Card p="5">
               <Stack gap="2">
-                <Text className="label">What this page will do</Text>
+                <Badge>Whitelist mint authority</Badge>
+                <Heading style={{ fontSize: '1.3rem' }}>Manage minters</Heading>
+                <Input value={authority} onChange={(event) => setAuthority(event.target.value)} placeholder="Authority address or contract id" />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <Button type="button" variant="outline" onClick={() => void setMintAuthority(true)} disabled={busy}>
+                    {busy ? 'Saving...' : 'Allow minting'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => void setMintAuthority(false)} disabled={busy}>
+                    {busy ? 'Saving...' : 'Revoke'}
+                  </Button>
+                </div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                  Verify the connected wallet against the admin address, then submit mint transactions and show receipts.
+                  Whitelisted minters can call the token mint with their own signed address.
                 </Text>
               </Stack>
             </Card>
