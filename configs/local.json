@@ -13,6 +13,7 @@
   "governor": {
     "votingDelay": 10,
     "votingPeriod": 100,
+    "queueDelay": 300,
     "proposalThreshold": 1,
     "quorumBps": 1000
   }

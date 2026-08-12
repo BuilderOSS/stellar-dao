@@ -1,0 +1,34 @@
+{
+  "network": "local",
+  "label": "local",
+  "config": {
+    "label": "local",
+    "adminAddress": "GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO",
+    "webBaseUrl": "https://test-dao-stellar-web.vercel.app",
+    "rpcUrl": "http://localhost:8000/rpc",
+    "networkPassphrase": "Standalone Network ; February 2017",
+    "token": {
+      "name": "DAO Vote NFT",
+      "symbol": "vDAO",
+      "description": "Default DAO voting NFT"
+    },
+    "governor": {
+      "votingDelay": 10,
+      "votingPeriod": 100,
+      "queueDelay": 300,
+      "proposalThreshold": 1,
+      "quorumBps": 1000
+    }
+  },
+  "contracts": {
+    "token": "CCRUDZWO546WFC5YTSSYBK6YYDCLSHTATMSNWCRZP7IFKEOXBOUJPMCA",
+    "governor": "CA33G4UGX4BM3ZZDIYYKEVEWFGR654DG6T3QGJZFZBCDNERBEBP5I3MF",
+    "treasury": "CBVXHPX3DO7LWBP4OSJM6XK4XJVOFOUMK2X6MAYJGEC5XX34VY4ZVVKA"
+  },
+  "outputs": {
+    "tokenBaseUri": "https://test-dao-stellar-web.vercel.app/api/token/",
+    "identityName": "local-dev",
+    "saltSuffix": null,
+    "deployArtifactPath": "deploys/local-local.json"
+  }
+}

@@ -26,6 +26,7 @@ const defaultDeployConfig = {
   governor: {
     votingDelay: 10,
     votingPeriod: 100,
+    queueDelay: 300,
     proposalThreshold: 1,
     quorumBps: 1000
   }
@@ -279,6 +280,8 @@ async function main() {
       String(config.governor.votingDelay),
       '--voting_period',
       String(config.governor.votingPeriod),
+      '--queue_delay',
+      String(config.governor.queueDelay),
       '--proposal_threshold',
       String(config.governor.proposalThreshold),
       '--quorum_bps',
