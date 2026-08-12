@@ -29,7 +29,7 @@ function loadEnvValue(filePath, key) {
 }
 
 function projectName(label, network, contractName) {
-  return `dao-${label}-${contractName}-${network}-v3`;
+  return `dao-${label}-${contractName}-${network}-v4`;
 }
 
 function deployMercuryProgram(codePath, project, contractId) {

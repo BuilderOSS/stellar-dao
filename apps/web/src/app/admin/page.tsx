@@ -7,6 +7,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const [authority, setAuthority] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const { data: mintAuthorities, error: mintAuthorityError, isLoading: mintAuthoritiesLoading, mutate: refreshMintAuthorities } = useMercuryMintAuthorities();
 
   async function mintToken() {
     if (!session.address || !isAdmin) {
@@ -105,6 +107,7 @@ export default function AdminPage() {
       const sent = await assembled.signAndSend();
       setStatus(`${enabled ? 'Whitelisted' : 'Removed'} mint authority${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
       setAuthority('');
+      void refreshMintAuthorities();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Mint authority update failed');
     } finally {
@@ -159,6 +162,38 @@ export default function AdminPage() {
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                   Whitelisted minters can call the token mint with their own signed address.
                 </Text>
+              </Stack>
+            </Card>
+            <Card p="5">
+              <Stack gap="3">
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div>
+                    <Badge>Mercury</Badge>
+                    <Heading style={{ fontSize: '1.3rem' }}>Mint authorities</Heading>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void refreshMintAuthorities()} disabled={mintAuthoritiesLoading}>
+                    {mintAuthoritiesLoading ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                </div>
+                {mintAuthorityError ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{mintAuthorityError.message}</Text> : null}
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Owner is always allowed to mint. Mercury shows addresses that were explicitly whitelisted.
+                </Text>
+                <ShortId value={config.adminAddress} label="Owner mint authority" />
+                {!mintAuthorities?.items.length ? (
+                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>No explicit minters indexed yet.</Text>
+                ) : (
+                  <Stack gap="2">
+                    {mintAuthorities.items.map((item) => (
+                      <Card key={item.authority} p="3">
+                        <Stack gap="1">
+                          <ShortId value={item.authority} label={item.source === 'owner' ? 'Owner' : 'Whitelisted minter'} />
+                          <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Ledger {item.ledger}</Text>
+                        </Stack>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
               </Stack>
             </Card>
           </Grid>

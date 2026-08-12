@@ -23,8 +23,24 @@ export type MercuryActivityItem = {
   addresses: string[];
 };
 
+export type MercuryMintAuthorityItem = {
+  authority: string;
+  enabled: boolean;
+  ledger: number;
+  timestamp: number;
+  txHash: string;
+  contractId: string;
+  source: 'owner' | 'mercury';
+};
+
 export type MercuryActivityResponse = {
   items: MercuryActivityItem[];
+  generatedAt: string;
+  message?: string;
+};
+
+export type MercuryMintAuthorityResponse = {
+  items: MercuryMintAuthorityItem[];
   generatedAt: string;
   message?: string;
 };

@@ -29,6 +29,14 @@ mod retroshade {
 
     #[derive(Retroshade)]
     #[contracttype]
+    pub struct MintAuthorityChangedIndexed {
+        pub authority: Address,
+        pub enabled: bool,
+        pub ledger: u32,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
     pub struct DelegateChangedIndexed {
         pub delegator: Address,
         pub from_delegate: Option<Address>,
@@ -54,7 +62,15 @@ impl DaoTokenContract {
 
     #[only_owner]
     pub fn set_mint_authority(e: &Env, authority: Address, enabled: bool) {
-        e.storage().instance().set(&TokenKey::MintAuthority(authority), &enabled);
+        e.storage().instance().set(&TokenKey::MintAuthority(authority.clone()), &enabled);
+
+        #[cfg(feature = "mercury")]
+        retroshade::MintAuthorityChangedIndexed {
+            authority,
+            enabled,
+            ledger: e.ledger().sequence(),
+        }
+        .emit(e);
     }
 
     pub fn mint_authority(e: &Env, authority: Address) -> bool {

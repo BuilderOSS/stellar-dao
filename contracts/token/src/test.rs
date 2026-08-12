@@ -118,6 +118,16 @@ fn owner_can_whitelist_and_remove_minter() {
 }
 
 #[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn set_mint_authority_requires_owner_auth() {
+    let (e, client, owner) = setup_no_auth();
+    let bob = Address::generate(&e);
+
+    let _ = owner;
+    client.set_mint_authority(&bob, &true);
+}
+
+#[test]
 fn whitelisted_minter_can_mint() {
     let (e, client, owner) = setup();
     let bob = Address::generate(&e);

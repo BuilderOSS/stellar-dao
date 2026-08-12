@@ -3,6 +3,7 @@ import type {
   MercuryActivityItem,
   MercuryProgramConfig,
   MercuryProgramKey,
+  MercuryMintAuthorityItem,
   MercuryProgramStatusItem
 } from '@/lib/mercury-types';
 
@@ -41,6 +42,11 @@ const TABLE_SUFFIXES: Record<string, { title: string; summarize: (row: MercuryTa
     title: 'Transfer',
     summarize: (row) => `Transferred token #${stringify(row.token_id)} from ${shorten(stringify(row.from))} to ${shorten(stringify(row.to))}`,
     addresses: (row) => collectAddresses(row, ['from', 'to'])
+  },
+  mint_authority_changed_indexed: {
+    title: 'Mint Authority Change',
+    summarize: (row) => `${shorten(stringify(row.authority))} ${Boolean(row.enabled) ? 'allowed' : 'revoked'} to mint`,
+    addresses: (row) => collectAddresses(row, ['authority'])
   },
   delegate_changed_indexed: {
     title: 'Delegate Change',
@@ -101,6 +107,13 @@ function asString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function asBoolean(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value === 'true';
+  if (typeof value === 'number') return value !== 0;
+  return false;
+}
+
 function collectAddresses(row: MercuryTableRow, fields: string[]) {
   const addresses = new Set<string>();
   for (const field of fields) {
@@ -112,7 +125,7 @@ function collectAddresses(row: MercuryTableRow, fields: string[]) {
   return [...addresses];
 }
 
-function getConfig(): { baseUrl: string; jwt: string; programs: MercuryProgramConfig[] } | null {
+function getConfig(): { baseUrl: string; jwt: string; adminAddress: string; programs: MercuryProgramConfig[] } | null {
   const network = getDefaultDaoNetwork();
   const config = getDaoNetworkConfig(network);
   const baseUrl = (process.env.MERCURY_BASE_URL?.trim() ?? config.rpcUrl).replace(/\/$/, '');
@@ -143,7 +156,7 @@ function getConfig(): { baseUrl: string; jwt: string; programs: MercuryProgramCo
     return null;
   }
 
-  return { baseUrl, jwt, programs };
+  return { baseUrl, jwt, adminAddress: config.adminAddress, programs };
 }
 
 async function mercuryFetchJson<T>(baseUrl: string, jwt: string, path: string, init?: RequestInit) {
@@ -247,6 +260,65 @@ export async function getMercuryProgramStatuses() {
       avgExecutionMs: status.avg_execution_ms
     };
   }));
+
+  return { items, generatedAt: new Date().toISOString() };
+}
+
+export async function getMercuryMintAuthorities() {
+  const config = getConfig();
+  if (!config) {
+    return { items: [], generatedAt: new Date().toISOString(), message: 'Mercury is not configured.' };
+  }
+
+  const tokenProgram = config.programs.find((program) => program.key === 'token');
+  if (!tokenProgram) {
+    return { items: [], generatedAt: new Date().toISOString(), message: 'Token Mercury program is not configured.' };
+  }
+
+  const tables = await listTables(config.baseUrl, config.jwt);
+  const relevantTables = tables.filter((table) => isProgramTable(table, tokenProgram) && table.table_name.endsWith('_mint_authority_changed_indexed'));
+  const rows = await Promise.all(relevantTables.map(async (table) => {
+    const data = await queryTable(config.baseUrl, config.jwt, table.table_name, 100);
+    const items: MercuryMintAuthorityItem[] = [];
+
+    for (const row of data) {
+      const authority = asString(row.authority);
+      if (!authority) continue;
+
+      items.push({
+        authority,
+        enabled: asBoolean(row.enabled),
+        ledger: asNumber(row.ledger),
+        timestamp: asNumber(row.timestamp),
+        txHash: asString(row.transaction),
+        contractId: asString(row.contract_id),
+        source: 'mercury' as const
+      });
+    }
+
+    return items;
+  }));
+
+  const latest = new Map<string, MercuryMintAuthorityItem>();
+  for (const item of rows.flat().sort((a, b) => b.ledger - a.ledger || b.timestamp - a.timestamp)) {
+    if (!latest.has(item.authority)) {
+      latest.set(item.authority, item);
+    }
+  }
+
+  const owner = config.adminAddress;
+  const items = [...latest.values()].filter((item) => item.enabled);
+  if (owner && !items.some((item) => item.authority === owner)) {
+    items.unshift({
+      authority: owner,
+      enabled: true,
+      ledger: 0,
+      timestamp: 0,
+      txHash: '',
+      contractId: '',
+      source: 'owner'
+    });
+  }
 
   return { items, generatedAt: new Date().toISOString() };
 }
