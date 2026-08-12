@@ -9,7 +9,7 @@ if (!configPath) {
 
 const mercuryCliPath = process.env.MERCURY_CLI_PATH ?? '/home/dan13ram/code/stellar/mercury-cli/target/release/mercury-cli';
 const mercuryBaseUrl = (process.env.MERCURY_BASE_URL?.trim() || 'https://testnet.mercurydata.app/rest').replace(/\/$/, '');
-const mercuryJwt = process.env.MERCURY_JWT?.trim() || '';
+const mercuryJwt = process.env.MERCURY_JWT?.trim() || loadEnvValue('apps/web/.env.local', 'MERCURY_JWT');
 
 function loadConfig(filePath) {
   if (!existsSync(filePath)) {
@@ -17,6 +17,15 @@ function loadConfig(filePath) {
   }
 
   return JSON.parse(readFileSync(filePath, 'utf8'));
+}
+
+function loadEnvValue(filePath, key) {
+  if (!existsSync(filePath)) {
+    return '';
+  }
+
+  const match = readFileSync(filePath, 'utf8').match(new RegExp(`^${key}=(.*)$`, 'm'));
+  return match ? match[1].trim() : '';
 }
 
 function projectName(label, network, contractName) {
