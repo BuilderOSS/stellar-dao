@@ -17,6 +17,24 @@ mod retroshade {
         pub token_id: u32,
         pub ledger: u32,
     }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct TokenTransferIndexed {
+        pub from: Address,
+        pub to: Address,
+        pub token_id: u32,
+        pub ledger: u32,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct DelegateChangedIndexed {
+        pub delegator: Address,
+        pub from_delegate: Option<Address>,
+        pub to_delegate: Address,
+        pub ledger: u32,
+    }
 }
 
 #[contract]
@@ -33,6 +51,14 @@ impl DaoTokenContract {
     pub fn mint(e: &Env, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::mint(e, to, token_id);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TokenMintIndexed {
+            to: to.clone(),
+            token_id,
+            ledger: e.ledger().sequence(),
+        }
+        .emit(e);
     }
 
     pub fn balance(e: &Env, account: &Address) -> u32 {
@@ -50,17 +76,44 @@ impl DaoTokenContract {
     pub fn transfer(e: &Env, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer(e, from, to, token_id);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TokenTransferIndexed {
+            from: from.clone(),
+            to: to.clone(),
+            token_id,
+            ledger: e.ledger().sequence(),
+        }
+        .emit(e);
     }
 
     pub fn transfer_from(e: &Env, spender: &Address, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer_from(e, spender, from, to, token_id);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TokenTransferIndexed {
+            from: from.clone(),
+            to: to.clone(),
+            token_id,
+            ledger: e.ledger().sequence(),
+        }
+        .emit(e);
     }
 
     fn ensure_self_delegate(e: &Env, account: &Address) {
         if get_delegate(e, account).is_none() {
             e.storage().persistent().set(&VotesStorageKey::Delegatee(account.clone()), account);
             emit_delegate_changed(e, account, None, account);
+
+            #[cfg(feature = "mercury")]
+            retroshade::DelegateChangedIndexed {
+                delegator: account.clone(),
+                from_delegate: None,
+                to_delegate: account.clone(),
+                ledger: e.ledger().sequence(),
+            }
+            .emit(e);
         }
     }
 }
