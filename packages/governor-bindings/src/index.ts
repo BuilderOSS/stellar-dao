@@ -33,10 +33,11 @@ if (typeof window !== "undefined") {
 
 
 
-export type GovernorKey = {tag: "Treasury", values: void} | {tag: "Proposal", values: readonly [Buffer]};
+export type GovernorKey = {tag: "Treasury", values: void} | {tag: "QueueDelay", values: void} | {tag: "Proposal", values: readonly [Buffer]};
 
 
 export interface ProposalCoreTime {
+  eta: u64;
   proposer: string;
   state: ProposalState;
   vote_end: u32;
@@ -545,31 +546,6 @@ export interface Client {
 
   /**
    * Construct and simulate a queue transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Queues a succeeded proposal for execution and returns its unique
-   * identifier.
-   * 
-   * This function is only relevant when queuing is enabled, i.e., when
-   * [`Governor::proposals_need_queuing`] is overridden to return `true`. If
-   * queuing is not enabled, calling this function will revert with
-   * [`GovernorError::QueueNotEnabled`].
-   * 
-   * When queuing is enabled, this function transitions a proposal from
-   * the `Succeeded` state to the `Queued` state. The `execute` function
-   * will then require the proposal to be in the `Queued` state before
-   * allowing execution. Note that `eta` enforcement is **not** handled
-   * by the governor itself — it must be enforced by the integration
-   * layer (e.g., a timelock contract that gates execution until the
-   * delay has elapsed).
-   * 
-   * # Enabling Queueing
-   * 
-   * The default implementation uses **open queueing**: any account can
-   * queue a succeeded proposal without authentication. To enable it,
-   * override [`Governor::proposals_need_queuing`] to return `true`:
-   * 
-   * ```ignore
-   * #[contractimpl(contracttrait)]
-   * impl Governor for MyGovernor 
    */
   queue: ({targets, functions, args, description_hash, eta, operator}: {targets: Array<string>, functions: Array<string>, args: Array<Array<any>>, description_hash: Buffer, eta: u32, operator: string}, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>
 
@@ -865,7 +841,7 @@ export interface Client {
 export class Client extends ContractClient {
   static async deploy<T = Client>(
         /** Constructor/Initialization Args for the contract's `__constructor` method */
-        {owner, token_contract, treasury_contract, voting_delay, voting_period, proposal_threshold, quorum_bps}: {owner: string, token_contract: string, treasury_contract: string, voting_delay: u32, voting_period: u32, proposal_threshold: u128, quorum_bps: u32},
+        {owner, token_contract, treasury_contract, voting_delay, voting_period, queue_delay, proposal_threshold, quorum_bps}: {owner: string, token_contract: string, treasury_contract: string, voting_delay: u32, voting_period: u32, queue_delay: u32, proposal_threshold: u128, quorum_bps: u32},
     /** Options for initializing a Client as well as for calling a method, with extras specific to deploying. */
     options: MethodOptions &
       Omit<ContractClientOptions, "contractId"> & {
@@ -877,14 +853,14 @@ export class Client extends ContractClient {
         format?: "hex" | "base64";
       }
   ): Promise<AssembledTransaction<T>> {
-    return ContractClient.deploy({owner, token_contract, treasury_contract, voting_delay, voting_period, proposal_threshold, quorum_bps}, options)
+    return ContractClient.deploy({owner, token_contract, treasury_contract, voting_delay, voting_period, queue_delay, proposal_threshold, quorum_bps}, options)
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAAC0dvdmVybm9yS2V5AAAAAAIAAAAAAAAAAAAAAAhUcmVhc3VyeQAAAAEAAAAAAAAACFByb3Bvc2FsAAAAAQAAA+4AAAAg",
-        "AAAAAQAAAAAAAAAAAAAAEFByb3Bvc2FsQ29yZVRpbWUAAAAFAAAAAAAAAAhwcm9wb3NlcgAAABMAAAAAAAAABXN0YXRlAAAAAAAH0AAAAA1Qcm9wb3NhbFN0YXRlAAAAAAAAAAAAAAh2b3RlX2VuZAAAAAQAAAAAAAAADXZvdGVfc25hcHNob3QAAAAAAAAEAAAAAAAAAAp2b3RlX3N0YXJ0AAAAAAAE",
+      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAAC0dvdmVybm9yS2V5AAAAAAMAAAAAAAAAAAAAAAhUcmVhc3VyeQAAAAAAAAAAAAAAClF1ZXVlRGVsYXkAAAAAAAEAAAAAAAAACFByb3Bvc2FsAAAAAQAAA+4AAAAg",
+        "AAAAAQAAAAAAAAAAAAAAEFByb3Bvc2FsQ29yZVRpbWUAAAAGAAAAAAAAAANldGEAAAAABgAAAAAAAAAIcHJvcG9zZXIAAAATAAAAAAAAAAVzdGF0ZQAAAAAAB9AAAAANUHJvcG9zYWxTdGF0ZQAAAAAAAAAAAAAIdm90ZV9lbmQAAAAEAAAAAAAAAA12b3RlX3NuYXBzaG90AAAAAAAABAAAAAAAAAAKdm90ZV9zdGFydAAAAAAABA==",
         "AAAAAAAAAKxSZXR1cm5zIHRoZSBuYW1lIG9mIHRoZSBnb3Zlcm5vci4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KCiMgRXJyb3JzCgoqIFtgR292ZXJub3JFcnJvcjo6TmFtZU5vdFNldGBdIC0gT2NjdXJzIGlmIHRoZSBuYW1lIGhhcyBub3QgYmVlbiBzZXQuAAAABG5hbWUAAAAAAAAAAQAAABA=",
-        "AAAAAAAABABRdWV1ZXMgYSBzdWNjZWVkZWQgcHJvcG9zYWwgZm9yIGV4ZWN1dGlvbiBhbmQgcmV0dXJucyBpdHMgdW5pcXVlCmlkZW50aWZpZXIuCgpUaGlzIGZ1bmN0aW9uIGlzIG9ubHkgcmVsZXZhbnQgd2hlbiBxdWV1aW5nIGlzIGVuYWJsZWQsIGkuZS4sIHdoZW4KW2BHb3Zlcm5vcjo6cHJvcG9zYWxzX25lZWRfcXVldWluZ2BdIGlzIG92ZXJyaWRkZW4gdG8gcmV0dXJuIGB0cnVlYC4gSWYKcXVldWluZyBpcyBub3QgZW5hYmxlZCwgY2FsbGluZyB0aGlzIGZ1bmN0aW9uIHdpbGwgcmV2ZXJ0IHdpdGgKW2BHb3Zlcm5vckVycm9yOjpRdWV1ZU5vdEVuYWJsZWRgXS4KCldoZW4gcXVldWluZyBpcyBlbmFibGVkLCB0aGlzIGZ1bmN0aW9uIHRyYW5zaXRpb25zIGEgcHJvcG9zYWwgZnJvbQp0aGUgYFN1Y2NlZWRlZGAgc3RhdGUgdG8gdGhlIGBRdWV1ZWRgIHN0YXRlLiBUaGUgYGV4ZWN1dGVgIGZ1bmN0aW9uCndpbGwgdGhlbiByZXF1aXJlIHRoZSBwcm9wb3NhbCB0byBiZSBpbiB0aGUgYFF1ZXVlZGAgc3RhdGUgYmVmb3JlCmFsbG93aW5nIGV4ZWN1dGlvbi4gTm90ZSB0aGF0IGBldGFgIGVuZm9yY2VtZW50IGlzICoqbm90KiogaGFuZGxlZApieSB0aGUgZ292ZXJub3IgaXRzZWxmIOKAlCBpdCBtdXN0IGJlIGVuZm9yY2VkIGJ5IHRoZSBpbnRlZ3JhdGlvbgpsYXllciAoZS5nLiwgYSB0aW1lbG9jayBjb250cmFjdCB0aGF0IGdhdGVzIGV4ZWN1dGlvbiB1bnRpbCB0aGUKZGVsYXkgaGFzIGVsYXBzZWQpLgoKIyBFbmFibGluZyBRdWV1ZWluZwoKVGhlIGRlZmF1bHQgaW1wbGVtZW50YXRpb24gdXNlcyAqKm9wZW4gcXVldWVpbmcqKjogYW55IGFjY291bnQgY2FuCnF1ZXVlIGEgc3VjY2VlZGVkIHByb3Bvc2FsIHdpdGhvdXQgYXV0aGVudGljYXRpb24uIFRvIGVuYWJsZSBpdCwKb3ZlcnJpZGUgW2BHb3Zlcm5vcjo6cHJvcG9zYWxzX25lZWRfcXVldWluZ2BdIHRvIHJldHVybiBgdHJ1ZWA6CgpgYGBpZ25vcmUKI1tjb250cmFjdGltcGwoY29udHJhY3R0cmFpdCldCmltcGwgR292ZXJub3IgZm9yIE15R292ZXJub3IgAAAABXF1ZXVlAAAAAAAABgAAAAAAAAAHdGFyZ2V0cwAAAAPqAAAAEwAAAAAAAAAJZnVuY3Rpb25zAAAAAAAD6gAAABEAAAAAAAAABGFyZ3MAAAPqAAAD6gAAAAAAAAAAAAAAEGRlc2NyaXB0aW9uX2hhc2gAAAPuAAAAIAAAAAAAAAADZXRhAAAAAAQAAAAAAAAACG9wZXJhdG9yAAAAEwAAAAEAAAPuAAAAIA==",
+        "AAAAAAAAAAAAAAAFcXVldWUAAAAAAAAGAAAAAAAAAAd0YXJnZXRzAAAAA+oAAAATAAAAAAAAAAlmdW5jdGlvbnMAAAAAAAPqAAAAEQAAAAAAAAAEYXJncwAAA+oAAAPqAAAAAAAAAAAAAAAQZGVzY3JpcHRpb25faGFzaAAAA+4AAAAgAAAAAAAAAANldGEAAAAABAAAAAAAAAAIb3BlcmF0b3IAAAATAAAAAQAAA+4AAAAg",
         "AAAAAAAAAAAAAAAGY2FuY2VsAAAAAAAFAAAAAAAAAAd0YXJnZXRzAAAAA+oAAAATAAAAAAAAAAlmdW5jdGlvbnMAAAAAAAPqAAAAEQAAAAAAAAAEYXJncwAAA+oAAAPqAAAAAAAAAAAAAAAQZGVzY3JpcHRpb25faGFzaAAAA+4AAAAgAAAAAAAAAAhvcGVyYXRvcgAAABMAAAABAAAD7gAAACA=",
         "AAAAAAAAAAAAAAAGcXVvcnVtAAAAAAABAAAAAAAAAAZsZWRnZXIAAAAAAAQAAAABAAAACg==",
         "AAAAAAAAAAAAAAAHZXhlY3V0ZQAAAAAFAAAAAAAAAAd0YXJnZXRzAAAAA+oAAAATAAAAAAAAAAlmdW5jdGlvbnMAAAAAAAPqAAAAEQAAAAAAAAAEYXJncwAAA+oAAAPqAAAAAAAAAAAAAAAQZGVzY3JpcHRpb25faGFzaAAAA+4AAAAgAAAAAAAAAAhleGVjdXRvcgAAABMAAAABAAAD7gAAACA=",
@@ -896,7 +872,7 @@ export class Client extends ContractClient {
         "AAAAAAAAAMlSZXR1cm5zIHdoZXRoZXIgYW4gYWNjb3VudCBoYXMgdm90ZWQgb24gYSBwcm9wb3NhbC4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KKiBgcHJvcG9zYWxfaWRgIC0gVGhlIHVuaXF1ZSBpZGVudGlmaWVyIG9mIHRoZSBwcm9wb3NhbC4KKiBgYWNjb3VudGAgLSBUaGUgYWRkcmVzcyB0byBjaGVjay4AAAAAAAAJaGFzX3ZvdGVkAAAAAAAAAgAAAAAAAAALcHJvcG9zYWxfaWQAAAAD7gAAACAAAAAAAAAAB2FjY291bnQAAAAAEwAAAAEAAAAB",
         "AAAAAAAAAAAAAAAMc2V0X3RyZWFzdXJ5AAAAAQAAAAAAAAARdHJlYXN1cnlfY29udHJhY3QAAAAAAAATAAAAAA==",
         "AAAAAAAAAAAAAAAMdm90aW5nX2RlbGF5AAAAAAAAAAEAAAAE",
-        "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAcAAAAAAAAABW93bmVyAAAAAAAAEwAAAAAAAAAOdG9rZW5fY29udHJhY3QAAAAAABMAAAAAAAAAEXRyZWFzdXJ5X2NvbnRyYWN0AAAAAAAAEwAAAAAAAAAMdm90aW5nX2RlbGF5AAAABAAAAAAAAAANdm90aW5nX3BlcmlvZAAAAAAAAAQAAAAAAAAAEnByb3Bvc2FsX3RocmVzaG9sZAAAAAAACgAAAAAAAAAKcXVvcnVtX2JwcwAAAAAABAAAAAA=",
+        "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAgAAAAAAAAABW93bmVyAAAAAAAAEwAAAAAAAAAOdG9rZW5fY29udHJhY3QAAAAAABMAAAAAAAAAEXRyZWFzdXJ5X2NvbnRyYWN0AAAAAAAAEwAAAAAAAAAMdm90aW5nX2RlbGF5AAAABAAAAAAAAAANdm90aW5nX3BlcmlvZAAAAAAAAAQAAAAAAAAAC3F1ZXVlX2RlbGF5AAAAAAQAAAAAAAAAEnByb3Bvc2FsX3RocmVzaG9sZAAAAAAACgAAAAAAAAAKcXVvcnVtX2JwcwAAAAAABAAAAAA=",
         "AAAAAAAAARhSZXR1cm5zIGEgc3ltYm9sIGlkZW50aWZ5aW5nIHRoZSBjb3VudGluZyBzdHJhdGVneS4KClRoaXMgZnVuY3Rpb24gaXMgZXhwZWN0ZWQgdG8gYmUgdXNlZCB0byBkaXNwbGF5IGh1bWFuLXJlYWRhYmxlCmluZm9ybWF0aW9uIGFib3V0IHRoZSBjb3VudGluZyBzdHJhdGVneSwgZm9yIGV4YW1wbGUgaW4gVUlzLgoKRm9yIHNpbXBsZSBjb3VudGluZywgdGhpcyByZXR1cm5zIGAic2ltcGxlImAuCgojIEFyZ3VtZW50cwoKKiBgZWAgLSBBY2Nlc3MgdG8gdGhlIFNvcm9iYW4gZW52aXJvbm1lbnQuAAAADWNvdW50aW5nX21vZGUAAAAAAAAAAAAAAQAAABE=",
         "AAAAAAAAAAAAAAANdm90aW5nX3BlcmlvZAAAAAAAAAAAAAABAAAABA==",
         "AAAAAAAAAAAAAAAOcHJvcG9zYWxfc3RhdGUAAAAAAAEAAAAAAAAAC3Byb3Bvc2FsX2lkAAAAA+4AAAAgAAAAAQAAB9AAAAANUHJvcG9zYWxTdGF0ZQAAAA==",

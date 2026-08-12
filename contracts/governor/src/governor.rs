@@ -33,6 +33,7 @@ mod retroshade {
 #[contracttype]
 enum GovernorKey {
     Treasury,
+    QueueDelay,
     Proposal(BytesN<32>),
 }
 
@@ -43,6 +44,7 @@ struct ProposalCoreTime {
     vote_snapshot: u32,
     vote_start: u32,
     vote_end: u32,
+    eta: u64,
     state: ProposalState,
 }
 
@@ -58,6 +60,7 @@ impl DaoGovernorContract {
         treasury_contract: Address,
         voting_delay: u32,
         voting_period: u32,
+        queue_delay: u32,
         proposal_threshold: u128,
         quorum_bps: u32,
     ) {
@@ -68,6 +71,7 @@ impl DaoGovernorContract {
         governor::set_token_contract(e, &token_contract);
         governor::set_voting_delay(e, voting_delay);
         governor::set_voting_period(e, voting_period);
+        e.storage().instance().set(&GovernorKey::QueueDelay, &queue_delay);
         governor::set_proposal_threshold(e, proposal_threshold);
         governor::set_quorum(e, quorum_bps as u128);
         e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
@@ -106,6 +110,10 @@ impl DaoGovernorContract {
 
     pub fn treasury(e: &Env) -> Address {
         e.storage().instance().get(&GovernorKey::Treasury).expect("treasury not set")
+    }
+
+    fn queue_delay(e: &Env) -> u32 {
+        e.storage().instance().get(&GovernorKey::QueueDelay).unwrap_or(0)
     }
 
     fn proposal_key(proposal_id: &BytesN<32>) -> GovernorKey {
@@ -189,7 +197,38 @@ impl Governor for DaoGovernorContract {
     }
 
     fn proposals_need_queuing(_e: &Env) -> bool {
-        false
+        true
+    }
+
+    fn queue(
+        e: &Env,
+        targets: Vec<Address>,
+        functions: Vec<Symbol>,
+        args: Vec<Vec<Val>>,
+        description_hash: BytesN<32>,
+        _eta: u32,
+        _operator: Address,
+    ) -> BytesN<32> {
+        let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+        let mut proposal = Self::get_proposal(e, &proposal_id);
+
+        match Self::proposal_state_internal(e, &proposal_id, &proposal) {
+            ProposalState::Succeeded => {}
+            ProposalState::Executed => panic_with_error!(e, GovernorError::ProposalAlreadyExecuted),
+            ProposalState::Queued => panic_with_error!(e, GovernorError::ProposalNotSuccessful),
+            _ => panic_with_error!(e, GovernorError::ProposalNotSuccessful),
+        }
+
+        let now = e.ledger().timestamp();
+        let eta = now
+            .checked_add(Self::queue_delay(e) as u64)
+            .unwrap_or_else(|| panic_with_error!(e, GovernorError::MathOverflow));
+
+        proposal.eta = eta;
+        proposal.state = ProposalState::Queued;
+        Self::set_proposal(e, &proposal_id, &proposal);
+
+        proposal_id
     }
 
     fn proposal_state(e: &Env, proposal_id: BytesN<32>) -> ProposalState {
@@ -254,6 +293,7 @@ impl Governor for DaoGovernorContract {
             vote_snapshot: snapshot_ledger,
             vote_start: vote_start.try_into().unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
             vote_end: vote_end.try_into().unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
+            eta: 0,
             state: ProposalState::Pending,
         };
 
@@ -318,9 +358,14 @@ impl Governor for DaoGovernorContract {
         let mut proposal = Self::get_proposal(e, &proposal_id);
 
         match Self::proposal_state_internal(e, &proposal_id, &proposal) {
-            ProposalState::Succeeded => {}
+            ProposalState::Queued => {}
             ProposalState::Executed => panic_with_error!(e, GovernorError::ProposalAlreadyExecuted),
-            _ => panic_with_error!(e, GovernorError::ProposalNotSuccessful),
+            _ => panic_with_error!(e, GovernorError::ProposalNotQueued),
+        }
+
+        let now = e.ledger().timestamp();
+        if now < proposal.eta {
+            panic_with_error!(e, GovernorError::ProposalNotQueued);
         }
 
         e.invoke_contract::<Val>(&treasury, &Symbol::new(e, "execute"), args.get_unchecked(0));
