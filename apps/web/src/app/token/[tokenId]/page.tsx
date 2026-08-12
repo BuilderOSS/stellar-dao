@@ -1,8 +1,10 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Card, ShortId, Text } from '@/components/ui';
 import { buildTokenMetadata } from '@/lib/token-metadata';
+import { TOKEN_NAME } from '@/lib/token-config';
 import { Grid, Stack } from 'styled-system/jsx';
 
 export default async function TokenPage({ params }: { params: Promise<{ tokenId: string }> }) {
@@ -20,8 +22,15 @@ export default async function TokenPage({ params }: { params: Promise<{ tokenId:
         <Grid columns={{ base: 1, xl: 2 }} gap="4">
           <Card p="5">
             <Stack gap="3">
-              <img src={`/api/token/${resolvedTokenId}/image.svg`} alt={metadata.name} style={{ width: '100%', borderRadius: '24px' }} />
-              <Badge>Deterministic SVG</Badge>
+              <Image
+                src={`/api/token/${resolvedTokenId}/image.svg`}
+                alt={metadata.name}
+                width={256}
+                height={256}
+                unoptimized
+                style={{ width: '100%', height: 'auto', borderRadius: '24px' }}
+              />
+              <Badge>{TOKEN_NAME}</Badge>
             </Stack>
           </Card>
           <Card p="5">

@@ -1,3 +1,5 @@
+import { TOKEN_DESCRIPTION, TOKEN_NAME, TOKEN_SYMBOL } from './token-config';
+
 function mulberry32(seed: number) {
   let t = seed >>> 0;
   return () => {
@@ -19,11 +21,12 @@ function escapeXml(value: string) {
 export function buildTokenMetadata(tokenId: number, baseUrl: string) {
   const normalizedBase = baseUrl.replace(/\/$/, '');
   return {
-    name: `DAO Vote NFT #${tokenId}`,
-    description: 'Voting token for the DAO MVP.',
+    name: `${TOKEN_NAME} #${tokenId}`,
+    description: TOKEN_DESCRIPTION,
     image: `${normalizedBase}/api/token/${tokenId}/image.svg`,
     attributes: [
       { trait_type: 'Token ID', value: String(tokenId) },
+      { trait_type: 'Token Symbol', value: TOKEN_SYMBOL },
       { trait_type: 'DAO Role', value: 'Voting' }
     ]
   };
@@ -35,7 +38,7 @@ export function buildTokenImageSvg(tokenId: number) {
   const accent = toColor(rng());
   const accent2 = toColor(rng());
   const shape = Math.floor(rng() * 3);
-  const title = `#${tokenId}`;
+  const title = `${TOKEN_NAME} #${tokenId}`;
   const x = 24 + Math.floor(rng() * 24);
   const y = 24 + Math.floor(rng() * 24);
   const size = 96 + Math.floor(rng() * 72);
@@ -55,6 +58,6 @@ export function buildTokenImageSvg(tokenId: number) {
   ${shapeMarkup}
   ${innerMarkup}
   <text x="24" y="220" fill="white" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="700">${escapeXml(title)}</text>
-  <text x="24" y="244" fill="rgba(255,255,255,0.72)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">DAO Governance Token</text>
+  <text x="24" y="244" fill="rgba(255,255,255,0.72)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">${escapeXml(TOKEN_SYMBOL)} governance token</text>
 </svg>`;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { buildTokenMetadata } from '@/lib/token-metadata';
+import { TOKEN_DESCRIPTION, TOKEN_NAME, TOKEN_SYMBOL } from '@/lib/token-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     const resolvedTokenId = parseTokenId(tokenId);
     const baseUrl = new URL(_request.url).origin;
     return NextResponse.json(buildTokenMetadata(resolvedTokenId, baseUrl), {
-      headers: { 'Cache-Control': 'no-store' }
+      headers: {
+        'Cache-Control': 'no-store',
+        'X-Token-Name': TOKEN_NAME,
+        'X-Token-Symbol': TOKEN_SYMBOL,
+        'X-Token-Description': TOKEN_DESCRIPTION
+      }
     });
   } catch (error) {
     return NextResponse.json(

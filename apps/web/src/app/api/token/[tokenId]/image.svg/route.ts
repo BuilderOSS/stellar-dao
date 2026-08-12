@@ -1,4 +1,5 @@
 import { buildTokenImageSvg } from '@/lib/token-metadata';
+import { TOKEN_NAME, TOKEN_SYMBOL } from '@/lib/token-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     return new Response(buildTokenImageSvg(resolvedTokenId), {
       headers: {
         'Cache-Control': 'no-store',
+        'X-Token-Name': TOKEN_NAME,
+        'X-Token-Symbol': TOKEN_SYMBOL,
         'Content-Type': 'image/svg+xml; charset=utf-8'
       }
     });
