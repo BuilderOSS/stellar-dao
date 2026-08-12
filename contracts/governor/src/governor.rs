@@ -22,10 +22,27 @@ mod retroshade {
 
     #[derive(Retroshade)]
     #[contracttype]
+    pub struct ProposalCreatedIndexed {
+        pub proposal_id: BytesN<32>,
+        pub proposer: Address,
+        pub description: String,
+        pub targets: Vec<Address>,
+        pub functions: Vec<Symbol>,
+        pub args: Vec<Vec<Val>>,
+        pub snapshot: u32,
+        pub deadline: u32,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
     pub struct ProposalCallIndexed {
+        pub proposal_id: BytesN<32>,
         pub treasury: Address,
         pub target: Address,
         pub function: Symbol,
+        pub args: Vec<Vec<Val>>,
         pub timestamp: u64,
     }
 
@@ -47,6 +64,7 @@ mod retroshade {
         pub voter: Address,
         pub support: u32,
         pub weight: u128,
+        pub reason: String,
         pub ledger: u32,
         pub timestamp: u64,
     }
@@ -359,11 +377,15 @@ impl Governor for DaoGovernorContract {
         );
 
         #[cfg(feature = "mercury")]
-        retroshade::ProposalLifecycleIndexed {
+        retroshade::ProposalCreatedIndexed {
             proposal_id: proposal_id.clone(),
             proposer: proposer.clone(),
-            state: Self::proposal_state_symbol(e, ProposalState::Pending),
-            eta: 0,
+            description: description.clone(),
+            targets: targets.clone(),
+            functions: functions.clone(),
+            args: args.clone(),
+            snapshot: proposal.vote_snapshot,
+            deadline: proposal.vote_end,
             ledger: e.ledger().sequence(),
             timestamp: e.ledger().timestamp(),
         }
@@ -398,6 +420,7 @@ impl Governor for DaoGovernorContract {
             voter: voter.clone(),
             support: vote_type,
             weight: voter_weight,
+            reason: reason.clone(),
             ledger: e.ledger().sequence(),
             timestamp: e.ledger().timestamp(),
         }
@@ -443,6 +466,17 @@ impl Governor for DaoGovernorContract {
         proposal.state = ProposalState::Executed;
         Self::set_proposal(e, &proposal_id, &proposal);
         emit_proposal_executed(e, &proposal_id);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ProposalCallIndexed {
+            proposal_id: proposal_id.clone(),
+            treasury: treasury.clone(),
+            target: targets.get_unchecked(0).clone(),
+            function: functions.get_unchecked(0).clone(),
+            args: args.clone(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ProposalLifecycleIndexed {

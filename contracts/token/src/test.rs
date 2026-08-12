@@ -44,7 +44,7 @@ fn mint_defaults_to_self_delegate() {
     let (e, client, _) = setup();
     let alice = Address::generate(&e);
 
-    client.mint(&alice, &1);
+    let _token_id = client.mint(&alice);
 
     assert_eq!(client.balance(&alice), 1);
     assert_eq!(client.get_delegate(&alice), Some(alice.clone()));
@@ -58,9 +58,9 @@ fn transfer_preserves_existing_delegate() {
     let bob = Address::generate(&e);
     let carol = Address::generate(&e);
 
-    client.mint(&alice, &1);
+    let token_id = client.mint(&alice);
     client.delegate(&bob, &carol);
-    client.transfer(&alice, &bob, &1);
+    client.transfer(&alice, &bob, &token_id);
 
     assert_eq!(client.balance(&bob), 1);
     assert_eq!(client.get_delegate(&bob), Some(carol.clone()));
@@ -73,8 +73,8 @@ fn transfer_to_new_holder_defaults_self_delegate() {
     let alice = Address::generate(&e);
     let bob = Address::generate(&e);
 
-    client.mint(&alice, &1);
-    client.transfer(&alice, &bob, &1);
+    let token_id = client.mint(&alice);
+    client.transfer(&alice, &bob, &token_id);
 
     assert_eq!(client.balance(&bob), 1);
     assert_eq!(client.get_delegate(&bob), Some(bob.clone()));
@@ -93,13 +93,13 @@ fn mint_requires_owner_auth() {
         invoke: &MockAuthInvoke {
             contract: &client.address,
             fn_name: "mint",
-            args: (&alice, 1_u32).into_val(&e),
+            args: (&alice,).into_val(&e),
             sub_invokes: &[],
         },
     }]);
 
     let _ = owner;
-    client.mint(&alice, &1);
+    let _token_id = client.mint(&alice);
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn explicit_delegation_moves_votes() {
     let alice = Address::generate(&e);
     let bob = Address::generate(&e);
 
-    client.mint(&alice, &1);
+    let _ = client.mint(&alice);
     client.delegate(&alice, &bob);
 
     assert_eq!(client.get_delegate(&alice), Some(bob.clone()));

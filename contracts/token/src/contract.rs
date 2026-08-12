@@ -48,9 +48,9 @@ impl DaoTokenContract {
     }
 
     #[only_owner]
-    pub fn mint(e: &Env, to: &Address, token_id: u32) {
+    pub fn mint(e: &Env, to: &Address) -> u32 {
         Self::ensure_self_delegate(e, to);
-        NonFungibleVotes::mint(e, to, token_id);
+        let token_id = NonFungibleVotes::sequential_mint(e, to);
 
         #[cfg(feature = "mercury")]
         retroshade::TokenMintIndexed {
@@ -59,6 +59,8 @@ impl DaoTokenContract {
             ledger: e.ledger().sequence(),
         }
         .emit(e);
+
+        token_id
     }
 
     pub fn balance(e: &Env, account: &Address) -> u32 {

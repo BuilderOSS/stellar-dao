@@ -85,7 +85,8 @@ fn full_governance_flow_executes_treasury_call() {
     let (e, token, _treasury, governor, target, _) = setup();
     let proposer = Address::generate(&e);
 
-    token.mint(&proposer, &1);
+    let token_id = token.mint(&proposer);
+    assert_eq!(token_id, 0);
     assert_eq!(token.get_votes(&proposer), 1);
 
     e.ledger().set_sequence_number(200);
@@ -141,7 +142,8 @@ fn execute_rejects_non_treasury_target() {
     let (e, token, _treasury, governor, target, _) = setup();
     let proposer = Address::generate(&e);
 
-    token.mint(&proposer, &1);
+    let token_id = token.mint(&proposer);
+    assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
@@ -165,7 +167,8 @@ fn execute_fails_before_queue_delay_elapses() {
     let (e, token, _treasury, governor, target, _) = setup();
     let proposer = Address::generate(&e);
 
-    token.mint(&proposer, &1);
+    let token_id = token.mint(&proposer);
+    assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
@@ -192,7 +195,8 @@ fn execute_cannot_run_twice() {
     let (e, token, _treasury, governor, target, _) = setup();
     let proposer = Address::generate(&e);
 
-    token.mint(&proposer, &1);
+    let token_id = token.mint(&proposer);
+    assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
@@ -246,7 +250,8 @@ fn quorum_uses_total_supply_bps() {
     let governor = DaoGovernorContractClient::new(&e, &governor_id);
 
     for token_id in 0..10_u32 {
-        token.mint(&owner, &token_id);
+        let minted_token_id = token.mint(&owner);
+        assert_eq!(minted_token_id, token_id);
     }
 
     e.ledger().set_sequence_number(102);

@@ -11,10 +11,7 @@ import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
 type TokenMintClient = {
-  mint: (
-    args: { to: string; token_id: number },
-    options?: MethodOptions
-  ) => Promise<AssembledTransaction<null>>;
+  mint: (args: { to: string }, options?: MethodOptions) => Promise<AssembledTransaction<number>>;
 };
 
 export default function AdminPage() {
@@ -22,7 +19,6 @@ export default function AdminPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const isAdmin = session.address && session.address === config.adminAddress;
   const [recipient, setRecipient] = useState('');
-  const [tokenId, setTokenId] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
 
@@ -37,8 +33,8 @@ export default function AdminPage() {
       return;
     }
 
-    if (!recipient || !tokenId) {
-      setStatus('Recipient and token id are required.');
+    if (!recipient) {
+      setStatus('Recipient is required.');
       return;
     }
 
@@ -59,10 +55,9 @@ export default function AdminPage() {
         }) as SignTransaction
       });
 
-      const assembled = await client.mint({ to: recipient, token_id: Number.parseInt(tokenId, 10) });
+      const assembled = await client.mint({ to: recipient });
       const sent = await assembled.signAndSend();
-      setStatus(`Mint submitted: ${sent.sendTransactionResponse?.hash ?? 'unknown hash'}`);
-      setTokenId('');
+      setStatus(`Minted token #${sent.result}${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
       setRecipient('');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Mint failed');
@@ -96,7 +91,6 @@ export default function AdminPage() {
                 <Badge>Admin only</Badge>
                 <Heading style={{ fontSize: '1.3rem' }}>Mint form</Heading>
                 <Input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" />
-                <Input value={tokenId} onChange={(event) => setTokenId(event.target.value)} placeholder="Token id" />
                 <Button type="button" onClick={mintToken} disabled={busy}>
                   {busy ? 'Minting...' : 'Mint token'}
                 </Button>

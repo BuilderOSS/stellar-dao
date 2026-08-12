@@ -2029,7 +2029,7 @@ export interface Client {
   /**
    * Construct and simulate a mint transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  mint: ({to, token_id}: {to: string, token_id: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+  mint: ({to}: {to: string}, options?: MethodOptions) => Promise<AssembledTransaction<u32>>
 
   /**
    * Construct and simulate a approve transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -2280,7 +2280,7 @@ export class Client extends ContractClient {
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAAAAAAAAAAAEbWludAAAAAIAAAAAAAAAAnRvAAAAAAATAAAAAAAAAAh0b2tlbl9pZAAAAAQAAAAA",
+      new ContractSpec([ "AAAAAAAAAAAAAAAEbWludAAAAAEAAAAAAAAAAnRvAAAAAAATAAAAAQAAAAQ=",
         "AAAAAAAAAAAAAAAHYXBwcm92ZQAAAAAEAAAAAAAAAAVvd25lcgAAAAAAABMAAAAAAAAAB3NwZW5kZXIAAAAAEwAAAAAAAAAIdG9rZW5faWQAAAAEAAAAAAAAABFleHBpcmF0aW9uX2xlZGdlcgAAAAAAAAQAAAAA",
         "AAAAAAAAAAAAAAAHYmFsYW5jZQAAAAABAAAAAAAAAAdhY2NvdW50AAAAABMAAAABAAAABA==",
         "AAAAAAAAAqREZWxlZ2F0ZXMgdm90aW5nIHBvd2VyIGZyb20gYGFjY291bnRgIHRvIGBkZWxlZ2F0ZWVgLgoKVG8gcmVjbGFpbSB2b3RpbmcgcG93ZXIgKGkuZS4gInVuZGVsZWdhdGUiKSwgY2FsbCB0aGlzIHdpdGgKYGRlbGVnYXRlZWAgc2V0IHRvIGBhY2NvdW50YCAoc2VsZi1kZWxlZ2F0aW9uKS4gVGhlcmUgaXMgbm8Kc2VwYXJhdGUgdW5kZWxlZ2F0ZSBvcGVyYXRpb24uCgojIEFyZ3VtZW50cwoKKiBgZWAgLSBBY2Nlc3MgdG8gdGhlIFNvcm9iYW4gZW52aXJvbm1lbnQuCiogYGFjY291bnRgIC0gVGhlIGFjY291bnQgZGVsZWdhdGluZyBpdHMgdm90aW5nIHBvd2VyLgoqIGBkZWxlZ2F0ZWVgIC0gVGhlIGFjY291bnQgcmVjZWl2aW5nIHRoZSBkZWxlZ2F0ZWQgdm90aW5nIHBvd2VyLgoKIyBFdmVudHMKCiogdG9waWNzIC0gYFsiZGVsZWdhdGVfY2hhbmdlZCIsIGRlbGVnYXRvcjogQWRkcmVzc11gCiogZGF0YSAtIGBbZnJvbV9kZWxlZ2F0ZTogT3B0aW9uPEFkZHJlc3M+LCB0b19kZWxlZ2F0ZTogQWRkcmVzc11gCgoqIHRvcGljcyAtIGBbImRlbGVnYXRlX3ZvdGVzX2NoYW5nZWQiLCBkZWxlZ2F0ZTogQWRkcmVzc11gCiogZGF0YSAtIGBbcHJldmlvdXNfdm90ZXM6IHUxMjgsIG5ld192b3RlczogdTEyOF1gCgojIE5vdGVzCgpBdXRob3JpemF0aW9uIGZvciBgYWNjb3VudGAgaXMgcmVxdWlyZWQuAAAACGRlbGVnYXRlAAAAAgAAAAAAAAAHYWNjb3VudAAAAAATAAAAAAAAAAlkZWxlZ2F0ZWUAAAAAAAATAAAAAA==",
@@ -2546,7 +2546,7 @@ export class Client extends ContractClient {
     )
   }
   public readonly fromJSON = {
-    mint: this.txFromJSON<null>,
+    mint: this.txFromJSON<u32>,
         approve: this.txFromJSON<null>,
         balance: this.txFromJSON<u32>,
         delegate: this.txFromJSON<null>,

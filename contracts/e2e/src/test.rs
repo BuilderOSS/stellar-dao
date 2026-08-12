@@ -84,7 +84,8 @@ fn dao_flow_executes_treasury_call() {
     let (e, token, _treasury, governor, target, _) = setup();
     let proposer = Address::generate(&e);
 
-    token.mint(&proposer, &1);
+    let token_id = token.mint(&proposer);
+    assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
@@ -119,7 +120,8 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
     let alice = Address::generate(&e);
     let bob = Address::generate(&e);
 
-    token.mint(&alice, &1);
+    let token_id = token.mint(&alice);
+    assert_eq!(token_id, 0);
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
@@ -133,7 +135,7 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &alice);
 
     e.ledger().set_timestamp(2_011);
-    token.transfer(&alice, &bob, &1);
+    token.transfer(&alice, &bob, &token_id);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "bob yes"), &bob);
 
     e.ledger().set_timestamp(2_111);

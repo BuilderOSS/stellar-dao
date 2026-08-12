@@ -11,9 +11,12 @@ mod retroshade {
     #[derive(Retroshade)]
     #[contracttype]
     pub struct TreasuryCallIndexed {
+        pub governor: Address,
         pub target: Address,
         pub function: Symbol,
+        pub args: Vec<Val>,
         pub ledger: u32,
+        pub timestamp: u64,
     }
 }
 
@@ -44,7 +47,20 @@ impl DaoTreasuryContract {
     pub fn execute(e: &Env, target: Address, function: Symbol, args: Vec<Val>) -> Val {
         let governor = Self::governor(e);
         governor.require_auth();
-        e.invoke_contract::<Val>(&target, &function, args)
+        let result = e.invoke_contract::<Val>(&target, &function, args.clone());
+
+        #[cfg(feature = "mercury")]
+        retroshade::TreasuryCallIndexed {
+            governor: governor.clone(),
+            target: target.clone(),
+            function: function.clone(),
+            args,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
+
+        result
     }
 }
 
