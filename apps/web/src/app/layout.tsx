@@ -5,7 +5,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'DAO Test Stellar',
-  description: 'DAO governance web app with proposals, profiles, treasury, admin minting, and token metadata.'
+  description: 'DAO governance web app with proposals, treasury, admin minting, and token metadata.'
 };
 
 export default function RootLayout({

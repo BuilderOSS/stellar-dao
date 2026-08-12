@@ -16,8 +16,7 @@ const BASE_NAV_ITEMS: Array<{ href: Route; label: string }> = [
   { href: '/', label: 'Dashboard' },
   { href: '/proposals', label: 'Proposals' },
   { href: '/treasury', label: 'Treasury' },
-  { href: '/members', label: 'Members' },
-  { href: '/profile', label: 'Profile' }
+  { href: '/members', label: 'Members' }
 ];
 
 function NavLink({ href, label, active }: { href: Route; label: string; active: boolean }) {
@@ -101,7 +100,7 @@ export function DaoShell({ children }: { children: ReactNode }) {
                 DAO Test Stellar
               </Heading>
               <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
-                A single-DAO governance interface for voting, treasury execution, token profiles, and admin minting.
+                A single-DAO governance interface for voting, treasury execution, token details, and admin minting.
               </Text>
             </Stack>
 

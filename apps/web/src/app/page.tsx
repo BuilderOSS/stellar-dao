@@ -125,7 +125,6 @@ export default function Page() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 <Badge>Connect wallet</Badge>
                 <Badge>Open proposals</Badge>
-                <Badge>Check your profile</Badge>
                 <Badge>Inspect treasury</Badge>
               </div>
             </Stack>

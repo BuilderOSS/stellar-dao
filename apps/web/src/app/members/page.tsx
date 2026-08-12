@@ -1,16 +1,17 @@
 'use client';
 
+import { useMemo } from 'react';
+import { Client as ContractClient } from '@stellar/stellar-sdk/contract';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { Grid, Stack } from 'styled-system/jsx';
 
 type MemberRow = {
   address: string;
-  count: number;
-  lastSeenLedger: number;
-  lastSeenAt: number;
+  balance: string;
 };
 
 function formatTimestamp(timestamp: number) {
@@ -23,28 +24,26 @@ function formatTimestamp(timestamp: number) {
 }
 
 export default function MembersPage() {
+  const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const { data, error, isLoading, mutate } = useMercuryActivityFeed(32);
   const items = (data?.items ?? []).filter((item) => item.programKey === 'token');
 
-  const members = new Map<string, MemberRow>();
-  for (const item of items) {
-    for (const address of item.addresses) {
-      const existing = members.get(address) ?? { address, count: 0, lastSeenLedger: 0, lastSeenAt: 0 };
-      existing.count += 1;
-      existing.lastSeenLedger = Math.max(existing.lastSeenLedger, item.ledger);
-      existing.lastSeenAt = Math.max(existing.lastSeenAt, item.timestamp);
-      members.set(address, existing);
-    }
-  }
+  const candidateAddresses = useMemo(
+    () => [...new Set(items.flatMap((item) => item.addresses))],
+    [items]
+  );
 
-  const rows = [...members.values()].sort((a, b) => b.count - a.count || b.lastSeenLedger - a.lastSeenLedger);
+  const rows = candidateAddresses
+    .filter((address) => address !== config.adminAddress)
+    .map((address) => ({ address, balance: '0' }))
+    .filter((row) => Number(row.balance) > 0);
 
   return (
     <DaoShell>
-      <PageSection
+        <PageSection
         eyebrow="Members"
         title="Voting power directory"
-        description="A Mercury-backed view of token activity and the most recently seen DAO addresses."
+        description="A Mercury-backed view of token holders with non-zero balances."
       >
         <Card p="5">
           <Stack gap="3">
@@ -57,7 +56,7 @@ export default function MembersPage() {
 
             {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
             {!rows.length ? (
-              <Text className="lede" style={{ margin: 0 }}>No token addresses indexed yet.</Text>
+              <Text className="lede" style={{ margin: 0 }}>No token holders indexed yet.</Text>
             ) : (
               <Grid columns={{ base: 1, lg: 2 }} gap="4">
                 {rows.map((row, index) => (
@@ -65,11 +64,9 @@ export default function MembersPage() {
                     <Stack gap="2">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                         <Badge>#{index + 1}</Badge>
-                        <Badge>Seen {row.count}x</Badge>
+                        <Badge>Balance {row.balance}</Badge>
                       </div>
                       <ShortId value={row.address} label="Address" />
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Ledger {row.lastSeenLedger}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{formatTimestamp(row.lastSeenAt)}</Text>
                     </Stack>
                   </Card>
                 ))}
