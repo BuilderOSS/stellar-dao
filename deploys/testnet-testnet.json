@@ -21,14 +21,14 @@
     }
   },
   "contracts": {
-    "token": "CBR2MGRXNNRKXUUWI7EFZN4T5P57YX3OVUKBKJCT3NKGD2O4L6DK6Y33",
-    "governor": "CCSKDSVSOVK3IBPM5VURFWPHW2H6CV7M26ZAIIFGUR2PRWVATRMHYXJV",
-    "treasury": "CBHUJTONEKL4BIQXC3LF3WQMPGOW5EG2M3TJTYV7OIMTCWIHAKQDJ2GW"
+    "token": "CBX6A3L5TA2HDIDGZTI4QV6S2F3PCWI7G5O6IV62I2SI5FKUENGB4GF7",
+    "governor": "CDNYVW4X3FGNA4STDBWO7LUXG5NS4DKAYVWSRKI52BOBTSTGUGDC6ZUM",
+    "treasury": "CABOQRBXQZGCOM4GGVPY6YAZFURBRLQS5BG63ZMWMZCCQX6XGBKNL3TM"
   },
   "outputs": {
     "tokenBaseUri": "https://test-dao-stellar-web.vercel.app/api/token/",
     "identityName": "testnet-dev",
-    "saltSuffix": null,
+    "saltSuffix": "fresh-1786532551695",
     "deployArtifactPath": "deploys/testnet-testnet.json"
   }
 }

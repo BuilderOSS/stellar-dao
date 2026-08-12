@@ -9,6 +9,12 @@ export type DaoNetworkConfig = {
   tokenContractId: string;
   governorContractId: string;
   treasuryContractId: string;
+  tokenMercuryProgramId: string;
+  governorMercuryProgramId: string;
+  treasuryMercuryProgramId: string;
+  tokenMercuryProject: string;
+  governorMercuryProject: string;
+  treasuryMercuryProject: string;
 };
 
 const defaultAdminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
@@ -26,7 +32,13 @@ export function getDaoNetworkConfig(name: DaoNetworkName): DaoNetworkConfig {
     passphrase: process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017',
     adminAddress: process.env.NEXT_PUBLIC_STELLAR_ADMIN_ADDRESS ?? defaultAdminAddress,
     tokenContractId: process.env.NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID ?? '',
-    governorContractId: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_ID ?? '',
-    treasuryContractId: process.env.NEXT_PUBLIC_STELLAR_TREASURY_ID ?? ''
+    governorContractId: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_CONTRACT_ID ?? '',
+    treasuryContractId: process.env.NEXT_PUBLIC_STELLAR_TREASURY_CONTRACT_ID ?? '',
+    tokenMercuryProgramId: process.env.NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROGRAM_ID ?? '',
+    governorMercuryProgramId: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROGRAM_ID ?? '',
+    treasuryMercuryProgramId: process.env.NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROGRAM_ID ?? '',
+    tokenMercuryProject: process.env.NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROJECT ?? '',
+    governorMercuryProject: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROJECT ?? '',
+    treasuryMercuryProject: process.env.NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROJECT ?? ''
   };
 }
