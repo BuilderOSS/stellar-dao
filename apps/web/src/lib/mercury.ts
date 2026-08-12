@@ -182,7 +182,7 @@ async function listTables(baseUrl: string, jwt: string) {
 }
 
 async function queryTable(baseUrl: string, jwt: string, tableName: string, limit: number) {
-  const query = `SELECT * FROM retroshade.${tableName} ORDER BY ledger DESC, timestamp DESC LIMIT ${limit}`;
+  const query = `SELECT * FROM retroshade.${tableName} ORDER BY ledger DESC LIMIT ${limit}`;
   return mercuryFetchJson<MercuryTableRow[]>(baseUrl, jwt, '/retroshade/query', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
