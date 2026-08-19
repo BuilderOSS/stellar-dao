@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { Client as TokenClient } from '@dao-test-stellar/token-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
@@ -15,10 +15,6 @@ import useSWR from 'swr';
 type MemberRow = {
   address: string;
   balance: string;
-};
-
-type TokenBalanceClient = {
-  balance: (args: { account: string }, options?: MethodOptions) => Promise<AssembledTransaction<number>>;
 };
 
 type BalanceSWRKey = [
@@ -38,16 +34,16 @@ async function fetchMemberBalances([
   publicKey,
   addresses
 ]: BalanceSWRKey): Promise<MemberRow[]> {
-  const client = await ContractClient.from<TokenBalanceClient>({
+  const client = new TokenClient({
     contractId: tokenContractId,
     rpcUrl,
     networkPassphrase: passphrase,
     publicKey,
-    signTransaction: (async (xdr, opts) =>
+    signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) =>
       StellarWalletsKit.signTransaction(xdr, {
         networkPassphrase: opts?.networkPassphrase ?? passphrase,
         address: opts?.address ?? publicKey
-      })) as SignTransaction
+      }))
   });
 
   const balances = await Promise.all(

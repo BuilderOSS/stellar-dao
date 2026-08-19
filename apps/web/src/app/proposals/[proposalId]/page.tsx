@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
@@ -28,13 +28,6 @@ import useSWR from 'swr';
 type ProposalPageData = {
   detail: ProposalDetail;
   votes: ProposalVoteItem[];
-};
-
-type GovernorClient = {
-  cast_vote: (args: { proposal_id: Buffer; vote_type: number; reason: string; voter: string }, options?: MethodOptions) => Promise<AssembledTransaction<bigint>>;
-  queue: (args: { targets: string[]; functions: string[]; args: ProposalCallArgs; description_hash: Buffer; eta: number; operator: string }, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>;
-  execute: (args: { targets: string[]; functions: string[]; args: ProposalCallArgs; description_hash: Buffer; executor: string }, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>;
-  has_voted: (args: { proposal_id: Buffer; account: string }, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>;
 };
 
 const VOTE_FOR = 1;
@@ -102,15 +95,15 @@ export default function ProposalDetailPage() {
     if (!session.address) throw new Error('Connect a wallet first.');
     if (!config.governorContractId) throw new Error('Missing governor contract id.');
 
-    return ContractClient.from<GovernorClient>({
+    return new GovernorClient({
       contractId: config.governorContractId,
       rpcUrl: config.rpcUrl,
       networkPassphrase: config.passphrase,
       publicKey: session.address,
-      signTransaction: (async (xdr, opts) => StellarWalletsKit.signTransaction(xdr, {
+      signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
         networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
         address: opts?.address ?? session.address
-      })) as SignTransaction
+      }))
     });
   }
 

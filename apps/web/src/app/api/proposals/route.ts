@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server';
-import { Client as ContractClient } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getMercuryActivityFeed, getMercuryProposalDetail } from '@/lib/mercury';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { parseProposalMetadata, type ProposalMetadata } from '@/lib/proposal-metadata';
 import { proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
-
-type GovernorClient = {
-  proposal_state: (args: { proposal_id: Buffer }) => Promise<{ result: ProposalStateValue }>;
-};
 
 type ProposalListItem = {
   proposalId: string;
@@ -27,7 +23,7 @@ type ProposalGroup = {
   latestTimestamp: number;
 };
 
-async function fetchProposalState(client: ContractClient & GovernorClient, proposalId: string) {
+async function fetchProposalState(client: InstanceType<typeof GovernorClient>, proposalId: string) {
   const proposalBuffer = proposalIdToBuffer(proposalId);
   const stateTx = await client.proposal_state({ proposal_id: proposalBuffer });
   return stateTx.result;
@@ -65,7 +61,7 @@ export async function GET(request: Request) {
       current.latestTimestamp = Math.max(current.latestTimestamp, item.timestamp);
     }
 
-    const client = await ContractClient.from<GovernorClient>({
+    const client = new GovernorClient({
       contractId: config.governorContractId,
       rpcUrl: config.rpcUrl,
       networkPassphrase: config.passphrase,

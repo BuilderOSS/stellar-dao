@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
-import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, Select, ShortId, Text } from '@/components/ui';
@@ -12,10 +12,6 @@ import { buildMintProposalCall } from '@/lib/proposal-call';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Stack } from 'styled-system/jsx';
-
-type GovernorClient = {
-  propose: (args: { targets: string[]; functions: string[]; args: unknown[][]; description: string; proposer: string }, options?: MethodOptions) => Promise<AssembledTransaction<string>>;
-};
 
 type ProposalTxType = 'mint-governance-token';
 type ProposalStep = 1 | 2 | 3;
@@ -68,16 +64,16 @@ export default function ProposalCreatePage() {
     setStatus('Preparing mint proposal...');
 
     try {
-      const governor = await ContractClient.from<GovernorClient>({
+      const governor = new GovernorClient({
         contractId: config.governorContractId,
         rpcUrl: config.rpcUrl,
         networkPassphrase: config.passphrase,
         publicKey: session.address,
-        signTransaction: (async (xdr, opts) =>
+        signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) =>
           StellarWalletsKit.signTransaction(xdr, {
             networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
             address: opts?.address ?? session.address
-          })) as SignTransaction
+          }))
       });
 
       const { targets, functions, args } = buildMintProposalCall(recipient, config.tokenContractId, config.treasuryContractId);

@@ -1,4 +1,5 @@
-import { Client as ContractClient, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
+import type { SignTransaction } from '@stellar/stellar-sdk/contract';
 import { BASE_FEE, Contract, TransactionBuilder, type xdr } from '@stellar/stellar-sdk';
 import { Server, assembleTransaction } from '@stellar/stellar-sdk/rpc';
 import type { DaoNetworkConfig } from '@/lib/dao-config';
@@ -8,30 +9,6 @@ type ContractCall = {
   method: string;
   args: Record<string, unknown>;
 };
-
-type ContractSpec = {
-  funcArgsToScVals: (name: string, args: object) => xdr.ScVal[];
-};
-
-const specCache = new Map<string, Promise<ContractSpec>>();
-
-async function getContractSpec(config: DaoNetworkConfig, publicKey: string, contractId: string) {
-  const cacheKey = `${config.rpcUrl}:${contractId}`;
-  const cached = specCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  const promise = ContractClient.from<{ spec: ContractSpec }>({
-    contractId,
-    rpcUrl: config.rpcUrl,
-    networkPassphrase: config.passphrase,
-    publicKey
-  }).then((client) => client.spec);
-
-  specCache.set(cacheKey, promise);
-  return promise;
-}
 
 export async function submitContractBatch({
   config,
@@ -52,6 +29,18 @@ export async function submitContractBatch({
 
   const server = new Server(config.rpcUrl, { allowHttp: config.rpcUrl.startsWith('http://') });
   const account = await server.getAccount(publicKey);
+  const governorContractId = calls[0].contractId;
+  if (!calls.every((call) => call.contractId === governorContractId)) {
+    throw new Error('Batch calls must target the same contract.');
+  }
+
+  const governor = new GovernorClient({
+    contractId: governorContractId,
+    rpcUrl: config.rpcUrl,
+    networkPassphrase: config.passphrase,
+    publicKey
+  });
+
   const builder = new TransactionBuilder(account, {
     fee: (Number(BASE_FEE) * Math.max(calls.length, 1)).toString()
   })
@@ -59,9 +48,8 @@ export async function submitContractBatch({
     .setTimeout(timeoutInSeconds);
 
   for (const call of calls) {
-    const spec = await getContractSpec(config, publicKey, call.contractId);
     const contract = new Contract(call.contractId);
-    builder.addOperation(contract.call(call.method, ...spec.funcArgsToScVals(call.method, call.args)));
+    builder.addOperation(contract.call(call.method, ...governor.spec.funcArgsToScVals(call.method, call.args)));
   }
 
   const rawTransaction = builder.build();

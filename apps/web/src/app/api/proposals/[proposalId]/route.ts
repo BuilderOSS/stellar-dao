@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server';
-import { Client as ContractClient } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getMercuryProposalDetail } from '@/lib/mercury';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { parseProposalMetadata } from '@/lib/proposal-metadata';
 import { ProposalState, proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
-
-type GovernorClient = {
-  proposal_state: (args: { proposal_id: Buffer }) => Promise<{ result: ProposalStateValue }>;
-  proposal_deadline: (args: { proposal_id: Buffer }) => Promise<{ result: number }>;
-  proposal_snapshot: (args: { proposal_id: Buffer }) => Promise<{ result: number }>;
-  proposal_proposer: (args: { proposal_id: Buffer }) => Promise<{ result: string }>;
-  quorum: (args: { ledger: number }) => Promise<{ result: bigint }>;
-};
 
 export async function GET(_request: Request, context: { params: Promise<{ proposalId: string }> }) {
   const { proposalId } = await context.params;
@@ -26,7 +18,7 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
     const detail = await getMercuryProposalDetail(proposalId);
 
     try {
-      const client = await ContractClient.from<GovernorClient>({
+      const client = new GovernorClient({
         contractId: config.governorContractId,
         rpcUrl: config.rpcUrl,
         networkPassphrase: config.passphrase,
