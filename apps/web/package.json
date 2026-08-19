@@ -16,6 +16,8 @@
     "@creit.tech/stellar-wallets-kit": "^2.5.0",
     "@noble/hashes": "^2.2.0",
     "@dao-test-stellar/token-bindings": "workspace:*",
+    "@dao-test-stellar/governor-bindings": "workspace:*",
+    "@dao-test-stellar/treasury-bindings": "workspace:*",
     "@stellar/stellar-sdk": "^16.1.0",
     "buffer": "^6.0.3",
     "next": "^15.4.0",

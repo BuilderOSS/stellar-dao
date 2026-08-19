@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
-import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
+import { Client as TokenClient } from '@dao-test-stellar/token-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
@@ -13,26 +14,34 @@ import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
-type OwnerAuthorityClient = {
-  set_mint_authority: (args: { authority: string; enabled: boolean }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
-  set_governor_authority: (args: { authority: string; enabled: boolean }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
-};
-
 async function submitAuthorityUpdate(config: ReturnType<typeof getDaoNetworkConfig>, sessionAddress: string, method: 'set_mint_authority' | 'set_governor_authority', authority: string, enabled: boolean) {
-  const client = await ContractClient.from<OwnerAuthorityClient>({
-    contractId: method === 'set_mint_authority' ? config.tokenContractId : config.governorContractId,
+  if (method === 'set_mint_authority') {
+    const client = new TokenClient({
+      contractId: config.tokenContractId,
+      rpcUrl: config.rpcUrl,
+      networkPassphrase: config.passphrase,
+      publicKey: sessionAddress,
+      signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
+        networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+        address: opts?.address ?? sessionAddress
+      }))
+    });
+
+    return (await client.set_mint_authority({ authority, enabled })).signAndSend();
+  }
+
+  const client = new GovernorClient({
+    contractId: config.governorContractId,
     rpcUrl: config.rpcUrl,
     networkPassphrase: config.passphrase,
     publicKey: sessionAddress,
-    signTransaction: (async (xdr, opts) => StellarWalletsKit.signTransaction(xdr, {
+    signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
       networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
       address: opts?.address ?? sessionAddress
-    })) as SignTransaction
+    }))
   });
 
-  const authorityClient = client as unknown as OwnerAuthorityClient;
-  const assembled = await authorityClient[method]({ authority, enabled });
-  return assembled.signAndSend();
+  return (await client.set_governor_authority({ authority, enabled })).signAndSend();
 }
 
 export default function OwnerPage() {

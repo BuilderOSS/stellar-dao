@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import { Client as ContractClient } from '@stellar/stellar-sdk/contract';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { Server } from '@stellar/stellar-sdk/rpc';
 import type { DaoNetworkConfig } from '@/lib/dao-config';
 
@@ -11,13 +11,6 @@ export type GovernorSettings = {
   latestLedger: number;
 };
 
-type GovernorReadClient = {
-  voting_delay: () => Promise<{ result: number }>;
-  voting_period: () => Promise<{ result: number }>;
-  proposal_threshold: () => Promise<{ result: bigint }>;
-  quorum_bps: () => Promise<{ result: number }>;
-};
-
 type GovernorSettingsKey = readonly ['governor-settings', string, string, string, string];
 
 async function fetchGovernorSettings([, contractId, rpcUrl, passphrase, publicKey]: GovernorSettingsKey) {
@@ -26,15 +19,13 @@ async function fetchGovernorSettings([, contractId, rpcUrl, passphrase, publicKe
   }
 
   const server = new Server(rpcUrl, { allowHttp: rpcUrl.startsWith('http://') });
-  const [latestLedger, client] = await Promise.all([
-    server.getLatestLedger(),
-    ContractClient.from<GovernorReadClient>({
-      contractId,
-      rpcUrl,
-      networkPassphrase: passphrase,
-      publicKey
-    })
-  ]);
+  const client = new GovernorClient({
+    contractId,
+    rpcUrl,
+    networkPassphrase: passphrase,
+    publicKey
+  });
+  const latestLedger = await server.getLatestLedger();
 
   const [votingDelay, votingPeriod, proposalThreshold, quorumBps] = await Promise.all([
     client.voting_delay(),

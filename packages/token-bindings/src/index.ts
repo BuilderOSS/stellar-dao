@@ -25,6 +25,8 @@ export * from "@stellar/stellar-sdk";
 export * as contract from "@stellar/stellar-sdk/contract";
 export * as rpc from "@stellar/stellar-sdk/rpc";
 
+type Point = Buffer;
+
 if (typeof window !== "undefined") {
   //@ts-ignore Buffer exists
   window.Buffer = window.Buffer || Buffer;
@@ -752,7 +754,7 @@ balance: i128;
 frozen: i128;
 }
 
-export const ComplianceError = {
+export const ComplianceHookError = {
   /**
    * Indicates a module is already registered for this hook.
    */
@@ -2107,6 +2109,11 @@ export interface Client {
   get_votes: ({account}: {account: string}, options?: MethodOptions) => Promise<AssembledTransaction<u128>>
 
   /**
+   * Construct and simulate a batch_mint transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  batch_mint: ({minter, to, amount}: {minter: string, to: string, amount: u32}, options?: MethodOptions) => Promise<AssembledTransaction<u32>>
+
+  /**
    * Construct and simulate a get_delegate transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Returns the current delegate for an account.
    * 
@@ -2301,6 +2308,7 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAAIdHJhbnNmZXIAAAADAAAAAAAAAARmcm9tAAAAEwAAAAAAAAACdG8AAAAAABMAAAAAAAAACHRva2VuX2lkAAAABAAAAAA=",
         "AAAAAAAAAJBSZXR1cm5zIGBTb21lKEFkZHJlc3MpYCBpZiBvd25lcnNoaXAgaXMgc2V0LCBvciBgTm9uZWAgaWYgb3duZXJzaGlwIGhhcwpiZWVuIHJlbm91bmNlZC4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4AAAAJZ2V0X293bmVyAAAAAAAAAAAAAAEAAAPoAAAAEw==",
         "AAAAAAAAAQxSZXR1cm5zIHRoZSBjdXJyZW50IHZvdGluZyBwb3dlciAoZGVsZWdhdGVkIHZvdGVzKSBvZiBhbiBhY2NvdW50LgoKUmV0dXJucyBgMGAgaWYgdGhlIGFjY291bnQgaGFzIG5vIGRlbGVnYXRlZCB2b3RpbmcgcG93ZXIgb3IgZG9lcyBub3QKZXhpc3QgaW4gdGhlIGNvbnRyYWN0LgoKIyBBcmd1bWVudHMKCiogYGVgIC0gQWNjZXNzIHRvIHRoZSBTb3JvYmFuIGVudmlyb25tZW50LgoqIGBhY2NvdW50YCAtIFRoZSBhZGRyZXNzIHRvIHF1ZXJ5IHZvdGluZyBwb3dlciBmb3IuAAAACWdldF92b3RlcwAAAAAAAAEAAAAAAAAAB2FjY291bnQAAAAAEwAAAAEAAAAK",
+        "AAAAAAAAAAAAAAAKYmF0Y2hfbWludAAAAAAAAwAAAAAAAAAGbWludGVyAAAAAAATAAAAAAAAAAJ0bwAAAAAAEwAAAAAAAAAGYW1vdW50AAAAAAAEAAAAAQAAAAQ=",
         "AAAAAAAAAcFSZXR1cm5zIHRoZSBjdXJyZW50IGRlbGVnYXRlIGZvciBhbiBhY2NvdW50LgoKIyBBcmd1bWVudHMKCiogYGVgIC0gQWNjZXNzIHRvIHRoZSBTb3JvYmFuIGVudmlyb25tZW50LgoqIGBhY2NvdW50YCAtIFRoZSBhZGRyZXNzIHRvIHF1ZXJ5IHRoZSBkZWxlZ2F0ZSBmb3IuCgojIFJldHVybnMKCiogYFNvbWUoQWRkcmVzcylgIC0gVGhlIGRlbGVnYXRlIGFkZHJlc3MgKG1heSBiZSB0aGUgYWNjb3VudCBpdHNlbGYgaWYKc2VsZi1kZWxlZ2F0ZWQpLgoqIGBOb25lYCAtIElmIHRoZSBhY2NvdW50IGhhcyBuZXZlciBkZWxlZ2F0ZWQuIEFuIGFjY291bnQgd2hvc2UgZGVsZWdhdGUKaXMgYE5vbmVgIGhhcyAqKm5vIGFjdGl2ZSB2b3RpbmcgcG93ZXIqKjsgaXQgbXVzdCBjYWxsCltgVm90ZXM6OmRlbGVnYXRlYF0gKGV2ZW4gdG8gaXRzZWxmKSBiZWZvcmUgaXRzIHZvdGVzIGFyZSBjb3VudGVkLgAAAAAAAAxnZXRfZGVsZWdhdGUAAAABAAAAAAAAAAdhY2NvdW50AAAAABMAAAABAAAD6AAAABM=",
         "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAQAAAAAAAAABW93bmVyAAAAAAAAEwAAAAAAAAADdXJpAAAAABAAAAAAAAAABG5hbWUAAAAQAAAAAAAAAAZzeW1ib2wAAAAAABAAAAAA",
         "AAAAAAAAAAAAAAANdHJhbnNmZXJfZnJvbQAAAAAAAAQAAAAAAAAAB3NwZW5kZXIAAAAAEwAAAAAAAAAEZnJvbQAAABMAAAAAAAAAAnRvAAAAAAATAAAAAAAAAAh0b2tlbl9pZAAAAAQAAAAA",
@@ -2561,23 +2569,24 @@ export class Client extends ContractClient {
     )
   }
   public readonly fromJSON = {
-    mint: this.txFromJSON<u32>,
-        approve: this.txFromJSON<null>,
-        balance: this.txFromJSON<u32>,
-        delegate: this.txFromJSON<null>,
-        owner_of: this.txFromJSON<string>,
-        transfer: this.txFromJSON<null>,
-        get_owner: this.txFromJSON<Option<string>>,
-        get_votes: this.txFromJSON<u128>,
-        get_delegate: this.txFromJSON<Option<string>>,
-        transfer_from: this.txFromJSON<null>,
-        mint_authority: this.txFromJSON<boolean>,
-        accept_ownership: this.txFromJSON<null>,
-        get_total_supply: this.txFromJSON<u128>,
-        renounce_ownership: this.txFromJSON<null>,
-        set_mint_authority: this.txFromJSON<null>,
-        transfer_ownership: this.txFromJSON<null>,
-        get_votes_at_checkpoint: this.txFromJSON<u128>,
-        get_total_supply_at_checkpoint: this.txFromJSON<u128>
+    mint: (this as any).txFromJSON,
+        approve: (this as any).txFromJSON,
+        balance: (this as any).txFromJSON,
+        delegate: (this as any).txFromJSON,
+        owner_of: (this as any).txFromJSON,
+        transfer: (this as any).txFromJSON,
+        get_owner: (this as any).txFromJSON,
+        get_votes: (this as any).txFromJSON,
+        batch_mint: (this as any).txFromJSON,
+        get_delegate: (this as any).txFromJSON,
+        transfer_from: (this as any).txFromJSON,
+        mint_authority: (this as any).txFromJSON,
+        accept_ownership: (this as any).txFromJSON,
+        get_total_supply: (this as any).txFromJSON,
+        renounce_ownership: (this as any).txFromJSON,
+        set_mint_authority: (this as any).txFromJSON,
+        transfer_ownership: (this as any).txFromJSON,
+        get_votes_at_checkpoint: (this as any).txFromJSON,
+        get_total_supply_at_checkpoint: (this as any).txFromJSON
   }
 }

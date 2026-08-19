@@ -176,7 +176,7 @@ export interface Client {
   /**
    * Construct and simulate a execute transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  execute: ({target, function, args}: {target: string, function: string, args: Array<any>}, options?: MethodOptions) => Promise<AssembledTransaction<any>>
+  execute: (params: {target: string, function_: string, args: Array<any>}, options?: MethodOptions) => Promise<AssembledTransaction<any>>
 
   /**
    * Construct and simulate a governor transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -275,6 +275,7 @@ export interface Client {
 
 }
 export class Client extends ContractClient {
+  declare txFromJSON: any;
   static async deploy<T = Client>(
         /** Constructor/Initialization Args for the contract's `__constructor` method */
         {owner, governor}: {owner: string, governor: string},
@@ -330,12 +331,12 @@ export class Client extends ContractClient {
     )
   }
   public readonly fromJSON = {
-    execute: this.txFromJSON<any>,
-        governor: this.txFromJSON<string>,
-        get_owner: this.txFromJSON<Option<string>>,
-        set_governor: this.txFromJSON<null>,
-        accept_ownership: this.txFromJSON<null>,
-        renounce_ownership: this.txFromJSON<null>,
-        transfer_ownership: this.txFromJSON<null>
+    execute: (this as any).txFromJSON,
+        governor: (this as any).txFromJSON,
+        get_owner: (this as any).txFromJSON,
+        set_governor: (this as any).txFromJSON,
+        accept_ownership: (this as any).txFromJSON,
+        renounce_ownership: (this as any).txFromJSON,
+        transfer_ownership: (this as any).txFromJSON
   }
 }

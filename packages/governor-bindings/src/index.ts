@@ -33,16 +33,16 @@ if (typeof window !== "undefined") {
 
 
 
-export type GovernorKey = {tag: "Treasury", values: void} | {tag: "QueueDelay", values: void} | {tag: "Proposal", values: readonly [Buffer]};
+export type GovernorKey = {tag: "Treasury", values: void} | {tag: "QueueDelay", values: void} | {tag: "Proposal", values: readonly [Buffer]} | {tag: "GovernorAuthority", values: readonly [string]};
 
 
 export interface ProposalCoreTime {
   eta: u64;
   proposer: string;
   state: ProposalState;
-  vote_end: u32;
+  vote_end: u64;
   vote_snapshot: u32;
-  vote_start: u32;
+  vote_start: u64;
 }
 
 /**
@@ -618,6 +618,11 @@ export interface Client {
   has_voted: ({proposal_id, account}: {proposal_id: Buffer, account: string}, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>
 
   /**
+   * Construct and simulate a quorum_bps transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  quorum_bps: (options?: MethodOptions) => Promise<AssembledTransaction<u32>>
+
+  /**
    * Construct and simulate a set_treasury transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
   set_treasury: ({treasury_contract}: {treasury_contract: string}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
@@ -655,7 +660,7 @@ export interface Client {
   /**
    * Construct and simulate a set_quorum_bps transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  set_quorum_bps: ({quorum_bps}: {quorum_bps: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+  set_quorum_bps: ({caller, quorum_bps}: {caller: string, quorum_bps: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
 
   /**
    * Construct and simulate a get_proposal_id transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -683,6 +688,11 @@ export interface Client {
   get_proposal_id: ({targets, functions, args, description_hash}: {targets: Array<string>, functions: Array<string>, args: Array<Array<any>>, description_hash: Buffer}, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>
 
   /**
+   * Construct and simulate a set_queue_delay transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  set_queue_delay: ({caller, queue_delay}: {caller: string, queue_delay: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+
+  /**
    * Construct and simulate a accept_ownership transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Accepts a pending ownership transfer.
    * 
@@ -705,7 +715,7 @@ export interface Client {
   /**
    * Construct and simulate a set_voting_delay transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  set_voting_delay: ({voting_delay}: {voting_delay: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+  set_voting_delay: ({caller, voting_delay}: {caller: string, voting_delay: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
 
   /**
    * Construct and simulate a proposal_deadline transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -735,7 +745,7 @@ export interface Client {
   /**
    * Construct and simulate a set_voting_period transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  set_voting_period: ({voting_period}: {voting_period: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+  set_voting_period: ({caller, voting_period}: {caller: string, voting_period: u32}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
 
   /**
    * Construct and simulate a get_token_contract transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -752,6 +762,11 @@ export interface Client {
    * has not been set.
    */
   get_token_contract: (options?: MethodOptions) => Promise<AssembledTransaction<string>>
+
+  /**
+   * Construct and simulate a governor_authority transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  governor_authority: ({authority}: {authority: string}, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>
 
   /**
    * Construct and simulate a proposal_threshold transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -833,12 +848,18 @@ export interface Client {
   proposals_need_queuing: (options?: MethodOptions) => Promise<AssembledTransaction<boolean>>
 
   /**
+   * Construct and simulate a set_governor_authority transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  set_governor_authority: ({authority, enabled}: {authority: string, enabled: boolean}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+
+  /**
    * Construct and simulate a set_proposal_threshold transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  set_proposal_threshold: ({proposal_threshold}: {proposal_threshold: u128}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
+  set_proposal_threshold: ({caller, proposal_threshold}: {caller: string, proposal_threshold: u128}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
 
 }
 export class Client extends ContractClient {
+  declare txFromJSON: any;
   static async deploy<T = Client>(
         /** Constructor/Initialization Args for the contract's `__constructor` method */
         {owner, token_contract, treasury_contract, voting_delay, voting_period, queue_delay, proposal_threshold, quorum_bps}: {owner: string, token_contract: string, treasury_contract: string, voting_delay: u32, voting_period: u32, queue_delay: u32, proposal_threshold: u128, quorum_bps: u32},
@@ -857,8 +878,8 @@ export class Client extends ContractClient {
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAAC0dvdmVybm9yS2V5AAAAAAMAAAAAAAAAAAAAAAhUcmVhc3VyeQAAAAAAAAAAAAAAClF1ZXVlRGVsYXkAAAAAAAEAAAAAAAAACFByb3Bvc2FsAAAAAQAAA+4AAAAg",
-        "AAAAAQAAAAAAAAAAAAAAEFByb3Bvc2FsQ29yZVRpbWUAAAAGAAAAAAAAAANldGEAAAAABgAAAAAAAAAIcHJvcG9zZXIAAAATAAAAAAAAAAVzdGF0ZQAAAAAAB9AAAAANUHJvcG9zYWxTdGF0ZQAAAAAAAAAAAAAIdm90ZV9lbmQAAAAEAAAAAAAAAA12b3RlX3NuYXBzaG90AAAAAAAABAAAAAAAAAAKdm90ZV9zdGFydAAAAAAABA==",
+      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAAC0dvdmVybm9yS2V5AAAAAAQAAAAAAAAAAAAAAAhUcmVhc3VyeQAAAAAAAAAAAAAAClF1ZXVlRGVsYXkAAAAAAAEAAAAAAAAACFByb3Bvc2FsAAAAAQAAA+4AAAAgAAAAAQAAAAAAAAARR292ZXJub3JBdXRob3JpdHkAAAAAAAABAAAAEw==",
+        "AAAAAQAAAAAAAAAAAAAAEFByb3Bvc2FsQ29yZVRpbWUAAAAGAAAAAAAAAANldGEAAAAABgAAAAAAAAAIcHJvcG9zZXIAAAATAAAAAAAAAAVzdGF0ZQAAAAAAB9AAAAANUHJvcG9zYWxTdGF0ZQAAAAAAAAAAAAAIdm90ZV9lbmQAAAAGAAAAAAAAAA12b3RlX3NuYXBzaG90AAAAAAAABAAAAAAAAAAKdm90ZV9zdGFydAAAAAAABg==",
         "AAAAAAAAAKxSZXR1cm5zIHRoZSBuYW1lIG9mIHRoZSBnb3Zlcm5vci4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KCiMgRXJyb3JzCgoqIFtgR292ZXJub3JFcnJvcjo6TmFtZU5vdFNldGBdIC0gT2NjdXJzIGlmIHRoZSBuYW1lIGhhcyBub3QgYmVlbiBzZXQuAAAABG5hbWUAAAAAAAAAAQAAABA=",
         "AAAAAAAAAAAAAAAFcXVldWUAAAAAAAAGAAAAAAAAAAd0YXJnZXRzAAAAA+oAAAATAAAAAAAAAAlmdW5jdGlvbnMAAAAAAAPqAAAAEQAAAAAAAAAEYXJncwAAA+oAAAPqAAAAAAAAAAAAAAAQZGVzY3JpcHRpb25faGFzaAAAA+4AAAAgAAAAAAAAAANldGEAAAAABAAAAAAAAAAIb3BlcmF0b3IAAAATAAAAAQAAA+4AAAAg",
         "AAAAAAAAAAAAAAAGY2FuY2VsAAAAAAAFAAAAAAAAAAd0YXJnZXRzAAAAA+oAAAATAAAAAAAAAAlmdW5jdGlvbnMAAAAAAAPqAAAAEQAAAAAAAAAEYXJncwAAA+oAAAPqAAAAAAAAAAAAAAAQZGVzY3JpcHRpb25faGFzaAAAA+4AAAAgAAAAAAAAAAhvcGVyYXRvcgAAABMAAAABAAAD7gAAACA=",
@@ -870,27 +891,31 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAAJY2FzdF92b3RlAAAAAAAABAAAAAAAAAALcHJvcG9zYWxfaWQAAAAD7gAAACAAAAAAAAAACXZvdGVfdHlwZQAAAAAAAAQAAAAAAAAABnJlYXNvbgAAAAAAEAAAAAAAAAAFdm90ZXIAAAAAAAATAAAAAQAAAAo=",
         "AAAAAAAAAJBSZXR1cm5zIGBTb21lKEFkZHJlc3MpYCBpZiBvd25lcnNoaXAgaXMgc2V0LCBvciBgTm9uZWAgaWYgb3duZXJzaGlwIGhhcwpiZWVuIHJlbm91bmNlZC4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4AAAAJZ2V0X293bmVyAAAAAAAAAAAAAAEAAAPoAAAAEw==",
         "AAAAAAAAAMlSZXR1cm5zIHdoZXRoZXIgYW4gYWNjb3VudCBoYXMgdm90ZWQgb24gYSBwcm9wb3NhbC4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KKiBgcHJvcG9zYWxfaWRgIC0gVGhlIHVuaXF1ZSBpZGVudGlmaWVyIG9mIHRoZSBwcm9wb3NhbC4KKiBgYWNjb3VudGAgLSBUaGUgYWRkcmVzcyB0byBjaGVjay4AAAAAAAAJaGFzX3ZvdGVkAAAAAAAAAgAAAAAAAAALcHJvcG9zYWxfaWQAAAAD7gAAACAAAAAAAAAAB2FjY291bnQAAAAAEwAAAAEAAAAB",
+        "AAAAAAAAAAAAAAAKcXVvcnVtX2JwcwAAAAAAAAAAAAEAAAAE",
         "AAAAAAAAAAAAAAAMc2V0X3RyZWFzdXJ5AAAAAQAAAAAAAAARdHJlYXN1cnlfY29udHJhY3QAAAAAAAATAAAAAA==",
         "AAAAAAAAAAAAAAAMdm90aW5nX2RlbGF5AAAAAAAAAAEAAAAE",
         "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAgAAAAAAAAABW93bmVyAAAAAAAAEwAAAAAAAAAOdG9rZW5fY29udHJhY3QAAAAAABMAAAAAAAAAEXRyZWFzdXJ5X2NvbnRyYWN0AAAAAAAAEwAAAAAAAAAMdm90aW5nX2RlbGF5AAAABAAAAAAAAAANdm90aW5nX3BlcmlvZAAAAAAAAAQAAAAAAAAAC3F1ZXVlX2RlbGF5AAAAAAQAAAAAAAAAEnByb3Bvc2FsX3RocmVzaG9sZAAAAAAACgAAAAAAAAAKcXVvcnVtX2JwcwAAAAAABAAAAAA=",
         "AAAAAAAAARhSZXR1cm5zIGEgc3ltYm9sIGlkZW50aWZ5aW5nIHRoZSBjb3VudGluZyBzdHJhdGVneS4KClRoaXMgZnVuY3Rpb24gaXMgZXhwZWN0ZWQgdG8gYmUgdXNlZCB0byBkaXNwbGF5IGh1bWFuLXJlYWRhYmxlCmluZm9ybWF0aW9uIGFib3V0IHRoZSBjb3VudGluZyBzdHJhdGVneSwgZm9yIGV4YW1wbGUgaW4gVUlzLgoKRm9yIHNpbXBsZSBjb3VudGluZywgdGhpcyByZXR1cm5zIGAic2ltcGxlImAuCgojIEFyZ3VtZW50cwoKKiBgZWAgLSBBY2Nlc3MgdG8gdGhlIFNvcm9iYW4gZW52aXJvbm1lbnQuAAAADWNvdW50aW5nX21vZGUAAAAAAAAAAAAAAQAAABE=",
         "AAAAAAAAAAAAAAANdm90aW5nX3BlcmlvZAAAAAAAAAAAAAABAAAABA==",
         "AAAAAAAAAAAAAAAOcHJvcG9zYWxfc3RhdGUAAAAAAAEAAAAAAAAAC3Byb3Bvc2FsX2lkAAAAA+4AAAAgAAAAAQAAB9AAAAANUHJvcG9zYWxTdGF0ZQAAAA==",
-        "AAAAAAAAAAAAAAAOc2V0X3F1b3J1bV9icHMAAAAAAAEAAAAAAAAACnF1b3J1bV9icHMAAAAAAAQAAAAA",
+        "AAAAAAAAAAAAAAAOc2V0X3F1b3J1bV9icHMAAAAAAAIAAAAAAAAABmNhbGxlcgAAAAAAEwAAAAAAAAAKcXVvcnVtX2JwcwAAAAAABAAAAAA=",
         "AAAAAAAAAyhSZXR1cm5zIHRoZSBwcm9wb3NhbCBJRCBjb21wdXRlZCBmcm9tIHRoZSBwcm9wb3NhbCBkZXRhaWxzLgoKVGhlIHByb3Bvc2FsIElEIGlzIGEgZGV0ZXJtaW5pc3RpYyBrZWNjYWsyNTYgaGFzaCBvZiB0aGUgWERSLXNlcmlhbGl6ZWQKdGFyZ2V0cywgZnVuY3Rpb25zLCBhcmdzLCBhbmQgZGVzY3JpcHRpb24gaGFzaC4gVGhpcyBhbGxvd3MgYW55b25lIHRvCmNvbXB1dGUgdGhlIElEIHdpdGhvdXQgc3RvcmluZyB0aGUgZnVsbCBwcm9wb3NhbCBkYXRhLgoKVGhlIGBkZXNjcmlwdGlvbl9oYXNoYCBpcyBjb21wdXRlZCBhcwpga2VjY2FrMjU2KGRlc2NyaXB0aW9uLnRvX2J5dGVzKCkpYCwgaS5lLiwgYSBrZWNjYWsyNTYgaGFzaCBvZiB0aGUKcmF3IFVURi04IGJ5dGVzIG9mIHRoZSBkZXNjcmlwdGlvbiBzdHJpbmcuIE9mZi1jaGFpbiBjbGllbnRzIGNhbgpyZXByb2R1Y2UgdGhpcyBieSBoYXNoaW5nIHRoZSByYXcgc3RyaW5nIGJ5dGVzIGRpcmVjdGx5IOKAlCBubyBYRFIKZW5jb2RpbmcgaXMgcmVxdWlyZWQuCgojIEFyZ3VtZW50cwoKKiBgZWAgLSBBY2Nlc3MgdG8gdGhlIFNvcm9iYW4gZW52aXJvbm1lbnQuCiogYHRhcmdldHNgIC0gVGhlIGFkZHJlc3NlcyBvZiBjb250cmFjdHMgdG8gY2FsbC4KKiBgZnVuY3Rpb25zYCAtIFRoZSBmdW5jdGlvbiBuYW1lcyB0byBpbnZva2Ugb24gZWFjaCB0YXJnZXQuCiogYGFyZ3NgIC0gVGhlIGFyZ3VtZW50cyBmb3IgZWFjaCBmdW5jdGlvbiBjYWxsLgoqIGBkZXNjcmlwdGlvbl9oYXNoYCAtIFRoZSBrZWNjYWsyNTYgaGFzaCBvZiB0aGUgZGVzY3JpcHRpb24ncyByYXcKYnl0ZXMuAAAAD2dldF9wcm9wb3NhbF9pZAAAAAAEAAAAAAAAAAd0YXJnZXRzAAAAA+oAAAATAAAAAAAAAAlmdW5jdGlvbnMAAAAAAAPqAAAAEQAAAAAAAAAEYXJncwAAA+oAAAPqAAAAAAAAAAAAAAAQZGVzY3JpcHRpb25faGFzaAAAA+4AAAAgAAAAAQAAA+4AAAAg",
+        "AAAAAAAAAAAAAAAPc2V0X3F1ZXVlX2RlbGF5AAAAAAIAAAAAAAAABmNhbGxlcgAAAAAAEwAAAAAAAAALcXVldWVfZGVsYXkAAAAABAAAAAA=",
         "AAAAAAAAATBBY2NlcHRzIGEgcGVuZGluZyBvd25lcnNoaXAgdHJhbnNmZXIuCgojIEFyZ3VtZW50cwoKKiBgZWAgLSBBY2Nlc3MgdG8gdGhlIFNvcm9iYW4gZW52aXJvbm1lbnQuCgojIEVycm9ycwoKKiBbYGNyYXRlOjpyb2xlX3RyYW5zZmVyOjpSb2xlVHJhbnNmZXJFcnJvcjo6Tm9QZW5kaW5nVHJhbnNmZXJgXSAtIElmCnRoZXJlIGlzIG5vIHBlbmRpbmcgdHJhbnNmZXIgdG8gYWNjZXB0LgoKIyBFdmVudHMKCiogdG9waWNzIC0gYFsib3duZXJzaGlwX3RyYW5zZmVyX2NvbXBsZXRlZCJdYAoqIGRhdGEgLSBgW25ld19vd25lcjogQWRkcmVzc11gAAAAEGFjY2VwdF9vd25lcnNoaXAAAAAAAAAAAA==",
-        "AAAAAAAAAAAAAAAQc2V0X3ZvdGluZ19kZWxheQAAAAEAAAAAAAAADHZvdGluZ19kZWxheQAAAAQAAAAA",
+        "AAAAAAAAAAAAAAAQc2V0X3ZvdGluZ19kZWxheQAAAAIAAAAAAAAABmNhbGxlcgAAAAAAEwAAAAAAAAAMdm90aW5nX2RlbGF5AAAABAAAAAA=",
         "AAAAAAAAAAAAAAARcHJvcG9zYWxfZGVhZGxpbmUAAAAAAAABAAAAAAAAAAtwcm9wb3NhbF9pZAAAAAPuAAAAIAAAAAEAAAAE",
         "AAAAAAAAAP5SZXR1cm5zIHRoZSBhZGRyZXNzIG9mIHRoZSBwcm9wb3NlciBmb3IgYSBnaXZlbiBwcm9wb3NhbC4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KKiBgcHJvcG9zYWxfaWRgIC0gVGhlIHVuaXF1ZSBpZGVudGlmaWVyIG9mIHRoZSBwcm9wb3NhbC4KCiMgRXJyb3JzCgoqIFtgR292ZXJub3JFcnJvcjo6UHJvcG9zYWxOb3RGb3VuZGBdIC0gSWYgdGhlIHByb3Bvc2FsIGRvZXMgbm90IGV4aXN0LgAAAAAAEXByb3Bvc2FsX3Byb3Bvc2VyAAAAAAAAAQAAAAAAAAALcHJvcG9zYWxfaWQAAAAD7gAAACAAAAABAAAAEw==",
         "AAAAAAAAAAAAAAARcHJvcG9zYWxfc25hcHNob3QAAAAAAAABAAAAAAAAAAtwcm9wb3NhbF9pZAAAAAPuAAAAIAAAAAEAAAAE",
-        "AAAAAAAAAAAAAAARc2V0X3ZvdGluZ19wZXJpb2QAAAAAAAABAAAAAAAAAA12b3RpbmdfcGVyaW9kAAAAAAAABAAAAAA=",
+        "AAAAAAAAAAAAAAARc2V0X3ZvdGluZ19wZXJpb2QAAAAAAAACAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAADXZvdGluZ19wZXJpb2QAAAAAAAAEAAAAAA==",
         "AAAAAAAAAOhSZXR1cm5zIHRoZSBhZGRyZXNzIG9mIHRoZSB0b2tlbiBjb250cmFjdCB0aGF0IGltcGxlbWVudHMgdGhlIFZvdGVzCnRyYWl0LgoKIyBBcmd1bWVudHMKCiogYGVgIC0gQWNjZXNzIHRvIHRoZSBTb3JvYmFuIGVudmlyb25tZW50LgoKIyBFcnJvcnMKCiogW2BHb3Zlcm5vckVycm9yOjpUb2tlbkNvbnRyYWN0Tm90U2V0YF0gLSBPY2N1cnMgaWYgdGhlIHRva2VuIGNvbnRyYWN0CmhhcyBub3QgYmVlbiBzZXQuAAAAEmdldF90b2tlbl9jb250cmFjdAAAAAAAAAAAAAEAAAAT",
+        "AAAAAAAAAAAAAAASZ292ZXJub3JfYXV0aG9yaXR5AAAAAAABAAAAAAAAAAlhdXRob3JpdHkAAAAAAAATAAAAAQAAAAE=",
         "AAAAAAAAAOVSZXR1cm5zIHRoZSBtaW5pbXVtIHZvdGluZyBwb3dlciByZXF1aXJlZCB0byBjcmVhdGUgYSBwcm9wb3NhbC4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KCiMgRXJyb3JzCgoqIFtgR292ZXJub3JFcnJvcjo6UHJvcG9zYWxUaHJlc2hvbGROb3RTZXRgXSAtIE9jY3VycyBpZiB0aGUgcHJvcG9zYWwKdGhyZXNob2xkIGhhcyBub3QgYmVlbiBzZXQuAAAAAAAAEnByb3Bvc2FsX3RocmVzaG9sZAAAAAAAAAAAAAEAAAAK",
         "AAAAAAAAAYVSZW5vdW5jZXMgb3duZXJzaGlwIG9mIHRoZSBjb250cmFjdC4KClBlcm1hbmVudGx5IHJlbW92ZXMgdGhlIG93bmVyLCBkaXNhYmxpbmcgYWxsIGZ1bmN0aW9ucyBnYXRlZCBieQpgI1tvbmx5X293bmVyXWAuCgojIEFyZ3VtZW50cwoKKiBgZWAgLSBBY2Nlc3MgdG8gdGhlIFNvcm9iYW4gZW52aXJvbm1lbnQuCgojIEVycm9ycwoKKiBbYE93bmFibGVFcnJvcjo6VHJhbnNmZXJJblByb2dyZXNzYF0gLSBJZiB0aGVyZSBpcyBhIHBlbmRpbmcgb3duZXJzaGlwCnRyYW5zZmVyLgoqIFtgT3duYWJsZUVycm9yOjpPd25lck5vdFNldGBdIC0gSWYgdGhlIG93bmVyIGlzIG5vdCBzZXQuCgojIE5vdGVzCgoqIEF1dGhvcml6YXRpb24gZm9yIHRoZSBjdXJyZW50IG93bmVyIGlzIHJlcXVpcmVkLgAAAAAAABJyZW5vdW5jZV9vd25lcnNoaXAAAAAAAAAAAAAA",
         "AAAAAAAAAAAAAAASc2V0X3Rva2VuX2NvbnRyYWN0AAAAAAABAAAAAAAAAA50b2tlbl9jb250cmFjdAAAAAAAEwAAAAA=",
         "AAAAAAAAA45Jbml0aWF0ZXMgYSAyLXN0ZXAgb3duZXJzaGlwIHRyYW5zZmVyIHRvIGEgbmV3IGFkZHJlc3MuCgpSZXF1aXJlcyBhdXRob3JpemF0aW9uIGZyb20gdGhlIGN1cnJlbnQgb3duZXIuIFRoZSBuZXcgb3duZXIgbXVzdCBsYXRlcgpjYWxsIGBhY2NlcHRfb3duZXJzaGlwKClgIHRvIGNvbXBsZXRlIHRoZSB0cmFuc2Zlci4KCiMgQXJndW1lbnRzCgoqIGBlYCAtIEFjY2VzcyB0byB0aGUgU29yb2JhbiBlbnZpcm9ubWVudC4KKiBgbmV3X293bmVyYCAtIFRoZSBwcm9wb3NlZCBuZXcgb3duZXIuCiogYGxpdmVfdW50aWxfbGVkZ2VyYCAtIExlZGdlciBudW1iZXIgdW50aWwgd2hpY2ggdGhlIG5ldyBvd25lciBjYW4KYWNjZXB0LiBBIHZhbHVlIG9mIGAwYCBjYW5jZWxzIGFueSBwZW5kaW5nIHRyYW5zZmVyLgoKIyBFcnJvcnMKCiogW2BPd25hYmxlRXJyb3I6Ok93bmVyTm90U2V0YF0gLSBJZiB0aGUgb3duZXIgaXMgbm90IHNldC4KKiBbYGNyYXRlOjpyb2xlX3RyYW5zZmVyOjpSb2xlVHJhbnNmZXJFcnJvcjo6Tm9QZW5kaW5nVHJhbnNmZXJgXSAtIElmCnRyeWluZyB0byBjYW5jZWwgYSB0cmFuc2ZlciB0aGF0IGRvZXNuJ3QgZXhpc3QuCiogW2BjcmF0ZTo6cm9sZV90cmFuc2Zlcjo6Um9sZVRyYW5zZmVyRXJyb3I6OkludmFsaWRMaXZlVW50aWxMZWRnZXJgXSAtCklmIHRoZSBzcGVjaWZpZWQgbGVkZ2VyIGlzIGluIHRoZSBwYXN0LgoqIFtgY3JhdGU6OnJvbGVfdHJhbnNmZXI6OlJvbGVUcmFuc2ZlckVycm9yOjpJbnZhbGlkUGVuZGluZ0FjY291bnRgXSAtCklmIHRoZSBzcGVjaWZpZWQgcGVuZGluZyBhY2NvdW50IGlzIG5vdCB0aGUgc2FtZSBhcyB0aGUgcHJvdmlkZWQgYG5ld2AKYWRkcmVzcy4KCiMgTm90ZXMKCiogQXV0aG9yaXphdGlvbiBmb3IgdGhlIGN1cnJlbnQgb3duZXIgaXMgcmVxdWlyZWQuAAAAAAASdHJhbnNmZXJfb3duZXJzaGlwAAAAAAACAAAAAAAAAAluZXdfb3duZXIAAAAAAAATAAAAAAAAABFsaXZlX3VudGlsX2xlZGdlcgAAAAAAAAQAAAAA",
         "AAAAAAAAAAAAAAAWcHJvcG9zYWxzX25lZWRfcXVldWluZwAAAAAAAAAAAAEAAAAB",
-        "AAAAAAAAAAAAAAAWc2V0X3Byb3Bvc2FsX3RocmVzaG9sZAAAAAAAAQAAAAAAAAAScHJvcG9zYWxfdGhyZXNob2xkAAAAAAAKAAAAAA==",
+        "AAAAAAAAAAAAAAAWc2V0X2dvdmVybm9yX2F1dGhvcml0eQAAAAAAAgAAAAAAAAAJYXV0aG9yaXR5AAAAAAAAEwAAAAAAAAAHZW5hYmxlZAAAAAABAAAAAA==",
+        "AAAAAAAAAAAAAAAWc2V0X3Byb3Bvc2FsX3RocmVzaG9sZAAAAAAAAgAAAAAAAAAGY2FsbGVyAAAAAAATAAAAAAAAABJwcm9wb3NhbF90aHJlc2hvbGQAAAAAAAoAAAAA",
         "AAAABAAAACpFcnJvcnMgdGhhdCBjYW4gb2NjdXIgaW4gdm90ZXMgb3BlcmF0aW9ucy4AAAAAAAAAAAAKVm90ZXNFcnJvcgAAAAAABQAAABtUaGUgbGVkZ2VyIGlzIGluIHRoZSBmdXR1cmUAAAAADEZ1dHVyZUxvb2t1cAAAEAQAAAAcQXJpdGhtZXRpYyBvdmVyZmxvdyBvY2N1cnJlZAAAAAxNYXRoT3ZlcmZsb3cAABAFAAAAN0F0dGVtcHRpbmcgdG8gdHJhbnNmZXIgbW9yZSB2b3RpbmcgdW5pdHMgdGhhbiBhdmFpbGFibGUAAAAAF0luc3VmZmljaWVudFZvdGluZ1VuaXRzAAAAEAYAAAA/QXR0ZW1wdGluZyB0byBkZWxlZ2F0ZSB0byB0aGUgc2FtZSBkZWxlZ2F0ZSB0aGF0IGlzIGFscmVhZHkgc2V0AAAAAAxTYW1lRGVsZWdhdGUAABAHAAAAQEEgY2hlY2twb2ludCB0aGF0IHdhcyBleHBlY3RlZCB0byBleGlzdCB3YXMgbm90IGZvdW5kIGluIHN0b3JhZ2UAAAASQ2hlY2twb2ludE5vdEZvdW5kAAAAABAI",
         "AAAABQAAADNFdmVudCBlbWl0dGVkIHdoZW4gYW4gYWNjb3VudCBjaGFuZ2VzIGl0cyBkZWxlZ2F0ZS4AAAAAAAAAAA9EZWxlZ2F0ZUNoYW5nZWQAAAAAAQAAABBkZWxlZ2F0ZV9jaGFuZ2VkAAAAAwAAACVUaGUgYWNjb3VudCB0aGF0IGNoYW5nZWQgaXRzIGRlbGVnYXRlAAAAAAAACWRlbGVnYXRvcgAAAAAAABMAAAABAAAAHlRoZSBwcmV2aW91cyBkZWxlZ2F0ZSAoaWYgYW55KQAAAAAADWZyb21fZGVsZWdhdGUAAAAAAAPoAAAAEwAAAAAAAAAQVGhlIG5ldyBkZWxlZ2F0ZQAAAAt0b19kZWxlZ2F0ZQAAAAATAAAAAAAAAAI=",
         "AAAABQAAADVFdmVudCBlbWl0dGVkIHdoZW4gYSBkZWxlZ2F0ZSdzIHZvdGluZyBwb3dlciBjaGFuZ2VzLgAAAAAAAAAAAAAURGVsZWdhdGVWb3Rlc0NoYW5nZWQAAAABAAAAFmRlbGVnYXRlX3ZvdGVzX2NoYW5nZWQAAAAAAAMAAAAnVGhlIGRlbGVnYXRlIHdob3NlIHZvdGluZyBwb3dlciBjaGFuZ2VkAAAAAAhkZWxlZ2F0ZQAAABMAAAABAAAAGVRoZSBwcmV2aW91cyB2b3RpbmcgcG93ZXIAAAAAAAAOcHJldmlvdXNfdm90ZXMAAAAAAAoAAAAAAAAAFFRoZSBuZXcgdm90aW5nIHBvd2VyAAAACW5ld192b3RlcwAAAAAAAAoAAAAAAAAAAg==",
@@ -945,36 +970,40 @@ export class Client extends ContractClient {
     )
   }
   public readonly fromJSON = {
-    name: this.txFromJSON<string>,
-        queue: this.txFromJSON<Buffer>,
-        cancel: this.txFromJSON<Buffer>,
-        quorum: this.txFromJSON<u128>,
-        execute: this.txFromJSON<Buffer>,
-        propose: this.txFromJSON<Buffer>,
-        version: this.txFromJSON<string>,
-        treasury: this.txFromJSON<string>,
-        cast_vote: this.txFromJSON<u128>,
-        get_owner: this.txFromJSON<Option<string>>,
-        has_voted: this.txFromJSON<boolean>,
-        set_treasury: this.txFromJSON<null>,
-        voting_delay: this.txFromJSON<u32>,
-        counting_mode: this.txFromJSON<string>,
-        voting_period: this.txFromJSON<u32>,
-        proposal_state: this.txFromJSON<ProposalState>,
-        set_quorum_bps: this.txFromJSON<null>,
-        get_proposal_id: this.txFromJSON<Buffer>,
-        accept_ownership: this.txFromJSON<null>,
-        set_voting_delay: this.txFromJSON<null>,
-        proposal_deadline: this.txFromJSON<u32>,
-        proposal_proposer: this.txFromJSON<string>,
-        proposal_snapshot: this.txFromJSON<u32>,
-        set_voting_period: this.txFromJSON<null>,
-        get_token_contract: this.txFromJSON<string>,
-        proposal_threshold: this.txFromJSON<u128>,
-        renounce_ownership: this.txFromJSON<null>,
-        set_token_contract: this.txFromJSON<null>,
-        transfer_ownership: this.txFromJSON<null>,
-        proposals_need_queuing: this.txFromJSON<boolean>,
-        set_proposal_threshold: this.txFromJSON<null>
+    name: (this as any).txFromJSON,
+        queue: (this as any).txFromJSON,
+        cancel: (this as any).txFromJSON,
+        quorum: (this as any).txFromJSON,
+        execute: (this as any).txFromJSON,
+        propose: (this as any).txFromJSON,
+        version: (this as any).txFromJSON,
+        treasury: (this as any).txFromJSON,
+        cast_vote: (this as any).txFromJSON,
+        get_owner: (this as any).txFromJSON,
+        has_voted: (this as any).txFromJSON,
+        quorum_bps: (this as any).txFromJSON,
+        set_treasury: (this as any).txFromJSON,
+        voting_delay: (this as any).txFromJSON,
+        counting_mode: (this as any).txFromJSON,
+        voting_period: (this as any).txFromJSON,
+        proposal_state: (this as any).txFromJSON,
+        set_quorum_bps: (this as any).txFromJSON,
+        get_proposal_id: (this as any).txFromJSON,
+        set_queue_delay: (this as any).txFromJSON,
+        accept_ownership: (this as any).txFromJSON,
+        set_voting_delay: (this as any).txFromJSON,
+        proposal_deadline: (this as any).txFromJSON,
+        proposal_proposer: (this as any).txFromJSON,
+        proposal_snapshot: (this as any).txFromJSON,
+        set_voting_period: (this as any).txFromJSON,
+        get_token_contract: (this as any).txFromJSON,
+        governor_authority: (this as any).txFromJSON,
+        proposal_threshold: (this as any).txFromJSON,
+        renounce_ownership: (this as any).txFromJSON,
+        set_token_contract: (this as any).txFromJSON,
+        transfer_ownership: (this as any).txFromJSON,
+        proposals_need_queuing: (this as any).txFromJSON,
+        set_governor_authority: (this as any).txFromJSON,
+        set_proposal_threshold: (this as any).txFromJSON
   }
 }

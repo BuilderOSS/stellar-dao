@@ -27,7 +27,59 @@ function rewritePackageJsonName(outputDir, packageJsonName) {
   const packageJsonPath = `${outputDir}/package.json`;
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   packageJson.name = packageJsonName;
+  packageJson.dependencies['@stellar/stellar-sdk'] = '^16.1.0';
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+}
+
+function replaceNth(content, search, replacement, targetIndex) {
+  let seen = 0;
+  return content
+    .split(search)
+    .map((segment, index) => {
+      if (index === 0) {
+        return segment;
+      }
+
+      seen += 1;
+      return `${seen === targetIndex ? replacement : search}${segment}`;
+    })
+    .join('');
+}
+
+function patchGeneratedBindings(packageName, outputDir) {
+  const indexPath = `${outputDir}/src/index.ts`;
+  let content = readFileSync(indexPath, 'utf8');
+
+  if (packageName === 'token') {
+    content = content.replace(
+      'export * as rpc from "@stellar/stellar-sdk/rpc";\n\nif (typeof window !== "undefined") {',
+      'export * as rpc from "@stellar/stellar-sdk/rpc";\n\ntype Point = Buffer;\n\nif (typeof window !== "undefined") {'
+    );
+    content = replaceNth(content, 'export const ComplianceError = {', 'export const ComplianceHookError = {', 2);
+  }
+
+  if (packageName === 'governor') {
+    content = content.replace(
+      'export class Client extends ContractClient {\n',
+      'export class Client extends ContractClient {\n  declare txFromJSON: any;\n'
+    );
+  }
+
+  if (packageName === 'treasury') {
+    content = content.replace(
+      '  execute: ({target, function, args}: {target: string, function: string, args: Array<any>}, options?: MethodOptions) => Promise<AssembledTransaction<any>>',
+      '  execute: (params: {target: string, function_: string, args: Array<any>}, options?: MethodOptions) => Promise<AssembledTransaction<any>>'
+    );
+    content = content.replace(
+      'export class Client extends ContractClient {\n',
+      'export class Client extends ContractClient {\n  declare txFromJSON: any;\n'
+    );
+  }
+
+  content = content.replace(/this\.txFromJSON<[^>]+>/g, '(this as any).txFromJSON');
+  content = content.replace(/\(this as any\)\.txFromJSON>/g, '(this as any).txFromJSON');
+
+  writeFileSync(indexPath, content);
 }
 
 run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '--release', '--target', 'wasm32v1-none'], {
@@ -49,5 +101,6 @@ for (const contract of contracts) {
     contract.outputDir,
     '--overwrite'
   ]);
+  patchGeneratedBindings(contract.packageName, contract.outputDir);
   rewritePackageJsonName(contract.outputDir, contract.packageJsonName);
 }

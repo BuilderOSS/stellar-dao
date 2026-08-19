@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
-import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { Client as TokenClient } from '@dao-test-stellar/token-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
@@ -13,20 +13,16 @@ import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Stack } from 'styled-system/jsx';
 
-type TokenMintClient = {
-  mint: (args: { minter: string; to: string }, options?: MethodOptions) => Promise<AssembledTransaction<number>>;
-};
-
 async function mintToken(config: ReturnType<typeof getDaoNetworkConfig>, sessionAddress: string, recipient: string) {
-  const client = await ContractClient.from<TokenMintClient>({
+  const client = new TokenClient({
     contractId: config.tokenContractId,
     rpcUrl: config.rpcUrl,
     networkPassphrase: config.passphrase,
     publicKey: sessionAddress,
-    signTransaction: (async (xdr, opts) => StellarWalletsKit.signTransaction(xdr, {
+    signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
       networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
       address: opts?.address ?? sessionAddress
-    })) as SignTransaction
+    }))
   });
 
   const assembled = await client.mint({ minter: sessionAddress, to: recipient });

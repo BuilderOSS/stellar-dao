@@ -24,6 +24,12 @@
       ],
       "@dao-test-stellar/token-bindings": [
         "../../packages/token-bindings/src/index.ts"
+      ],
+      "@dao-test-stellar/governor-bindings": [
+        "../../packages/governor-bindings/src/index.ts"
+      ],
+      "@dao-test-stellar/treasury-bindings": [
+        "../../packages/treasury-bindings/src/index.ts"
       ]
     },
     "plugins": [
