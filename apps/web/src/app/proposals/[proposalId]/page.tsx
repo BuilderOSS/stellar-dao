@@ -11,6 +11,7 @@ import { PageSection } from '@/components/page-section';
 import { Button, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
+import { proposalActionMode } from '@/lib/proposal-state';
 import { ProposalLifecycleAction } from '@/components/proposal/proposal-lifecycle-action';
 import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
@@ -188,9 +189,7 @@ export default function ProposalDetailPage() {
     return acc;
   }, { for: 0, against: 0, abstain: 0 });
   const currentVote = session.address ? votes.find((vote) => vote.voter === session.address) ?? null : null;
-  const canVote = detail?.label === 'Active';
-  const canQueue = detail?.label === 'Succeeded';
-  const canExecute = detail?.label === 'Queued';
+  const actionMode = proposalActionMode(detail?.state);
   const errorMessage = error instanceof Error ? error.message : '';
 
   function voteLabelForSupport(support: number) {
@@ -216,9 +215,9 @@ export default function ProposalDetailPage() {
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <ProposalVoteSummary forCount={activeVotes.for} againstCount={activeVotes.against} abstainCount={activeVotes.abstain} />
-            {detail && canVote ? (
+            {detail && actionMode === 'vote' ? (
               <ProposalVotePanel
-                canVote={canVote}
+                canVote={true}
                 busy={busy}
                 voteReason={voteReason}
                 onVoteReasonChange={setVoteReason}
@@ -226,17 +225,7 @@ export default function ProposalDetailPage() {
                 currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
               />
             ) : null}
-            {detail && !canVote && currentVote ? (
-              <ProposalVotePanel
-                canVote={false}
-                busy={busy}
-                voteReason={voteReason}
-                onVoteReasonChange={setVoteReason}
-                onVote={(voteType) => void submitVote(voteType)}
-                currentVote={{ label: voteLabelForSupport(currentVote.support), reason: currentVote.reason }}
-              />
-            ) : null}
-            {detail && canQueue ? (
+            {detail && actionMode === 'queue' ? (
               <ProposalLifecycleAction
                 title="This proposal passed and is ready to queue."
                 body="Queue it to move the proposal into the execution-ready state."
@@ -245,7 +234,7 @@ export default function ProposalDetailPage() {
                 busy={busy}
               />
             ) : null}
-            {detail && canExecute ? (
+            {detail && actionMode === 'execute' ? (
               <ProposalLifecycleAction
                 title="This proposal is queued and ready to execute."
                 body="Execute it now to perform the proposal's on-chain action."
@@ -254,7 +243,7 @@ export default function ProposalDetailPage() {
                 busy={busy}
               />
             ) : null}
-            {detail && !canVote && !canQueue && !canExecute && !currentVote ? (
+            {detail && actionMode === 'outcome' ? (
               <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />
             ) : null}
           </Grid>

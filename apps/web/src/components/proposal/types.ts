@@ -1,4 +1,5 @@
 import type { ProposalMetadata } from '@/lib/proposal-metadata';
+import type { ProposalState } from '@/lib/proposal-state';
 
 export type ProposalDetail = {
   proposalId: string;
@@ -13,7 +14,7 @@ export type ProposalDetail = {
   vote_start: number;
   eta: number;
   deadline: number;
-  state: number;
+  state: ProposalState;
   label: string;
 };
 
@@ -33,7 +34,7 @@ export type ProposalVoteItem = {
 export type ProposalListItem = {
   proposalId: string;
   metadata: ProposalMetadata;
-  state: number | null;
+  state: ProposalState | null;
   stateLabel: string;
   ledger: number;
   timestamp: number;

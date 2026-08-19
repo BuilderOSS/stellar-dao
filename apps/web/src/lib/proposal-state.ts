@@ -11,8 +11,23 @@ export const ProposalState = {
 
 export type ProposalState = (typeof ProposalState)[keyof typeof ProposalState];
 
+export type ProposalActionMode = 'vote' | 'queue' | 'execute' | 'outcome';
+
 export function proposalStateLabel(state: ProposalState | null | undefined) {
   return Object.entries(ProposalState).find(([, value]) => value === state)?.[0] ?? 'Unknown';
+}
+
+export function proposalActionMode(state: ProposalState | null | undefined): ProposalActionMode {
+  switch (state) {
+    case ProposalState.Active:
+      return 'vote';
+    case ProposalState.Succeeded:
+      return 'queue';
+    case ProposalState.Queued:
+      return 'execute';
+    default:
+      return 'outcome';
+  }
 }
 
 export function proposalStateBadgeStyle(label: string) {
