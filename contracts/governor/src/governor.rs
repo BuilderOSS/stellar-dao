@@ -495,12 +495,22 @@ impl Governor for DaoGovernorContract {
         executor.require_auth();
         e.current_contract_address().require_auth();
 
-        assert!(targets.len() == 1);
-        assert!(functions.len() == 1);
+        // Validate proposal parameters are consistent
+        if targets.len() != functions.len() || targets.len() != args.len() {
+            panic_with_error!(e, GovernorError::InvalidProposalLength);
+        }
 
+        // Validate all actions go through treasury with execute function
         let treasury = Self::treasury(e);
-        assert!(targets.get_unchecked(0) == treasury);
-        assert!(functions.get_unchecked(0) == Symbol::new(e, "execute"));
+        let execute_symbol = Symbol::new(e, "execute");
+        for i in 0..targets.len() {
+            if targets.get(i).unwrap() != treasury {
+                panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error for now
+            }
+            if functions.get(i).unwrap() != execute_symbol {
+                panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error for now
+            }
+        }
 
         let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
         let mut proposal = Self::get_proposal(e, &proposal_id);
@@ -516,22 +526,26 @@ impl Governor for DaoGovernorContract {
             panic_with_error!(e, GovernorError::ProposalNotQueued);
         }
 
-        e.invoke_contract::<Val>(&treasury, &Symbol::new(e, "execute"), args.get_unchecked(0));
+        // Execute all actions through treasury
+        for i in 0..args.len() {
+            e.invoke_contract::<Val>(&treasury, &execute_symbol, args.get(i).unwrap());
+
+            // Emit event for each action
+            #[cfg(feature = "mercury")]
+            retroshade::ProposalCallIndexed {
+                proposal_id: proposal_id.clone(),
+                treasury: treasury.clone(),
+                target: targets.get(i).unwrap().clone(),
+                function: functions.get(i).unwrap().clone(),
+                args: vec![e, args.get(i).unwrap().clone()],
+                timestamp: e.ledger().timestamp(),
+            }
+            .emit(e);
+        }
 
         proposal.state = ProposalState::Executed;
         Self::set_proposal(e, &proposal_id, &proposal);
         emit_proposal_executed(e, &proposal_id);
-
-        #[cfg(feature = "mercury")]
-        retroshade::ProposalCallIndexed {
-            proposal_id: proposal_id.clone(),
-            treasury: treasury.clone(),
-            target: targets.get_unchecked(0).clone(),
-            function: functions.get_unchecked(0).clone(),
-            args: args.clone(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ProposalLifecycleIndexed {

@@ -1,6 +1,6 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
 use stellar_access::ownable::{get_owner, set_owner, Ownable};
-use stellar_governance::votes::{delegate, emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
+use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
 
