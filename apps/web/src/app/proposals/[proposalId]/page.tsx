@@ -3,18 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Buffer } from 'buffer';
 import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Button, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { proposalActionMode } from '@/lib/proposal-state';
-import { ProposalLifecycleAction } from '@/components/proposal/proposal-lifecycle-action';
+import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
+import { ProposalQueuePanel } from '@/components/proposal/proposal-queue-panel';
 import { ProposalVoteHistory } from '@/components/proposal/proposal-vote-history';
 import { ProposalVotePanel } from '@/components/proposal/proposal-vote-panel';
 import { ProposalVoteSummary } from '@/components/proposal/proposal-vote-summary';
@@ -40,7 +41,7 @@ const VOTE_AGAINST = 0;
 const VOTE_ABSTAIN = 2;
 
 function descriptionHash(description: string) {
-  return Buffer.from(description, 'utf8');
+  return keccak256Bytes(description);
 }
 
 function formatTimestamp(timestamp: number) {
@@ -182,12 +183,6 @@ export default function ProposalDetailPage() {
     }
   }
 
-  const activeVotes = votes.reduce((acc, item) => {
-    if (item.support === VOTE_FOR) acc.for += 1;
-    if (item.support === VOTE_AGAINST) acc.against += 1;
-    if (item.support === VOTE_ABSTAIN) acc.abstain += 1;
-    return acc;
-  }, { for: 0, against: 0, abstain: 0 });
   const currentVote = session.address ? votes.find((vote) => vote.voter === session.address) ?? null : null;
   const actionMode = proposalActionMode(detail?.state);
   const errorMessage = error instanceof Error ? error.message : '';
@@ -210,11 +205,11 @@ export default function ProposalDetailPage() {
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">
-          {detail ? <ProposalOverview detail={detail} now={now} /> : null}
+          {detail ? <ProposalOverview detail={detail} now={now} network={config.name} /> : null}
           {errorMessage ? <Text className="lede" style={{ margin: 0 }}>{errorMessage}</Text> : null}
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
-            <ProposalVoteSummary forCount={activeVotes.for} againstCount={activeVotes.against} abstainCount={activeVotes.abstain} />
+            <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
             {detail && actionMode === 'vote' ? (
               <ProposalVotePanel
                 canVote={true}
@@ -226,22 +221,10 @@ export default function ProposalDetailPage() {
               />
             ) : null}
             {detail && actionMode === 'queue' ? (
-              <ProposalLifecycleAction
-                title="This proposal passed and is ready to queue."
-                body="Queue it to move the proposal into the execution-ready state."
-                buttonLabel="Queue proposal"
-                onAction={() => void queueProposal()}
-                busy={busy}
-              />
+              <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
             ) : null}
             {detail && actionMode === 'execute' ? (
-              <ProposalLifecycleAction
-                title="This proposal is queued and ready to execute."
-                body="Execute it now to perform the proposal's on-chain action."
-                buttonLabel="Execute proposal"
-                onAction={() => void executeProposal()}
-                busy={busy}
-              />
+              <ProposalExecutePanel busy={busy} onExecute={() => void executeProposal()} />
             ) : null}
             {detail && actionMode === 'outcome' ? (
               <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />

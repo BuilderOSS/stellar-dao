@@ -16,6 +16,7 @@ export type ProposalDetail = {
   deadline: number;
   state: ProposalState;
   label: string;
+  quorumVotes: string | null;
 };
 
 export type ProposalVoteItem = {

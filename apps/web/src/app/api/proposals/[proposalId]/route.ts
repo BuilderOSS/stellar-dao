@@ -11,6 +11,7 @@ type GovernorClient = {
   proposal_deadline: (args: { proposal_id: Buffer }) => Promise<{ result: number }>;
   proposal_snapshot: (args: { proposal_id: Buffer }) => Promise<{ result: number }>;
   proposal_proposer: (args: { proposal_id: Buffer }) => Promise<{ result: string }>;
+  quorum: (args: { ledger: number }) => Promise<{ result: bigint }>;
 };
 
 export async function GET(_request: Request, context: { params: Promise<{ proposalId: string }> }) {
@@ -39,6 +40,13 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         client.proposal_snapshot({ proposal_id: proposalBuffer }),
         client.proposal_proposer({ proposal_id: proposalBuffer })
       ]);
+      let quorumVotes: string | null = null;
+      try {
+        const quorumTx = await client.quorum({ ledger: snapshotTx.result });
+        quorumVotes = quorumTx.result.toString();
+      } catch {
+        quorumVotes = null;
+      }
 
       const payload = {
         ...detail,
@@ -49,7 +57,8 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         vote_start: detail.vote_start || snapshotTx.result + 1,
         deadline: detail.deadline || deadlineTx.result,
         state: stateTx.result,
-        label: proposalStateLabel(stateTx.result)
+        label: proposalStateLabel(stateTx.result),
+        quorumVotes
       };
 
       return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
@@ -59,7 +68,8 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
           ...detail,
           metadata: parseProposalMetadata(detail.description),
           state: ProposalState.Pending,
-          label: detail.label || 'Pending'
+          label: detail.label || 'Pending',
+          quorumVotes: null
         },
         { headers: { 'Cache-Control': 'no-store' } }
       );

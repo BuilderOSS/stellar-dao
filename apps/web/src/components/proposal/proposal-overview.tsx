@@ -1,11 +1,15 @@
 import { Card, Heading, ShortId, Text } from '@/components/ui';
-import { Stack } from 'styled-system/jsx';
+import { Grid, Stack } from 'styled-system/jsx';
 import type { ProposalDetail } from './types';
 import { ProposalStateBadge } from './proposal-state-badge';
+import { ProposalState } from '@/lib/proposal-state';
+import type { DaoNetworkName } from '@/lib/dao-config';
+import { getExplorerLedgerUrl } from '@/lib/explorer-links';
 
 type ProposalOverviewProps = {
   detail: ProposalDetail;
   now: number;
+  network: DaoNetworkName;
 };
 
 function formatCountdown(target: number, now: number) {
@@ -16,19 +20,95 @@ function formatCountdown(target: number, now: number) {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
-export function ProposalOverview({ detail, now }: ProposalOverviewProps) {
+function formatDateTime(timestamp: number) {
+  if (!timestamp) return '—';
+  try {
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
+  } catch {
+    return String(timestamp);
+  }
+}
+
+function getTimeline(detail: ProposalDetail, now: number) {
+  switch (detail.state) {
+    case ProposalState.Pending:
+      return {
+        eyebrow: 'Voting starts',
+        headline: `Voting starts in ${formatCountdown(detail.vote_start || detail.vote_end, now)}`,
+        subline: `Opens ${formatDateTime(detail.vote_start || detail.vote_end)}`
+      };
+    case ProposalState.Active:
+      return {
+        eyebrow: 'Voting ends',
+        headline: `Voting ends in ${formatCountdown(detail.vote_end, now)}`,
+        subline: `Closes ${formatDateTime(detail.vote_end)}`
+      };
+    case ProposalState.Succeeded:
+      return {
+        eyebrow: 'Ready to queue',
+        headline: `Voting ended ${formatDateTime(detail.vote_end)}`,
+        subline: 'This proposal can now be queued for execution.'
+      };
+    case ProposalState.Queued:
+      return {
+        eyebrow: 'Ready to execute',
+        headline: detail.eta ? `Execution ETA ${formatDateTime(detail.eta)}` : 'Queued for execution',
+        subline: 'This proposal is waiting to be executed.'
+      };
+    case ProposalState.Defeated:
+    case ProposalState.Canceled:
+    case ProposalState.Expired:
+    case ProposalState.Executed:
+      return {
+        eyebrow: 'Finalized',
+        headline: `${detail.label} at ${formatDateTime(detail.deadline || detail.vote_end)}`,
+        subline: 'No further action is available.'
+      };
+    default:
+      return {
+        eyebrow: 'Timeline',
+        headline: 'Not available',
+        subline: 'Timeline information is unavailable.'
+      };
+  }
+}
+
+export function ProposalOverview({ detail, now, network }: ProposalOverviewProps) {
+  const timeline = getTimeline(detail, now);
+
   return (
     <Card p="5">
       <Stack gap="3">
         <div>
           <ProposalStateBadge label={detail.label} />
         </div>
+        <Card p="4" style={{ background: 'rgba(157, 179, 203, 0.08)', border: '1px solid rgba(157, 179, 203, 0.18)' }}>
+          <Stack gap="1">
+            <Text className="label">{timeline.eyebrow}</Text>
+            <Heading style={{ fontSize: '1.5rem' }}>{timeline.headline}</Heading>
+            <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{timeline.subline}</Text>
+          </Stack>
+        </Card>
         <Heading style={{ fontSize: '1.35rem' }}>{detail.metadata.title}</Heading>
+        <Grid columns={{ base: 1, md: 2 }} gap="3">
+          <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
+            <Stack gap="1">
+              <Text className="label">Snapshot</Text>
+              <a href={getExplorerLedgerUrl(network, detail.vote_snapshot)} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>Ledger #{detail.vote_snapshot}</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Open in Stellar Expert</Text>
+              </a>
+            </Stack>
+          </Card>
+          <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
+            <Stack gap="1">
+              <Text className="label">Proposer</Text>
+              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>{detail.proposer}</Text>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Snapshot ledger #{detail.vote_snapshot}</Text>
+            </Stack>
+          </Card>
+        </Grid>
         <Stack gap="2">
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Proposer: {detail.proposer}</Text>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Snapshot ledger: {detail.vote_snapshot}</Text>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Deadline ledger: {detail.vote_end}</Text>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Ends in: {formatCountdown(detail.vote_end, now)}</Text>
           <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {detail.metadata.description || '—'}</Text>
           <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>URL: {detail.metadata.url || '—'}</Text>
           {detail.metadata.url ? (
