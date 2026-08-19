@@ -61,8 +61,8 @@ export function buildMintProposalCall(recipient: string, tokenContractId: string
   args: ProposalCallArgs;
 } {
   return {
-    targets: [treasuryContractId],
-    functions: ['execute'],
-    args: [[tokenContractId, 'mint', [treasuryContractId, recipient]]]
+    targets: [tokenContractId],
+    functions: ['mint'],
+    args: [[treasuryContractId, recipient]]
   };
 }

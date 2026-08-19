@@ -128,7 +128,7 @@ export default function ProposalCreatePage() {
       <PageSection
         eyebrow="Proposals"
         title="Create proposal"
-        description="Draft proposal metadata, choose a transaction type, and review the encoded payload before submitting."
+        description="Draft proposal metadata, choose a transaction type, and review the call details before submitting."
       >
         <Stack gap="4">
           <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
@@ -222,7 +222,7 @@ export default function ProposalCreatePage() {
               {step === 3 ? (
                 <Stack gap="3">
                   <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                    Review the encoded proposal metadata and transaction details before submitting on-chain.
+                    Review the encoded proposal metadata and direct call details before submitting on-chain.
                   </Text>
                   <Card p="4">
                     <Stack gap="2">
@@ -237,9 +237,10 @@ export default function ProposalCreatePage() {
                     <Stack gap="2">
                       <Text className="label">Transaction</Text>
                       <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Type: Mint governance token</Text>
+                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Target: {config.tokenContractId}</Text>
+                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Function: mint</Text>
                       <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Recipient: {recipient}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Treasury: {config.treasuryContractId}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Token: {config.tokenContractId}</Text>
+                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Treasury/minter: {config.treasuryContractId}</Text>
                     </Stack>
                   </Card>
 
