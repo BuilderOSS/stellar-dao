@@ -8,47 +8,22 @@ import { Client as ContractClient, type AssembledTransaction, type MethodOptions
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
+import { Button, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
-import type { ProposalMetadata } from '@/lib/proposal-metadata';
-import { proposalStateBadgeStyle } from '@/lib/proposal-state';
+import { ProposalLifecycleAction } from '@/components/proposal/proposal-lifecycle-action';
+import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
+import { ProposalOverview } from '@/components/proposal/proposal-overview';
+import { ProposalVoteHistory } from '@/components/proposal/proposal-vote-history';
+import { ProposalVotePanel } from '@/components/proposal/proposal-vote-panel';
+import { ProposalVoteSummary } from '@/components/proposal/proposal-vote-summary';
+import type { ProposalDetail, ProposalVoteItem } from '@/components/proposal/types';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 import useSWR from 'swr';
 
-type ProposalDetailResponse = {
-  proposalId: string;
-  metadata: ProposalMetadata;
-  proposer: string;
-  description: string;
-  targets: string[];
-  functions: string[];
-  args: string[][];
-  vote_end: number;
-  vote_snapshot: number;
-  vote_start: number;
-  eta: number;
-  deadline: number;
-  state: number;
-  label: string;
-};
-
-type ProposalVoteItem = {
-  id: string;
-  proposalId: string;
-  voter: string;
-  support: number;
-  weight: string;
-  reason: string;
-  ledger: number;
-  timestamp: number;
-  txHash: string;
-  contractId: string;
-};
-
 type ProposalPageData = {
-  detail: ProposalDetailResponse;
+  detail: ProposalDetail;
   votes: ProposalVoteItem[];
 };
 
@@ -62,14 +37,6 @@ type GovernorClient = {
 const VOTE_FOR = 1;
 const VOTE_AGAINST = 0;
 const VOTE_ABSTAIN = 2;
-
-function formatCountdown(target: number, now: number) {
-  if (!target) return '—';
-  const delta = Math.max(0, target - Math.floor(now / 1000));
-  const minutes = Math.floor(delta / 60);
-  const seconds = delta % 60;
-  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
-}
 
 function descriptionHash(description: string) {
   return Buffer.from(description, 'utf8');
@@ -98,7 +65,7 @@ async function fetchProposalPageData([, proposalId]: readonly ['proposal-detail'
     throw new Error((await votesResponse.json()).message || 'Vote lookup failed');
   }
 
-  const detail = (await detailResponse.json()) as ProposalDetailResponse;
+  const detail = (await detailResponse.json()) as ProposalDetail;
   const votesPayload = (await votesResponse.json()) as { items?: ProposalVoteItem[] };
 
   return { detail, votes: votesPayload.items ?? [] };
@@ -220,8 +187,21 @@ export default function ProposalDetailPage() {
     if (item.support === VOTE_ABSTAIN) acc.abstain += 1;
     return acc;
   }, { for: 0, against: 0, abstain: 0 });
-  const loading = isLoading && !data;
+  const currentVote = session.address ? votes.find((vote) => vote.voter === session.address) ?? null : null;
+  const canVote = detail?.label === 'Active';
+  const canQueue = detail?.label === 'Succeeded';
+  const canExecute = detail?.label === 'Queued';
   const errorMessage = error instanceof Error ? error.message : '';
+
+  function voteLabelForSupport(support: number) {
+    if (support === VOTE_FOR) return 'For';
+    if (support === VOTE_AGAINST) return 'Against';
+    return 'Abstain';
+  }
+
+  function outcomeStateLabel() {
+    return detail?.label ?? 'Loading';
+  }
 
   return (
     <DaoShell>
@@ -230,76 +210,72 @@ export default function ProposalDetailPage() {
         title={detail ? detail.metadata.title : `Proposal ${proposalId}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
-        <Grid columns={{ base: 1, xl: 2 }} gap="4">
-          <Card p="5">
-            <Stack gap="3">
-              <div>
-                <Badge style={proposalStateBadgeStyle(detail?.label ?? 'Loading')}>{detail?.label ?? 'Loading'}</Badge>
-              </div>
-              <Heading style={{ fontSize: '1.35rem' }}>{detail?.metadata.title ?? 'Vote window and execution status'}</Heading>
-              {loading ? <Text className="lede" style={{ margin: 0 }}>Loading proposal data…</Text> : null}
-              {errorMessage ? <Text className="lede" style={{ margin: 0 }}>{errorMessage}</Text> : null}
-              {detail ? (
-                <Stack gap="2">
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Proposer: {detail.proposer}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Snapshot ledger: {detail.vote_snapshot}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Deadline ledger: {detail.vote_end}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Ends in: {formatCountdown(detail.vote_end, now)}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {detail.metadata.description || '—'}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>URL: {detail.metadata.url || '—'}</Text>
-                  {detail.metadata.url ? (
-                    <a href={detail.metadata.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{detail.metadata.url}</a>
-                  ) : null}
-                </Stack>
-              ) : null}
-              <ShortId value={proposalId} label="Proposal id" />
-            </Stack>
-          </Card>
+        <Stack gap="4">
+          {detail ? <ProposalOverview detail={detail} now={now} /> : null}
+          {errorMessage ? <Text className="lede" style={{ margin: 0 }}>{errorMessage}</Text> : null}
 
-          <Card p="5">
-            <Stack gap="3">
-              <Text className="label">Actions</Text>
-              <Input value={voteReason} onChange={(event) => setVoteReason(event.target.value)} placeholder="Vote reason" />
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                <Button type="button" onClick={() => void submitVote(VOTE_FOR)} disabled={busy || !session.address}>For</Button>
-                <Button type="button" variant="outline" onClick={() => void submitVote(VOTE_AGAINST)} disabled={busy || !session.address}>Against</Button>
-                <Button type="button" variant="outline" onClick={() => void submitVote(VOTE_ABSTAIN)} disabled={busy || !session.address}>Abstain</Button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                <Button type="button" variant="outline" onClick={() => void queueProposal()} disabled={busy || !session.address}>Queue</Button>
-                <Button type="button" variant="outline" onClick={() => void executeProposal()} disabled={busy || !session.address}>Execute</Button>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
-                {isLoading ? 'Refreshing...' : 'Refresh'}
-              </Button>
-              {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
-              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>For {activeVotes.for} | Against {activeVotes.against} | Abstain {activeVotes.abstain}</Text>
-            </Stack>
-          </Card>
-        </Grid>
+          <Grid columns={{ base: 1, xl: 2 }} gap="4">
+            <ProposalVoteSummary forCount={activeVotes.for} againstCount={activeVotes.against} abstainCount={activeVotes.abstain} />
+            {detail && canVote ? (
+              <ProposalVotePanel
+                canVote={canVote}
+                busy={busy}
+                voteReason={voteReason}
+                onVoteReasonChange={setVoteReason}
+                onVote={(voteType) => void submitVote(voteType)}
+                currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
+              />
+            ) : null}
+            {detail && !canVote && currentVote ? (
+              <ProposalVotePanel
+                canVote={false}
+                busy={busy}
+                voteReason={voteReason}
+                onVoteReasonChange={setVoteReason}
+                onVote={(voteType) => void submitVote(voteType)}
+                currentVote={{ label: voteLabelForSupport(currentVote.support), reason: currentVote.reason }}
+              />
+            ) : null}
+            {detail && canQueue ? (
+              <ProposalLifecycleAction
+                title="This proposal passed and is ready to queue."
+                body="Queue it to move the proposal into the execution-ready state."
+                buttonLabel="Queue proposal"
+                onAction={() => void queueProposal()}
+                busy={busy}
+              />
+            ) : null}
+            {detail && canExecute ? (
+              <ProposalLifecycleAction
+                title="This proposal is queued and ready to execute."
+                body="Execute it now to perform the proposal's on-chain action."
+                buttonLabel="Execute proposal"
+                onAction={() => void executeProposal()}
+                busy={busy}
+              />
+            ) : null}
+            {detail && !canVote && !canQueue && !canExecute && !currentVote ? (
+              <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />
+            ) : null}
+          </Grid>
 
-        <Card p="5">
-          <Stack gap="3">
-            <Text className="label">Votes</Text>
-            {!votes.length ? (
-              <Text className="lede" style={{ margin: 0 }}>No votes indexed yet.</Text>
-            ) : (
-              <Grid columns={{ base: 1, xl: 2 }} gap="3">
-                {votes.map((vote) => (
-                  <Card key={vote.id} p="4">
-                    <Stack gap="1">
-                      <ShortId value={vote.voter} label={vote.support === VOTE_FOR ? 'For' : vote.support === VOTE_AGAINST ? 'Against' : 'Abstain'} />
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Weight {vote.weight}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{vote.reason || 'No reason provided'}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{formatTimestamp(vote.timestamp)} | Ledger {vote.ledger}</Text>
-                    </Stack>
-                  </Card>
-                ))}
-              </Grid>
-            )}
-            <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
-          </Stack>
-        </Card>
+          {detail ? (
+            <ProposalVoteHistory
+              votes={votes}
+              voteLabelForSupport={voteLabelForSupport}
+              formatTimestamp={formatTimestamp}
+            />
+          ) : null}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <Text className="lede" style={{ margin: 0 }}>{status}</Text>
+            <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
+              {isLoading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
+
+          <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
+        </Stack>
       </PageSection>
     </DaoShell>
   );

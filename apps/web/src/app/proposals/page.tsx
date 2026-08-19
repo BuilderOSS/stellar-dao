@@ -6,26 +6,9 @@ import useSWR from 'swr';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Text } from '@/components/ui';
-import { proposalStateBadgeStyle } from '@/lib/proposal-state';
-import type { ProposalMetadata } from '@/lib/proposal-metadata';
+import { ProposalStateBadge } from '@/components/proposal/proposal-state-badge';
 import { Grid, Stack } from 'styled-system/jsx';
-
-type ProposalListItem = {
-  proposalId: string;
-  metadata: ProposalMetadata;
-  state: number | null;
-  stateLabel: string;
-  ledger: number;
-  timestamp: number;
-  txHash: string;
-  contractId: string;
-};
-
-type ProposalListResponse = {
-  items: ProposalListItem[];
-  generatedAt: string;
-  message?: string;
-};
+import type { ProposalListResponse } from '@/components/proposal/types';
 
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
@@ -78,7 +61,7 @@ export default function ProposalsPage() {
                   <Link href={`/proposals/${item.proposalId}`} style={{ textDecoration: 'none' }}>
                     <Stack gap="2">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                        <Badge style={proposalStateBadgeStyle(item.stateLabel)}>{item.stateLabel}</Badge>
+                        <ProposalStateBadge label={item.stateLabel} />
                         <Badge>{item.metadata.title}</Badge>
                       </div>
                       <Heading style={{ fontSize: '1.1rem' }}>{item.metadata.description}</Heading>

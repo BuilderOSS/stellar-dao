@@ -27,7 +27,7 @@ type ProposalGroup = {
   latestTimestamp: number;
 };
 
-async function fetchProposalState(client: ContractClient<GovernorClient>, proposalId: string) {
+async function fetchProposalState(client: ContractClient & GovernorClient, proposalId: string) {
   const proposalBuffer = proposalIdToBuffer(proposalId);
   const stateTx = await client.proposal_state({ proposal_id: proposalBuffer });
   return stateTx.result;
