@@ -7,29 +7,32 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 import Link from 'next/link';
+import useSWR from 'swr';
+
+type ProposalListItem = {
+  proposalId: string;
+  title: string;
+  summary: string;
+  state: number | null;
+  stateLabel: string;
+  ledger: number;
+  timestamp: number;
+  txHash: string;
+  contractId: string;
+};
+
+type ProposalListResponse = {
+  items: ProposalListItem[];
+  generatedAt: string;
+  message?: string;
+};
 
 type GovernorClient = {
   propose: (args: { targets: string[]; functions: string[]; args: string[][]; description: string; proposer: string }, options?: MethodOptions) => Promise<AssembledTransaction<string>>;
 };
-
-function proposalBucket(title: string) {
-  switch (title) {
-    case 'Proposal Created':
-      return 'Pending';
-    case 'Proposal Call':
-      return 'Execution';
-    case 'Proposal Lifecycle':
-      return 'State';
-    case 'Vote Cast':
-      return 'Votes';
-    default:
-      return 'Proposal';
-  }
-}
 
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
@@ -43,8 +46,15 @@ function formatTimestamp(timestamp: number) {
 export default function ProposalsPage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
-  const { data, error, isLoading, mutate } = useMercuryActivityFeed(24);
-  const items = (data?.items ?? []).filter((item) => item.programKey === 'governor');
+  const { data, error, isLoading, mutate } = useSWR<ProposalListResponse>('/api/proposals?limit=24', async (url: string) => {
+    const response = await fetch(url, { cache: 'no-store' });
+    const json = (await response.json()) as ProposalListResponse;
+    if (!response.ok) {
+      throw new Error(json.message || 'Proposal list failed');
+    }
+    return json;
+  }, { keepPreviousData: true });
+  const items = data?.items ?? [];
   const [recipient, setRecipient] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -147,11 +157,11 @@ export default function ProposalsPage() {
               ) : (
                 <Grid columns={{ base: 1 }} gap="4">
                   {items.map((item) => (
-                    <Card key={item.id} p="4">
-                      <Link href={item.proposalId ? `/proposals/${item.proposalId}` : '#'} style={{ textDecoration: 'none' }}>
+                    <Card key={item.proposalId} p="4">
+                      <Link href={`/proposals/${item.proposalId}`} style={{ textDecoration: 'none' }}>
                         <Stack gap="2">
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                            <Badge>{proposalBucket(item.title)}</Badge>
+                            <Badge>{item.stateLabel}</Badge>
                             <Badge>{item.title}</Badge>
                           </div>
                           <Heading style={{ fontSize: '1.1rem' }}>{item.summary}</Heading>

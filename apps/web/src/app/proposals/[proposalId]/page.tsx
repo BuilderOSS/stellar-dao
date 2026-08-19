@@ -230,7 +230,9 @@ export default function ProposalDetailPage() {
         <Grid columns={{ base: 1, xl: 2 }} gap="4">
           <Card p="5">
             <Stack gap="3">
-              <Badge>{detail?.label ?? 'Loading'}</Badge>
+              <div>
+                <Badge>{detail?.label ?? 'Loading'}</Badge>
+              </div>
               <Heading style={{ fontSize: '1.35rem' }}>Vote window and execution status</Heading>
               {loading ? <Text className="lede" style={{ margin: 0 }}>Loading proposal data…</Text> : null}
               {errorMessage ? <Text className="lede" style={{ margin: 0 }}>{errorMessage}</Text> : null}
