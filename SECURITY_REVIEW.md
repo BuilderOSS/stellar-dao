@@ -1,0 +1,1426 @@
+# DAO Smart Contracts Security Review
+
+**Review Date:** 2026-08-19
+**Reviewer Perspective:** DAO Governance Expert & Senior Soroban Engineer
+**Contracts Reviewed:** Token, Governor, Treasury
+**Context:** MVP with intentional owner controls (minting, mint_authority, governor_authority)
+
+---
+
+## Executive Summary
+
+This review identified **28 issues** across the DAO smart contract system. The contracts demonstrate solid fundamentals with proper authorization, overflow protection, and snapshot-based voting. However, several critical issues require attention before mainnet deployment.
+
+### Priority Breakdown
+
+- **Critical (4):** Storage patterns, TTL management, time unit consistency
+- **High (8):** Governance logic, parameter validation, transparency
+- **Medium (8):** UX improvements, gas optimization, validation
+- **Low (8):** Code quality, naming, documentation
+
+### Test Coverage
+
+✅ 44 tests passing (18 token, 20 governor, 6 e2e)
+
+---
+
+## 🔴 CRITICAL ISSUES
+
+### Issue #1: Direct Storage Write Bypasses Delegation System
+
+**Location:** `contracts/token/src/contract.rs:171`
+
+**Code:**
+```rust
+fn ensure_self_delegate(e: &Env, account: &Address) {
+    if get_delegate(e, account).is_none() {
+        // ISSUE: Direct storage write instead of using delegation API
+        e.storage().persistent().set(&VotesStorageKey::Delegatee(account.clone()), account);
+        emit_delegate_changed(e, account, None, account);
+```
+
+**Impact:**
+- **Severity:** HIGH
+- Bypasses any validation or hooks in the stellar_governance library's delegation system
+- Could cause state inconsistencies if the library expects delegation through specific functions
+- May not properly update internal library state (e.g., vote counting, checkpoints)
+
+**Recommendation:**
+```rust
+// Use the proper delegation API from stellar_governance
+fn ensure_self_delegate(e: &Env, account: &Address) {
+    if get_delegate(e, account).is_none() {
+        // Use library's delegation function instead of direct storage
+        Votes::delegate(e, account, account);
+    }
+}
+```
+
+**Action Required:** Verify stellar_governance library's delegation API and use it consistently.
+
+---
+
+### Issue #2: Execute Function Multi-Action Restriction
+
+**Location:** `contracts/governor/src/governor.rs:498-503`
+
+**Code:**
+```rust
+fn execute(...) -> BytesN<32> {
+    // ISSUE: Hardcoded to only accept single-action proposals
+    assert!(targets.len() == 1);
+    assert!(functions.len() == 1);
+    let treasury = Self::treasury(e);
+    assert!(targets.get_unchecked(0) == treasury);
+    assert!(functions.get_unchecked(0) == Symbol::new(e, "execute"));
+```
+
+**Impact:**
+- **Severity:** MEDIUM (Design Clarification Needed)
+- Proposals can be created with multiple targets/functions but execution will fail
+- Misleading UX: users can vote on proposals that can never execute
+- Uses `assert!` instead of proper error handling
+
+**Current Design Understanding:**
+Based on clarification, multi-action proposals should work as follows:
+1. Governor accepts proposals with multiple actions
+2. Governor calls treasury.execute() with the action array
+3. Treasury then executes each action in sequence
+
+**Current Issue:**
+The code enforces `targets.len() == 1` and `functions.len() == 1`, which prevents multi-action proposals.
+
+**Recommendation:**
+```rust
+fn execute(...) -> BytesN<32> {
+    executor.require_auth();
+    e.current_contract_address().require_auth();
+
+    let treasury = Self::treasury(e);
+
+    // Allow multiple actions, but all must go through treasury
+    for i in 0..targets.len() {
+        if targets.get(i).unwrap() != treasury {
+            panic_with_error!(e, GovernorError::InvalidTarget);
+        }
+        if functions.get(i).unwrap() != Symbol::new(e, "execute") {
+            panic_with_error!(e, GovernorError::InvalidFunction);
+        }
+    }
+
+    // Execute all actions through treasury
+    for i in 0..args.len() {
+        e.invoke_contract::<Val>(&treasury, &Symbol::new(e, "execute"), args.get(i).unwrap());
+    }
+
+    // ... rest of execution logic
+}
+```
+
+**Alternative (Current Behavior):**
+If single-action is intentional for MVP, add validation in `propose()`:
+```rust
+fn propose(...) -> BytesN<32> {
+    // ... existing checks ...
+
+    if targets.len() != 1 || functions.len() != 1 || args.len() != 1 {
+        panic_with_error!(e, GovernorError::MultiActionNotSupported);
+    }
+
+    // ... rest of function
+}
+```
+
+**Action Required:** Choose approach and implement consistently.
+
+---
+
+### Issue #3: Missing TTL Management
+
+**Location:** All contracts (Token, Governor, Treasury)
+
+**Impact:**
+- **Severity:** CRITICAL
+- Soroban storage requires active TTL management or data will expire
+- Proposal data could expire before execution (voting delay + voting period + queue delay)
+- Token ownership could expire
+- Delegation mappings could expire
+- Governance state could be lost
+
+**Current State:** No TTL bumping logic exists in any contract.
+
+**Required TTL Strategy:**
+
+```rust
+// Constants for TTL management
+const PROPOSAL_TTL: u32 = 518_400; // 60 days in ledgers (~5 sec/ledger)
+const TOKEN_TTL: u32 = 5_184_000;  // ~1000 days
+const DELEGATION_TTL: u32 = 518_400; // 60 days
+
+// Example: Bump proposal TTL
+fn extend_proposal_ttl(e: &Env, proposal_id: &BytesN<32>) {
+    let key = Self::proposal_key(proposal_id);
+    e.storage().persistent().extend_ttl(&key, PROPOSAL_TTL, PROPOSAL_TTL);
+}
+
+// Token contract - extend on mint/transfer
+pub fn mint(e: &Env, minter: &Address, to: &Address) -> u32 {
+    // ... existing logic ...
+
+    // Extend TTL for token ownership
+    let owner_key = NFTBaseStorageKey::Owner(token_id);
+    e.storage().persistent().extend_ttl(&owner_key, TOKEN_TTL, TOKEN_TTL);
+
+    // Extend TTL for balance
+    let balance_key = NFTBaseStorageKey::Balance(to.clone());
+    e.storage().persistent().extend_ttl(&balance_key, TOKEN_TTL, TOKEN_TTL);
+
+    token_id
+}
+
+// Governor - extend on vote operations
+pub fn cast_vote(...) {
+    // ... existing logic ...
+
+    // Extend proposal TTL when someone votes
+    extend_proposal_ttl(e, &proposal_id);
+}
+```
+
+**Action Required:**
+1. Define TTL strategy for each data type
+2. Implement TTL bumping at appropriate lifecycle points
+3. Add tests to verify TTL management
+4. Document TTL expectations for users
+
+---
+
+### Issue #4: Mixed Time Units (Timestamp vs Ledger Sequence)
+
+**Location:** `contracts/governor/src/governor.rs:251-409`
+
+**Code:**
+```rust
+// Proposal state uses timestamps (u64)
+let now = e.ledger().timestamp(); // u64 Unix timestamp
+let start = proposal.vote_start as u64; // Stored as u32
+
+// But proposal creation does arithmetic that could overflow
+let vote_start = now.checked_add(Self::voting_delay(e) as u64)...;
+let vote_end: u32 = vote_end.try_into().unwrap_or_else(...); // u64 -> u32
+
+// Meanwhile, voting uses ledger sequence
+let snapshot_ledger = current_ledger.saturating_sub(1);
+let proposer_votes = VotesClient::new(e, &token)
+    .get_votes_at_checkpoint(&proposer, &snapshot_ledger);
+```
+
+**Impact:**
+- **Severity:** MEDIUM-HIGH
+- Inconsistent time handling makes code harder to audit
+- Timestamp overflow in ~136 years (u32 max = 4,294,967,295 seconds = 2106)
+- Mixing timestamps and ledger sequences is confusing
+- `try_into().unwrap_or_else()` could theoretically panic on overflow
+
+**Recommendation:**
+
+**Option A: Use Ledger Sequences (Recommended)**
+```rust
+// More deterministic, blockchain-native approach
+let current_ledger = e.ledger().sequence();
+let vote_start_ledger = current_ledger.saturating_add(voting_delay_blocks);
+let vote_end_ledger = vote_start_ledger.saturating_add(voting_period_blocks);
+
+// Convert voting_delay from seconds to blocks
+// Assuming ~5 seconds per block
+const SECONDS_PER_BLOCK: u32 = 5;
+let voting_delay_blocks = voting_delay / SECONDS_PER_BLOCK;
+```
+
+**Option B: Use Timestamps Consistently**
+```rust
+// Keep all times as u64 timestamps
+#[contracttype]
+#[derive(Clone)]
+struct ProposalCoreTime {
+    proposer: Address,
+    vote_snapshot: u32,      // Still ledger for voting power lookup
+    vote_start: u64,         // Changed to u64
+    vote_end: u64,           // Changed to u64
+    eta: u64,
+    state: ProposalState,
+}
+
+// No more try_into conversions
+let vote_start = now.checked_add(voting_delay as u64)?;
+let vote_end = vote_start.checked_add(voting_period as u64)?;
+```
+
+**Action Required:** Choose one time system and use it consistently. Ledger sequences are generally preferred in governance systems for determinism.
+
+---
+
+## 🟠 HIGH PRIORITY ISSUES
+
+### Issue #5: No Proposal Expiration Mechanism
+
+**Location:** `contracts/governor/src/governor.rs:243-274`
+
+**Code:**
+```rust
+fn proposal_state_internal(...) -> ProposalState {
+    match proposal.state {
+        ProposalState::Canceled | ProposalState::Executed
+        | ProposalState::Queued | ProposalState::Expired => {
+            return proposal.state;
+        }
+        _ => {}
+    }
+    // ISSUE: ProposalState::Expired exists but is never set
+}
+```
+
+**Impact:**
+- **Severity:** MEDIUM
+- Queued proposals can sit forever and be executed long after community consensus changes
+- No cleanup mechanism for old proposals
+- Storage bloat over time
+- Stale governance decisions could be executed unexpectedly
+
+**Recommendation:**
+```rust
+const PROPOSAL_EXPIRATION_PERIOD: u64 = 30 * 24 * 3600; // 30 days
+
+fn proposal_state_internal(...) -> ProposalState {
+    match proposal.state {
+        ProposalState::Queued => {
+            let now = e.ledger().timestamp();
+            // Expire if queued for too long after ETA
+            if now > proposal.eta + PROPOSAL_EXPIRATION_PERIOD {
+                return ProposalState::Expired;
+            }
+            return ProposalState::Queued;
+        }
+        ProposalState::Canceled | ProposalState::Executed | ProposalState::Expired => {
+            return proposal.state;
+        }
+        _ => {}
+    }
+    // ... rest of function
+}
+```
+
+**Action Required:** Implement expiration logic with configurable expiration period.
+
+---
+
+### Issue #6: Zero Vote Weight Allowed
+
+**Location:** `contracts/governor/src/governor.rs:452-485`
+
+**Code:**
+```rust
+pub fn cast_vote(...) -> u128 {
+    voter.require_auth();
+
+    let token = governor::get_token_contract(e);
+    let voter_weight = VotesClient::new(e, &token)
+        .get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
+
+    // ISSUE: No check if voter_weight == 0
+    governor::count_vote(e, &proposal_id, &voter, vote_type, voter_weight);
+```
+
+**Impact:**
+- **Severity:** LOW-MEDIUM
+- Users with 0 voting power can vote (wastes gas)
+- Pollutes vote event logs
+- Could be used for spam/griefing
+- Confusing UX (users wonder why their vote didn't count)
+
+**Recommendation:**
+```rust
+pub fn cast_vote(...) -> u128 {
+    voter.require_auth();
+
+    let proposal = Self::get_proposal(e, &proposal_id);
+    if Self::proposal_state_internal(e, &proposal_id, &proposal) != ProposalState::Active {
+        panic_with_error!(e, GovernorError::ProposalNotActive);
+    }
+
+    let token = governor::get_token_contract(e);
+    let voter_weight = VotesClient::new(e, &token)
+        .get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
+
+    // Add zero weight check
+    if voter_weight == 0 {
+        panic_with_error!(e, GovernorError::InsufficientVotes);
+    }
+
+    governor::count_vote(e, &proposal_id, &voter, vote_type, voter_weight);
+    // ... rest
+}
+```
+
+**Action Required:** Add zero weight validation.
+
+---
+
+### Issue #7: Double Vote Prevention Not Explicit
+
+**Location:** `contracts/governor/src/governor.rs:452-485`
+
+**Impact:**
+- **Severity:** MEDIUM
+- Code relies entirely on `governor::count_vote` from stellar_governance library
+- No explicit check visible in contract code
+- If library doesn't prevent double voting, this is critical
+- Users can't tell from contract if vote changes are allowed
+- No explicit error message for double vote attempts
+
+**Recommendation:**
+1. Verify that `stellar_governance::governor::count_vote` prevents double voting
+2. Add explicit check and clear error message:
+
+```rust
+// Check if already voted (if library doesn't provide this)
+if governor::has_voted(e, &proposal_id, &voter) {
+    panic_with_error!(e, GovernorError::AlreadyVoted);
+}
+
+governor::count_vote(e, &proposal_id, &voter, vote_type, voter_weight);
+```
+
+3. Document in code comments whether vote changes are allowed
+
+**Action Required:** Audit stellar_governance library implementation and add explicit documentation.
+
+---
+
+### Issue #8: Proposal Cancellation Only by Proposer
+
+**Location:** `contracts/governor/src/governor.rs:550-587`
+
+**Code:**
+```rust
+fn cancel(...) -> BytesN<32> {
+    let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+    let mut proposal = Self::get_proposal(e, &proposal_id);
+
+    // ISSUE: Only proposer can cancel, even if they sold all their tokens
+    if operator != proposal.proposer {
+        panic_with_error!(e, GovernorError::ProposalNotCancellable);
+    }
+    operator.require_auth();
+```
+
+**Impact:**
+- **Severity:** MEDIUM
+- Common DAO pattern: allow cancel if proposer's votes drop below threshold
+- Proposer could sell all tokens but still cancel important proposals
+- Community can't cancel spam proposals even if proposer has no voting power
+- Griefing vector: create proposals, sell tokens, cancel when convenient
+
+**Recommendation:**
+```rust
+fn cancel(...) -> BytesN<32> {
+    let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+    let mut proposal = Self::get_proposal(e, &proposal_id);
+
+    // Allow cancel if: operator is proposer OR proposer lost voting power
+    let token = governor::get_token_contract(e);
+    let proposer_votes = VotesClient::new(e, &token).get_votes(&proposal.proposer);
+    let threshold = governor::get_proposal_threshold(e);
+
+    // Can cancel if you're the proposer OR if proposer lost threshold
+    if operator != proposal.proposer && proposer_votes >= threshold {
+        panic_with_error!(e, GovernorError::ProposalNotCancellable);
+    }
+
+    operator.require_auth();
+    // ... rest
+}
+```
+
+**Action Required:** Implement threshold-based cancellation rules.
+
+---
+
+### Issue #9: Queue Function Ignores ETA Parameter
+
+**Location:** `contracts/governor/src/governor.rs:312-352`
+
+**Code:**
+```rust
+fn queue(
+    e: &Env,
+    targets: Vec<Address>,
+    functions: Vec<Symbol>,
+    args: Vec<Vec<Val>>,
+    description_hash: BytesN<32>,
+    _eta: u32,           // ISSUE: Parameter accepted but ignored
+    _operator: Address,  // Also ignored
+) -> BytesN<32> {
+    // ... validation ...
+
+    let now = e.ledger().timestamp();
+    let eta = now.checked_add(Self::queue_delay(e) as u64)...;  // Calculated, not using param
+```
+
+**Impact:**
+- **Severity:** LOW
+- Misleading function signature
+- Interface mismatch with Governor trait expectations
+- Could cause integration issues with tooling/UIs
+
+**Recommendation:**
+
+**Option 1:** Use the parameter if it makes sense:
+```rust
+fn queue(..., eta: u32, ...) -> BytesN<32> {
+    let min_eta = now.checked_add(Self::queue_delay(e) as u64)?;
+
+    if (eta as u64) < min_eta {
+        panic_with_error!(e, GovernorError::InvalidEta);
+    }
+
+    proposal.eta = eta as u64;
+    // ...
+}
+```
+
+**Option 2:** Document why it's ignored:
+```rust
+fn queue(
+    e: &Env,
+    // ... other params ...
+    _eta: u32,  // Not used: ETA is calculated from queue_delay
+    _operator: Address,  // Not used: No operator restrictions
+) -> BytesN<32> {
+```
+
+**Action Required:** Either use the parameter or clearly document why it's not used.
+
+---
+
+### Issue #10: Quorum Calculation Rounding
+
+**Location:** `contracts/governor/src/governor.rs:290-306`
+
+**Code:**
+```rust
+fn quorum(e: &Env, ledger: u32) -> u128 {
+    let quorum_bps = governor::get_quorum(e, ledger);
+    let total_supply = VotesClient::new(e, &token).get_total_supply_at_checkpoint(&ledger);
+
+    if quorum_bps == 0 || total_supply == 0 {
+        return 0;
+    }
+
+    let product = total_supply.checked_mul(quorum_bps)?;
+    let adjusted = product.checked_add(9_999)?;  // ISSUE: Magic number
+    adjusted / 10_000
+}
+```
+
+**Impact:**
+- **Severity:** LOW
+- Rounding strategy is correct (rounds up) but not documented
+- Magic number 9_999 is unclear
+- Edge cases with very low supply not explicitly tested
+
+**Recommendation:**
+```rust
+const BPS_DENOMINATOR: u128 = 10_000;
+const BPS_ROUNDING_ADJUSTMENT: u128 = BPS_DENOMINATOR - 1; // 9_999
+
+fn quorum(e: &Env, ledger: u32) -> u128 {
+    let quorum_bps = governor::get_quorum(e, ledger);
+    let total_supply = VotesClient::new(e, &token).get_total_supply_at_checkpoint(&ledger);
+
+    if quorum_bps == 0 || total_supply == 0 {
+        return 0;
+    }
+
+    // Calculate quorum with ceiling division (rounds up)
+    // Example: 1% of 100 = (100 * 100 + 9999) / 10000 = 1 (rounds up)
+    let product = total_supply.checked_mul(quorum_bps)?;
+    let adjusted = product.checked_add(BPS_ROUNDING_ADJUSTMENT)?;
+    adjusted / BPS_DENOMINATOR
+}
+```
+
+**Action Required:** Add constants and documentation for rounding strategy.
+
+---
+
+### Issue #11: Governor Authority Can Modify Parameters During Active Proposals
+
+**Location:** `contracts/governor/src/governor.rs:159-182`
+
+**Impact:**
+- **Severity:** MEDIUM (Acceptable for MVP with governor authority model)
+- Governor authority can change voting_period, voting_delay, proposal_threshold, quorum_bps
+- Could manipulate active proposals (extend voting, change quorum mid-vote)
+- Undermines governance integrity if abused
+
+**Current Implementation:**
+```rust
+pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+    governor::set_voting_period(e, voting_period);  // Applies immediately
+}
+```
+
+**Context:** Based on clarification, keeping governor authority for MVP is intentional for flexibility.
+
+**Recommendations for Documentation:**
+```rust
+/// Sets the voting period for new proposals.
+///
+/// WARNING: This change affects all proposals, including active ones.
+/// Governor authority should be trusted to not manipulate active votes.
+///
+/// For production, consider:
+/// - Locking parameter changes when active proposals exist
+/// - Requiring parameter changes to go through governance
+/// - Storing parameters per-proposal at creation time
+pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+    governor::set_voting_period(e, voting_period);
+}
+```
+
+**Future Improvement (Post-MVP):**
+```rust
+pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+
+    // Prevent changes during active proposals
+    if Self::has_active_proposals(e) {
+        panic_with_error!(e, GovernorError::ActiveProposalsExist);
+    }
+
+    governor::set_voting_period(e, voting_period);
+}
+```
+
+**Action Required:** Document current behavior and security assumptions.
+
+---
+
+### Issue #12: No Events for Parameter Changes
+
+**Location:** `contracts/governor/src/governor.rs:148-182`
+
+**Code:**
+```rust
+pub fn set_voting_delay(e: &Env, caller: Address, voting_delay: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+    governor::set_voting_delay(e, voting_delay);
+    // ISSUE: No event emission
+}
+
+// Similar for set_voting_period, set_proposal_threshold, set_quorum_bps, set_queue_delay
+```
+
+**Impact:**
+- **Severity:** MEDIUM
+- No transparency for governance parameter changes
+- Difficult to track who changed what and when
+- Can't build UI dashboards showing parameter history
+- Indexing services (Mercury) can't track changes
+
+**Recommendation:**
+```rust
+#[cfg(feature = "mercury")]
+#[derive(Retroshade)]
+#[contracttype]
+pub struct ParameterChangedIndexed {
+    pub parameter: Symbol,  // "voting_delay", "voting_period", etc.
+    pub old_value: u128,
+    pub new_value: u128,
+    pub changed_by: Address,
+    pub ledger: u32,
+}
+
+pub fn set_voting_delay(e: &Env, caller: Address, voting_delay: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+
+    #[cfg(feature = "mercury")]
+    let old_value = Self::voting_delay(e);
+
+    governor::set_voting_delay(e, voting_delay);
+
+    #[cfg(feature = "mercury")]
+    retroshade::ParameterChangedIndexed {
+        parameter: Symbol::new(e, "voting_delay"),
+        old_value: old_value as u128,
+        new_value: voting_delay as u128,
+        changed_by: caller.clone(),
+        ledger: e.ledger().sequence(),
+    }
+    .emit(e);
+}
+```
+
+**Action Required:** Add event emissions for all parameter changes.
+
+---
+
+## 🟡 MEDIUM PRIORITY ISSUES
+
+### Issue #13: Treasury Execute Result Ignored
+
+**Location:** `contracts/governor/src/governor.rs:514` and `contracts/treasury/src/contract.rs:47-64`
+
+**Code:**
+```rust
+// Governor execute:
+e.invoke_contract::<Val>(&treasury, &Symbol::new(e, "execute"), args.get_unchecked(0));
+// ISSUE: Result is ignored
+
+// Treasury execute returns a value:
+pub fn execute(e: &Env, target: Address, function: Symbol, args: Vec<Val>) -> Val {
+    // ... auth checks ...
+    let result = e.invoke_contract::<Val>(&target, &function, args.clone());
+    result  // Returned but not used by Governor
+}
+```
+
+**Impact:**
+- **Severity:** LOW-MEDIUM
+- Can't distinguish between successful and failed execution
+- No way to verify execution results
+- Errors in target contract execution might go unnoticed
+- Can't store/emit execution results for auditability
+
+**Recommendation:**
+```rust
+// In Governor execute:
+let result = e.invoke_contract::<Val>(
+    &treasury,
+    &Symbol::new(e, "execute"),
+    args.get_unchecked(0)
+);
+
+// Optionally emit result
+#[cfg(feature = "mercury")]
+retroshade::ProposalExecutionResult {
+    proposal_id: proposal_id.clone(),
+    result: result.clone(),
+    ledger: e.ledger().sequence(),
+}
+.emit(e);
+```
+
+**Action Required:** Capture and optionally emit execution results.
+
+---
+
+### Issue #14: Batch Mint Limit Not Configurable
+
+**Location:** `contracts/token/src/contract.rs:48, 100-102`
+
+**Code:**
+```rust
+const MAX_BATCH_MINT: u32 = 100;
+
+pub fn batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32) -> u32 {
+    if amount == 0 || amount > MAX_BATCH_MINT {
+        panic!("invalid batch mint amount");
+    }
+```
+
+**Impact:**
+- **Severity:** LOW
+- Large DAOs might need to airdrop more than 100 tokens
+- Limit might be too conservative for actual gas limits
+- No flexibility for different use cases
+- Hardcoded value might not match Soroban resource limits
+
+**Recommendation:**
+
+**Option 1:** Make it configurable:
+```rust
+#[contracttype]
+enum TokenKey {
+    MintAuthority(Address),
+    MaxBatchMint,  // Add configurable limit
+}
+
+#[only_owner]
+pub fn set_max_batch_mint(e: &Env, max: u32) {
+    e.storage().instance().set(&TokenKey::MaxBatchMint, &max);
+}
+
+pub fn batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32) -> u32 {
+    let max = e.storage()
+        .instance()
+        .get(&TokenKey::MaxBatchMint)
+        .unwrap_or(100);
+
+    if amount == 0 || amount > max {
+        panic!("invalid batch mint amount");
+    }
+    // ...
+}
+```
+
+**Option 2:** Document the rationale:
+```rust
+// Maximum tokens that can be minted in a single batch.
+// Limited to 100 to stay within Soroban event emission limits (16KB).
+// Each mint emits ~360 bytes of events (mint + delegate_changed),
+// so 100 mints = ~36KB which fits within test limits with margin.
+const MAX_BATCH_MINT: u32 = 100;
+```
+
+**Action Required:** Either make configurable or document the 100 limit rationale.
+
+---
+
+### Issue #15: Self-Delegate Check on Every Transfer
+
+**Location:** `contracts/token/src/contract.rs:85, 106, 142, 156`
+
+**Code:**
+```rust
+pub fn mint(e: &Env, minter: &Address, to: &Address) -> u32 {
+    // ...
+    Self::ensure_self_delegate(e, to);  // Called every mint
+    // ...
+}
+
+pub fn transfer(e: &Env, from: &Address, to: &Address, token_id: u32) {
+    Self::ensure_self_delegate(e, to);  // Called every transfer
+    // ...
+}
+```
+
+**Impact:**
+- **Severity:** LOW
+- Gas cost on every transfer, even for existing holders
+- Storage read for `get_delegate(e, account)` happens every time
+- For active traders, this is wasteful
+- However, it's good UX (users automatically get voting power)
+
+**Analysis:**
+This is actually a **positive UX feature** - users automatically get voting power when receiving tokens. The gas cost is minimal (one storage read that returns early if delegation exists).
+
+**Potential Optimization:**
+```rust
+fn ensure_self_delegate(e: &Env, account: &Address) {
+    // Early return avoids storage write if already delegated
+    if get_delegate(e, account).is_some() {
+        return;  // Already delegated, nothing to do
+    }
+
+    // Only sets delegation if not set
+    e.storage().persistent().set(&VotesStorageKey::Delegatee(account.clone()), account);
+    emit_delegate_changed(e, account, None, account);
+}
+```
+
+**Action Required:** Document this UX feature and verify optimization.
+
+---
+
+### Issue #16: No Minimum Voting Period Validation
+
+**Location:** `contracts/governor/src/governor.rs:159-169`
+
+**Code:**
+```rust
+pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+    governor::set_voting_period(e, voting_period);
+    // ISSUE: No minimum validation, could be 0 or 1 second
+}
+```
+
+**Impact:**
+- **Severity:** MEDIUM
+- Governor authority could set voting period to 0 or 1 second
+- Could rush proposals through without community review
+- Defeats purpose of governance
+- Front-running opportunity
+
+**Recommendation:**
+```rust
+const MIN_VOTING_PERIOD: u32 = 3600;  // 1 hour minimum
+
+pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+
+    if voting_period < MIN_VOTING_PERIOD {
+        panic_with_error!(e, GovernorError::InvalidVotingPeriod);
+    }
+
+    governor::set_voting_period(e, voting_period);
+}
+```
+
+**Action Required:** Add minimum validation for voting_period, voting_delay.
+
+---
+
+### Issue #17: Proposal Threshold Can Be Set to Zero
+
+**Location:** `contracts/governor/src/governor.rs:171-175`
+
+**Code:**
+```rust
+pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+    governor::set_proposal_threshold(e, proposal_threshold);
+    // ISSUE: No minimum validation
+}
+```
+
+**Impact:**
+- **Severity:** MEDIUM
+- Anyone could spam proposals with no token ownership
+- No skin-in-the-game requirement
+- DoS attack vector (proposal storage spam)
+- Defeats purpose of threshold
+
+**Recommendation:**
+```rust
+const MIN_PROPOSAL_THRESHOLD: u128 = 1;  // At least 1 vote required
+
+pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+
+    if proposal_threshold < MIN_PROPOSAL_THRESHOLD {
+        panic_with_error!(e, GovernorError::InvalidProposalThreshold);
+    }
+
+    governor::set_proposal_threshold(e, proposal_threshold);
+}
+```
+
+**Action Required:** Add minimum threshold validation.
+
+---
+
+### Issue #18: Quorum Can Be Set to Zero
+
+**Location:** `contracts/governor/src/governor.rs:177-182`
+
+**Code:**
+```rust
+pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+    assert!(quorum_bps <= 10_000);  // Only checks maximum
+    governor::set_quorum(e, quorum_bps as u128);
+}
+```
+
+**Impact:**
+- **Severity:** MEDIUM
+- 0% quorum means 1 vote can pass proposals
+- Defeats purpose of quorum requirement
+- Vulnerable to low-participation attacks
+
+**Recommendation:**
+```rust
+const MIN_QUORUM_BPS: u32 = 1;     // 0.01% minimum
+const MAX_QUORUM_BPS: u32 = 10_000; // 100% maximum
+
+pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
+    caller.require_auth();
+    Self::ensure_governor_authority(e, &caller);
+
+    if quorum_bps < MIN_QUORUM_BPS || quorum_bps > MAX_QUORUM_BPS {
+        panic_with_error!(e, GovernorError::InvalidQuorum);
+    }
+
+    governor::set_quorum(e, quorum_bps as u128);
+}
+```
+
+**Action Required:** Add minimum quorum validation.
+
+---
+
+### Issue #19: Vote Type Not Validated
+
+**Location:** `contracts/governor/src/governor.rs:452-485`
+
+**Code:**
+```rust
+pub fn cast_vote(
+    e: &Env,
+    proposal_id: BytesN<32>,
+    vote_type: u32,  // ISSUE: No validation of valid range
+    reason: String,
+    voter: Address,
+) -> u128 {
+```
+
+**Impact:**
+- **Severity:** LOW
+- If valid types are 0=against, 1=for, 2=abstain, what happens with vote_type=99?
+- Relies entirely on library validation
+- No explicit error message for invalid vote type
+- Unclear from contract what valid values are
+
+**Recommendation:**
+```rust
+const VOTE_TYPE_AGAINST: u32 = 0;
+const VOTE_TYPE_FOR: u32 = 1;
+const VOTE_TYPE_ABSTAIN: u32 = 2;
+
+pub fn cast_vote(..., vote_type: u32, ...) -> u128 {
+    voter.require_auth();
+
+    // Validate vote type
+    if vote_type > VOTE_TYPE_ABSTAIN {
+        panic_with_error!(e, GovernorError::InvalidVoteType);
+    }
+
+    // ... rest of function
+}
+```
+
+**Action Required:** Add vote type validation or document valid range.
+
+---
+
+### Issue #20: Timestamp-Based Timing May Be Less Deterministic
+
+**Location:** `contracts/governor/src/governor.rs:251-409`
+
+**Impact:**
+- **Severity:** LOW-MEDIUM
+- Timestamps can vary slightly between validators
+- Ledger sequence numbers are more deterministic
+- Block time variance could affect user expectations
+- Most governance systems use block numbers for predictability
+
+**Context:**
+The contract currently uses timestamps for proposal lifecycle (vote_start, vote_end, eta).
+
+**Recommendation (Future Enhancement):**
+Consider migrating to ledger sequence-based timing:
+
+```rust
+// Instead of:
+let now = e.ledger().timestamp();
+let vote_start = now + voting_delay;
+
+// Use:
+let current_ledger = e.ledger().sequence();
+let vote_start_ledger = current_ledger + voting_delay_blocks;
+
+// Where voting_delay is now in blocks, not seconds
+```
+
+**Benefits:**
+- More deterministic (no timestamp variance)
+- Standard practice in blockchain governance
+- Easier to reason about (1 block = 1 unit)
+
+**Action Required:** Consider for future versions; acceptable for MVP with timestamps.
+
+---
+
+## 🟢 LOW PRIORITY ISSUES (Code Quality)
+
+### Issue #21: Magic Number in Quorum Calculation
+
+**Location:** `contracts/governor/src/governor.rs:302`
+
+**Code:**
+```rust
+let Some(adjusted) = product.checked_add(9_999) else {...};
+```
+
+**Recommendation:**
+```rust
+const BPS_DENOMINATOR: u128 = 10_000;
+const BPS_ROUNDING_ADJUSTMENT: u128 = BPS_DENOMINATOR - 1; // 9_999
+
+let Some(adjusted) = product.checked_add(BPS_ROUNDING_ADJUSTMENT) else {...};
+```
+
+**Action Required:** Replace magic number with named constant.
+
+---
+
+### Issue #22: Inconsistent Error Handling
+
+**Location:** Multiple locations
+
+**Code:**
+```rust
+// Token contract uses plain panic:
+panic!("invalid batch mint amount");  // Line 101
+
+// Governor uses panic_with_error:
+panic_with_error!(e, GovernorError::ProposalNotFound);
+
+// Also mixed:
+panic!("owner not set");  // Governor line 218
+panic!("governor authority required");  // Governor line 225
+```
+
+**Impact:**
+- **Severity:** LOW
+- Inconsistent error handling
+- Some errors don't have proper error codes
+- Harder to handle errors in clients
+- Less informative for debugging
+
+**Recommendation:**
+Define proper error enums and use consistently:
+
+```rust
+// Token contract:
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum TokenError {
+    InvalidBatchAmount = 1,
+    Unauthorized = 2,
+}
+
+// Then use:
+panic_with_error!(e, TokenError::InvalidBatchAmount);
+```
+
+**Action Required:** Standardize error handling with proper error enums.
+
+---
+
+### Issue #23: Unused Parameter Naming Could Be Clearer
+
+**Location:** `contracts/governor/src/governor.rs:556`
+
+**Code:**
+```rust
+fn cancel(
+    e: &Env,
+    targets: Vec<Address>,
+    functions: Vec<Symbol>,
+    args: Vec<Vec<Val>>,
+    description_hash: BytesN<32>,
+    operator: Address,  // Could be more clearly named
+) -> BytesN<32> {
+```
+
+**Recommendation:**
+```rust
+fn cancel(
+    e: &Env,
+    targets: Vec<Address>,
+    functions: Vec<Symbol>,
+    args: Vec<Vec<Val>>,
+    description_hash: BytesN<32>,
+    caller: Address,  // Clearer: the person attempting to cancel
+) -> BytesN<32> {
+```
+
+**Action Required:** Rename for clarity.
+
+---
+
+### Issue #24: Constructor Parameter Validation Missing
+
+**Location:** `contracts/governor/src/governor.rs:119-141`
+
+**Code:**
+```rust
+pub fn __constructor(
+    e: &Env,
+    owner: Address,
+    token_contract: Address,
+    treasury_contract: Address,
+    voting_delay: u32,       // No validation
+    voting_period: u32,      // No validation
+    queue_delay: u32,        // No validation
+    proposal_threshold: u128, // No validation
+    quorum_bps: u32,         // Only validates <= 10_000
+) {
+    assert!(quorum_bps <= 10_000);  // Only check
+```
+
+**Recommendation:**
+```rust
+pub fn __constructor(...) {
+    // Validate all parameters
+    assert!(voting_delay > 0, "voting_delay must be positive");
+    assert!(voting_period >= MIN_VOTING_PERIOD, "voting_period too short");
+    assert!(queue_delay > 0, "queue_delay must be positive");
+    assert!(proposal_threshold >= MIN_PROPOSAL_THRESHOLD, "threshold too low");
+    assert!(quorum_bps >= MIN_QUORUM_BPS && quorum_bps <= MAX_QUORUM_BPS, "invalid quorum");
+
+    // ... rest of constructor
+}
+```
+
+**Action Required:** Add comprehensive parameter validation in constructor.
+
+---
+
+### Issue #25: Inconsistent Storage Getter Patterns
+
+**Location:** `contracts/governor/src/governor.rs:184-194`
+
+**Code:**
+```rust
+pub fn treasury(e: &Env) -> Address {
+    e.storage().instance().get(&GovernorKey::Treasury)
+        .expect("treasury not set")  // Uses expect
+}
+
+fn queue_delay(e: &Env) -> u32 {
+    e.storage().instance().get(&GovernorKey::QueueDelay)
+        .unwrap_or(0)  // Uses unwrap_or with default
+}
+```
+
+**Recommendation:**
+Be consistent - either all expect with clear messages or all unwrap_or with sensible defaults:
+
+```rust
+// Option 1: All expect (fails fast if not initialized)
+pub fn treasury(e: &Env) -> Address {
+    e.storage().instance().get(&GovernorKey::Treasury)
+        .expect("treasury not set")
+}
+
+fn queue_delay(e: &Env) -> u32 {
+    e.storage().instance().get(&GovernorKey::QueueDelay)
+        .expect("queue_delay not set")
+}
+
+// Option 2: All unwrap_or (graceful defaults)
+pub fn treasury(e: &Env) -> Address {
+    e.storage().instance().get(&GovernorKey::Treasury)
+        .unwrap_or(Address::generate(e))  // Or panic if no valid default
+}
+
+fn queue_delay(e: &Env) -> u32 {
+    e.storage().instance().get(&GovernorKey::QueueDelay)
+        .unwrap_or(0)
+}
+```
+
+**Action Required:** Standardize getter error handling.
+
+---
+
+### Issue #26: ProposalCoreTime Naming
+
+**Location:** `contracts/governor/src/governor.rs:89-98`
+
+**Code:**
+```rust
+#[contracttype]
+#[derive(Clone)]
+struct ProposalCoreTime {  // "CoreTime" is unclear
+    proposer: Address,
+    vote_snapshot: u32,
+    vote_start: u32,
+    vote_end: u32,
+    eta: u64,
+    state: ProposalState,
+}
+```
+
+**Recommendation:**
+```rust
+// More descriptive name
+struct ProposalMetadata {
+    // ... same fields
+}
+
+// Or
+struct ProposalCore {
+    // ... same fields
+}
+```
+
+**Action Required:** Rename for clarity.
+
+---
+
+### Issue #27: Missing Input Validation in Treasury Set Governor
+
+**Location:** `contracts/treasury/src/contract.rs:38-41`
+
+**Code:**
+```rust
+#[only_owner]
+pub fn set_governor(e: &Env, governor: Address) {
+    e.storage().instance().set(&TreasuryKey::Governor, &governor);
+    // ISSUE: No validation that governor address is valid
+}
+```
+
+**Recommendation:**
+```rust
+#[only_owner]
+pub fn set_governor(e: &Env, governor: Address) {
+    // Could validate governor contract exists/is valid
+    // For now, at minimum document the risk
+    e.storage().instance().set(&TreasuryKey::Governor, &governor);
+}
+```
+
+**Action Required:** Add validation or document the risk.
+
+---
+
+### Issue #28: No Validation That Token Contract Implements Votes
+
+**Location:** `contracts/governor/src/governor.rs:155-157`
+
+**Code:**
+```rust
+#[only_owner]
+pub fn set_token_contract(e: &Env, token_contract: Address) {
+    governor::set_token_contract(e, &token_contract);
+    // ISSUE: Doesn't validate contract implements Votes interface
+}
+```
+
+**Impact:**
+- **Severity:** LOW
+- Setting wrong contract would break all governance
+- No way to recover except through owner
+- Could be caught early with validation
+
+**Recommendation:**
+```rust
+#[only_owner]
+pub fn set_token_contract(e: &Env, token_contract: Address) {
+    // Validate the contract implements Votes by calling a method
+    let client = VotesClient::new(e, &token_contract);
+    let _ = client.try_get_total_supply();  // Will fail if not a Votes contract
+
+    governor::set_token_contract(e, &token_contract);
+}
+```
+
+**Action Required:** Add interface validation or document the risk.
+
+---
+
+## 💚 POSITIVE OBSERVATIONS
+
+### What's Done Well
+
+1. **Authorization Checks:** Consistent use of `require_auth()` throughout all contracts
+2. **Overflow Protection:** Excellent use of `checked_add`, `checked_mul` with proper error handling
+3. **Event System:** Comprehensive event emissions with Mercury indexing support
+4. **Snapshot Voting:** Correctly uses checkpointed voting power to prevent double-vote exploits via transfers
+5. **Test Coverage:** 44 tests (18 token, 20 governor, 6 e2e) covering major flows
+6. **Separation of Concerns:** Clean separation between Token, Governor, and Treasury
+7. **Immutable Proposal IDs:** Using hash of proposal parameters prevents manipulation
+8. **State Machine:** Proposal states are well-defined with proper transitions
+9. **Governor Authority Pattern:** Flexible delegation pattern for parameter management
+10. **Batch Minting:** Thoughtful feature for gas efficiency in token distribution
+11. **Auto-Delegation:** Great UX improvement ensuring users have voting power by default
+12. **Library Usage:** Good integration with stellar_governance library for standard patterns
+13. **Mercury Integration:** Optional indexing support for off-chain data
+14. **Access Control:** Clear owner vs authority vs public function separation
+
+---
+
+## 📋 RECOMMENDED NEXT STEPS
+
+### Phase 1: Critical Fixes (Before Testnet)
+
+1. **Fix Issue #1:** Use proper delegation API instead of direct storage write
+2. **Implement Issue #3:** Add comprehensive TTL management strategy
+3. **Resolve Issue #4:** Standardize on ledger sequences or timestamps
+4. **Address Issue #2:** Fix execute multi-action handling (allow multi-actions through treasury)
+
+### Phase 2: High Priority (Before Mainnet)
+
+5. **Implement Issue #5:** Add proposal expiration mechanism
+6. **Add Issue #6 validation:** Prevent zero vote weight
+7. **Audit Issue #7:** Verify double-vote prevention in library
+8. **Enhance Issue #8:** Threshold-based cancellation
+9. **Add Issue #12 events:** Parameter change transparency
+
+### Phase 3: Parameter Validation
+
+10. **Add minimum bounds (Issues #16-18):** voting_period, proposal_threshold, quorum_bps
+11. **Validate Issue #19:** Vote type validation
+12. **Improve Issue #10:** Document quorum rounding
+
+### Phase 4: Code Quality
+
+13. **Standardize Issue #22:** Error handling with proper error enums
+14. **Add Issue #24:** Constructor parameter validation
+15. **Improve Issue #25:** Consistent getter patterns
+16. **Document all design decisions:** Especially MVP-specific choices
+
+### Phase 5: Testing & Audit
+
+17. **Add edge case tests:** Especially for identified issues
+18. **Security audit:** Professional review of critical issues
+19. **Gas optimization:** Profile and optimize hot paths
+20. **Documentation:** Comprehensive inline comments and README
+
+---
+
+## 📊 RISK MATRIX
+
+| Issue | Severity | Exploitable | Impact | Priority |
+|-------|----------|-------------|---------|----------|
+| #1 Delegation Storage | High | No | State Corruption | Critical |
+| #2 Execute Restriction | Medium | No | UX Confusion | High |
+| #3 TTL Management | Critical | No | Data Loss | Critical |
+| #4 Time Unit Mixing | Medium | No | Audit Complexity | Critical |
+| #5 No Expiration | Medium | Yes | Stale Execution | High |
+| #6 Zero Vote Weight | Low | Yes | Spam | Medium |
+| #7 Double Vote | Medium | Maybe | Vote Manipulation | High |
+| #8 Cancel Rules | Medium | Yes | Griefing | High |
+| #11 Param Changes | Medium | Yes | Vote Manipulation | Medium (MVP) |
+| #12 No Events | Low | No | Transparency | High |
+| #16-18 No Minimums | Medium | Yes | Parameter Abuse | High |
+
+---
+
+## 🎯 SUMMARY
+
+This DAO implementation demonstrates **solid engineering fundamentals** with proper authorization, overflow protection, and comprehensive testing. The contracts are well-structured and follow good patterns.
+
+**Key Strengths:**
+- Security-conscious design (authorization, overflow checks)
+- Good test coverage
+- Clean architecture
+- Thoughtful features (batch mint, auto-delegation, governor authority)
+
+**Critical Gaps:**
+- TTL management must be implemented
+- Time unit consistency needs resolution
+- Delegation should use library APIs
+
+**Overall Assessment:**
+✅ **Good foundation for MVP**
+⚠️ **Needs critical fixes before mainnet**
+📈 **Clear path to production-ready**
+
+The identified issues are typical for MVP-stage DAO contracts and can be systematically addressed. With the critical and high-priority fixes, this will be a robust governance system.
+
+---
+
+**Document Version:** 1.0
+**Last Updated:** 2026-08-19
+**Next Review:** After critical fixes implementation
