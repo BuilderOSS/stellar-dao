@@ -708,3 +708,135 @@ fn set_quorum_bps_above_max_fails() {
     // Try to set quorum above 100% (should fail)
     governor.set_quorum_bps(&owner, &10_001);
 }
+
+#[test]
+fn queued_proposal_expires_after_14_days() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    // Mint token to proposer
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    // Create and pass a proposal
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Test expiration");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Advance time and vote
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Advance to after voting period (proposal now Succeeded)
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    // Queue the proposal (ETA = 2_111 + 1000 = 3_111)
+    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Advance to just after ETA (still queued, can execute)
+    e.ledger().set_timestamp(3_112);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // ETA = 3_111, expiration period = 1_209_600 seconds (14 days)
+    // Expiration time = 3_111 + 1_209_600 = 1_212_711
+    // Proposal expires when now >= expiration_time
+
+    // Test well after ETA but before expiration (e.g. 1 week after ETA)
+    e.ledger().set_timestamp(3_111 + 604_800); // ETA + 7 days
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Test at expiration time (expires)
+    e.ledger().set_timestamp(3_111 + 1_209_600); // ETA + 14 days = 1_212_711
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Expired);
+
+    // Test after expiration
+    e.ledger().set_timestamp(3_111 + 1_209_601); // ETA + 14 days + 1 second
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Expired);
+}
+
+#[test]
+fn queued_proposal_can_execute_before_expiration() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    // Mint token to proposer
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    // Create and pass a proposal
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Execute before expiration");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Advance time and vote
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Advance to after voting period
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    // Queue the proposal (ETA = 2_111 + 1000 = 3_111)
+    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Advance to ETA (can now execute)
+    e.ledger().set_timestamp(3_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Execute before expiration
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(target.get_value(), 42);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #5007)")]
+fn expired_proposal_cannot_be_executed() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    // Mint token to proposer
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    // Create and pass a proposal
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Expired execution test");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Advance time and vote
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Advance to after voting period
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    // Queue the proposal (ETA = 2_111 + 1000 = 3_111)
+    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+
+    // Advance past expiration (ETA + 14 days + 1 second)
+    e.ledger().set_timestamp(1_212_712); // 3_111 + 1_209_600 + 1
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Expired);
+
+    // Try to execute expired proposal (should fail with ProposalNotQueued error #5007)
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}

@@ -20,7 +20,7 @@ This review identified **28 issues** across the DAO smart contract system. The c
 
 ### Test Coverage
 
-✅ 51 tests passing (18 token, 27 governor, 6 e2e)
+✅ 54 tests passing (18 token, 30 governor, 6 e2e)
 
 ---
 
@@ -292,41 +292,30 @@ All tests pass (23 governor + 18 token + 6 e2e = 47 total).
 
 ## 🟠 HIGH PRIORITY ISSUES
 
-### Issue #5: No Proposal Expiration Mechanism
+### Issue #5: No Proposal Expiration Mechanism ✅ FIXED
 
-**Location:** `contracts/governor/src/governor.rs:243-274`
+**Location:** `contracts/governor/src/governor.rs:104-107, 376-386`
 
-**Code:**
+**Original Issue:**
+`ProposalState::Expired` state existed but was never set, allowing queued proposals to sit forever and be executed long after community consensus changes.
+
+**Resolution:**
+Implemented 14-day expiration for queued proposals:
+
 ```rust
-fn proposal_state_internal(...) -> ProposalState {
-    match proposal.state {
-        ProposalState::Canceled | ProposalState::Executed
-        | ProposalState::Queued | ProposalState::Expired => {
-            return proposal.state;
-        }
-        _ => {}
-    }
-    // ISSUE: ProposalState::Expired exists but is never set
-}
-```
+// Added constant (lines 104-107)
+const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14 * 24 * 3600)
 
-**Impact:**
-- **Severity:** MEDIUM
-- Queued proposals can sit forever and be executed long after community consensus changes
-- No cleanup mechanism for old proposals
-- Storage bloat over time
-- Stale governance decisions could be executed unexpectedly
-
-**Recommendation:**
-```rust
-const PROPOSAL_EXPIRATION_PERIOD: u64 = 30 * 24 * 3600; // 30 days
-
-fn proposal_state_internal(...) -> ProposalState {
+// Modified proposal_state_internal (lines 376-386)
+fn proposal_state_internal(e: &Env, proposal_id: &BytesN<32>, proposal: &ProposalCoreTime) -> ProposalState {
     match proposal.state {
         ProposalState::Queued => {
+            // Check if queued proposal has expired (14 days after ETA)
             let now = e.ledger().timestamp();
-            // Expire if queued for too long after ETA
-            if now > proposal.eta + PROPOSAL_EXPIRATION_PERIOD {
+            let Some(expiration_time) = proposal.eta.checked_add(PROPOSAL_EXPIRATION_PERIOD) else {
+                panic_with_error!(e, GovernorError::MathOverflow);
+            };
+            if now >= expiration_time {
                 return ProposalState::Expired;
             }
             return ProposalState::Queued;
@@ -336,11 +325,26 @@ fn proposal_state_internal(...) -> ProposalState {
         }
         _ => {}
     }
-    // ... rest of function
+    // ... rest of function continues for non-queued proposals
 }
 ```
 
-**Action Required:** Implement expiration logic with configurable expiration period.
+**Behavior:**
+- Queued proposals expire 14 days after their ETA
+- Expired proposals cannot be executed (execute() will fail with `ProposalNotQueued` error #5007)
+- Non-queued proposals (Pending, Active, Succeeded, Defeated) can stay forever
+- Expiration is checked dynamically on every `proposal_state()` call
+- No storage modification needed - state computed on-the-fly
+
+**Testing:**
+Added 3 comprehensive tests:
+1. `queued_proposal_expires_after_14_days`: Verifies proposal expires exactly 14 days after ETA
+2. `queued_proposal_can_execute_before_expiration`: Confirms execution works before expiration
+3. `expired_proposal_cannot_be_executed`: Ensures expired proposals cannot be executed
+
+All tests pass: 30 governor + 18 token + 6 e2e = 54 total.
+
+**Status:** ✅ FIXED - Queued proposals now expire 14 days after ETA
 
 ---
 

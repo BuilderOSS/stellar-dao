@@ -101,6 +101,11 @@ const PROPOSAL_TTL_THRESHOLD: u32 = PROPOSAL_TTL_EXTEND_AMOUNT - DAY_IN_LEDGERS;
 const BPS_DENOMINATOR: u128 = 10_000; // 100.00% = 10,000 basis points
 const BPS_ROUNDING_ADJUSTMENT: u128 = BPS_DENOMINATOR - 1; // 9,999 for ceiling division
 
+// Proposal expiration period for queued proposals
+// After ETA + 14 days, queued proposals become expired and cannot be executed
+// Non-queued proposals (Pending, Active, Succeeded, Defeated) can stay forever
+const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14 * 24 * 3600)
+
 #[contracttype]
 enum GovernorKey {
     Treasury,
@@ -368,7 +373,18 @@ impl DaoGovernorContract {
 
     fn proposal_state_internal(e: &Env, proposal_id: &BytesN<32>, proposal: &ProposalCoreTime) -> ProposalState {
         match proposal.state {
-            ProposalState::Canceled | ProposalState::Executed | ProposalState::Queued | ProposalState::Expired => {
+            ProposalState::Queued => {
+                // Check if queued proposal has expired (14 days after ETA)
+                let now = e.ledger().timestamp();
+                let Some(expiration_time) = proposal.eta.checked_add(PROPOSAL_EXPIRATION_PERIOD) else {
+                    panic_with_error!(e, GovernorError::MathOverflow);
+                };
+                if now >= expiration_time {
+                    return ProposalState::Expired;
+                }
+                return ProposalState::Queued;
+            }
+            ProposalState::Canceled | ProposalState::Executed | ProposalState::Expired => {
                 return proposal.state;
             }
             _ => {}
