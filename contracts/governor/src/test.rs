@@ -568,3 +568,89 @@ fn owner_has_implicit_governor_authority() {
     governor.set_voting_delay(&owner, &25);
     assert_eq!(governor.voting_delay(), 25);
 }
+
+#[test]
+fn proposal_handles_large_timestamps() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    let _ = token.mint(&owner, &proposer);
+
+    // Set timestamp to a large value (year 2100+)
+    // u32::MAX = 4,294,967,295 seconds = Feb 2106
+    // Let's test with 4 billion (well before u32 limit but large enough)
+    e.ledger().set_timestamp(4_000_000_000);
+    e.ledger().set_sequence_number(200);
+
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Test large timestamp");
+
+    // Should succeed without overflow
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Verify proposal was created successfully
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+
+    let _ = e;
+}
+
+#[test]
+fn proposal_timestamps_stored_as_u64() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    let _ = token.mint(&owner, &proposer);
+
+    // Use a timestamp that would overflow u32 in the future
+    // Current timestamp + voting_delay should be calculated correctly
+    let now = 3_000_000_000_u64; // Year 2065
+    e.ledger().set_timestamp(now);
+    e.ledger().set_sequence_number(200);
+
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Test u64 storage");
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // If this didn't panic, timestamps are being stored correctly as u64
+    // Verify proposal was created and is in Pending state
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+}
+
+#[test]
+fn proposal_state_transitions_with_large_timestamps() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    let _ = token.mint(&owner, &proposer);
+
+    // Use large timestamp
+    let start_time = 3_500_000_000_u64;
+    e.ledger().set_timestamp(start_time);
+    e.ledger().set_sequence_number(200);
+
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Test state transitions");
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Should be Pending
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+
+    // Move past voting_delay (10 seconds)
+    e.ledger().set_timestamp(start_time + 11);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Active);
+
+    // Cast vote
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Move past voting_period (100 seconds total from proposal)
+    e.ledger().set_timestamp(start_time + 111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+}

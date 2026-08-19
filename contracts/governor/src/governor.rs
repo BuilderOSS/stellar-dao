@@ -98,8 +98,8 @@ enum GovernorKey {
 struct ProposalCoreTime {
     proposer: Address,
     vote_snapshot: u32,
-    vote_start: u32,
-    vote_end: u32,
+    vote_start: u64,  // Changed to u64 to store timestamps without conversion
+    vote_end: u64,    // Changed to u64 to store timestamps without conversion
     eta: u64,
     state: ProposalState,
 }
@@ -275,8 +275,8 @@ impl DaoGovernorContract {
         }
 
         let now = e.ledger().timestamp();
-        let start = proposal.vote_start as u64;
-        let end = proposal.vote_end as u64;
+        let start = proposal.vote_start;  // Already u64
+        let end = proposal.vote_end;      // Already u64
 
         if now <= start {
             return ProposalState::Pending;
@@ -387,7 +387,12 @@ impl Governor for DaoGovernorContract {
     }
 
     fn proposal_deadline(e: &Env, proposal_id: BytesN<32>) -> u32 {
-        Self::get_proposal(e, &proposal_id).vote_end
+        // Convert u64 timestamp to u32 for trait compatibility
+        // This is safe for practical purposes (works until year 2106)
+        Self::get_proposal(e, &proposal_id)
+            .vote_end
+            .try_into()
+            .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow))
     }
 
     fn propose(
@@ -437,8 +442,8 @@ impl Governor for DaoGovernorContract {
         let proposal = ProposalCoreTime {
             proposer: proposer.clone(),
             vote_snapshot: snapshot_ledger,
-            vote_start: vote_start.try_into().unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
-            vote_end: vote_end.try_into().unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
+            vote_start,  // No conversion needed - already u64
+            vote_end,    // No conversion needed - already u64
             eta: 0,
             state: ProposalState::Pending,
         };
@@ -453,7 +458,7 @@ impl Governor for DaoGovernorContract {
             &functions,
             &args,
             proposal.vote_snapshot,
-            proposal.vote_end,
+            proposal.vote_end.try_into().unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
             &description,
         );
 
