@@ -11,6 +11,7 @@ import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
+import { proposalStateBadgeStyle } from '@/lib/proposal-state';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 import useSWR from 'swr';
@@ -231,7 +232,7 @@ export default function ProposalDetailPage() {
           <Card p="5">
             <Stack gap="3">
               <div>
-                <Badge>{detail?.label ?? 'Loading'}</Badge>
+                <Badge style={proposalStateBadgeStyle(detail?.label ?? 'Loading')}>{detail?.label ?? 'Loading'}</Badge>
               </div>
               <Heading style={{ fontSize: '1.35rem' }}>Vote window and execution status</Heading>
               {loading ? <Text className="lede" style={{ margin: 0 }}>Loading proposal data…</Text> : null}

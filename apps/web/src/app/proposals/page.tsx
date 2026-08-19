@@ -7,6 +7,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { proposalStateBadgeStyle } from '@/lib/proposal-state';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 import Link from 'next/link';
@@ -159,9 +160,9 @@ export default function ProposalsPage() {
                   {items.map((item) => (
                     <Card key={item.proposalId} p="4">
                       <Link href={`/proposals/${item.proposalId}`} style={{ textDecoration: 'none' }}>
-                        <Stack gap="2">
+                          <Stack gap="2">
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                            <Badge>{item.stateLabel}</Badge>
+                            <Badge style={proposalStateBadgeStyle(item.stateLabel)}>{item.stateLabel}</Badge>
                             <Badge>{item.title}</Badge>
                           </div>
                           <Heading style={{ fontSize: '1.1rem' }}>{item.summary}</Heading>
