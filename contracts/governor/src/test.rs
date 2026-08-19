@@ -567,7 +567,7 @@ fn owner_has_implicit_governor_authority() {
 
 #[test]
 fn proposal_handles_large_timestamps() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
     let _ = token.mint(&owner, &proposer);
@@ -594,7 +594,7 @@ fn proposal_handles_large_timestamps() {
 
 #[test]
 fn proposal_timestamps_stored_as_u64() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
     let _ = token.mint(&owner, &proposer);
@@ -619,7 +619,7 @@ fn proposal_timestamps_stored_as_u64() {
 
 #[test]
 fn proposal_state_transitions_with_large_timestamps() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
     let _ = token.mint(&owner, &proposer);
@@ -654,7 +654,7 @@ fn proposal_state_transitions_with_large_timestamps() {
 #[test]
 #[should_panic(expected = "HostError: Error(Contract, #5002)")]
 fn cast_vote_fails_with_zero_weight() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
     let zero_voter = Address::generate(&e);
 
@@ -707,7 +707,7 @@ fn set_quorum_bps_above_max_fails() {
 
 #[test]
 fn queued_proposal_expires_after_14_days() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
     // Mint token to proposer
@@ -759,7 +759,7 @@ fn queued_proposal_expires_after_14_days() {
 
 #[test]
 fn queued_proposal_can_execute_before_expiration() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
     // Mint token to proposer
@@ -801,7 +801,7 @@ fn queued_proposal_can_execute_before_expiration() {
 #[test]
 #[should_panic(expected = "HostError: Error(Contract, #5007)")]
 fn expired_proposal_cannot_be_executed() {
-    let (e, token, treasury, governor, target, owner) = setup();
+    let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
     // Mint token to proposer
