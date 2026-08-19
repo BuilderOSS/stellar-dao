@@ -96,6 +96,11 @@ const DAY_IN_LEDGERS: u32 = 17280; // ~5 seconds per ledger
 const PROPOSAL_TTL_EXTEND_AMOUNT: u32 = 60 * DAY_IN_LEDGERS; // 60 days
 const PROPOSAL_TTL_THRESHOLD: u32 = PROPOSAL_TTL_EXTEND_AMOUNT - DAY_IN_LEDGERS; // 59 days
 
+// Basis points constants for quorum calculation
+// BPS = basis points (1 BPS = 0.01%)
+const BPS_DENOMINATOR: u128 = 10_000; // 100.00% = 10,000 basis points
+const BPS_ROUNDING_ADJUSTMENT: u128 = BPS_DENOMINATOR - 1; // 9,999 for ceiling division
+
 #[contracttype]
 enum GovernorKey {
     Treasury,
@@ -417,13 +422,17 @@ impl Governor for DaoGovernorContract {
             return 0;
         }
 
+        // Calculate quorum with ceiling division (rounds up)
+        // Formula: (total_supply * quorum_bps + (BPS_DENOMINATOR - 1)) / BPS_DENOMINATOR
+        // Example: 1% of 100 = (100 * 100 + 9999) / 10000 = 10999 / 10000 = 1 (rounds up)
+        // This ensures we never require less than the intended quorum percentage
         let Some(product) = total_supply.checked_mul(quorum_bps) else {
             panic_with_error!(e, GovernorError::MathOverflow);
         };
-        let Some(adjusted) = product.checked_add(9_999) else {
+        let Some(adjusted) = product.checked_add(BPS_ROUNDING_ADJUSTMENT) else {
             panic_with_error!(e, GovernorError::MathOverflow);
         };
-        adjusted / 10_000
+        adjusted / BPS_DENOMINATOR
     }
 
     fn proposals_need_queuing(_e: &Env) -> bool {
