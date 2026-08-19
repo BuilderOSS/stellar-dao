@@ -7,12 +7,12 @@ import { Stack } from 'styled-system/jsx';
 type ProposalActionQueueProps = {
   actions: ProposalQueuedAction[];
   busy: boolean;
-  onEdit?: (actionId: string) => void;
-  onRemove?: (actionId: string) => void;
+  onRequestEdit?: (actionId: string) => void;
+  onRequestRemove?: (actionId: string) => void;
 };
 
-export function ProposalActionQueue({ actions, busy, onEdit, onRemove }: ProposalActionQueueProps) {
-  const editable = typeof onEdit === 'function' && typeof onRemove === 'function';
+export function ProposalActionQueue({ actions, busy, onRequestEdit, onRequestRemove }: ProposalActionQueueProps) {
+  const editable = typeof onRequestEdit === 'function' && typeof onRequestRemove === 'function';
 
   return (
     <Card p="5">
@@ -40,39 +40,38 @@ export function ProposalActionQueue({ actions, busy, onEdit, onRemove }: Proposa
                 }}
               >
                 <Stack gap="2">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
-                    <button
-                      type="button"
-                      onClick={editable ? () => onEdit(action.id) : undefined}
-                      disabled={!editable || busy}
-                      style={{
-                        all: 'unset',
-                        flex: 1,
-                        cursor: editable && !busy ? 'pointer' : 'default',
-                        borderRadius: '10px',
-                        padding: '2px'
-                      }}
-                    >
-                      <Stack gap="1" style={{ textAlign: 'left' }}>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                          <Badge>{index + 1}</Badge>
-                          <Badge>{getProposalActionLabel(action.type)}</Badge>
-                        </div>
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{getProposalActionSummary(action)}</Text>
-                      </Stack>
-                    </button>
-
-                    {editable ? (
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <Button type="button" variant="outline" onClick={() => onEdit(action.id)} disabled={busy}>
-                          Edit
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => onRemove(action.id)} disabled={busy}>
-                          Remove
-                        </Button>
+                  <button
+                    type="button"
+                    onClick={editable ? () => onRequestEdit(action.id) : undefined}
+                    disabled={!editable || busy}
+                    style={{
+                      all: 'unset',
+                      display: 'block',
+                      width: '100%',
+                      cursor: editable && !busy ? 'pointer' : 'default',
+                      borderRadius: '10px',
+                      padding: '2px'
+                    }}
+                  >
+                    <Stack gap="1" style={{ textAlign: 'left' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Badge>{index + 1}</Badge>
+                        <Badge>{getProposalActionLabel(action.type)}</Badge>
                       </div>
-                    ) : null}
-                  </div>
+                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{getProposalActionSummary(action)}</Text>
+                    </Stack>
+                  </button>
+
+                  {editable ? (
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <Button type="button" variant="outline" onClick={() => onRequestEdit(action.id)} disabled={busy}>
+                        Edit
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => onRequestRemove(action.id)} disabled={busy}>
+                        Remove
+                      </Button>
+                    </div>
+                  ) : null}
 
                   <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>
                     Recipient: {action.recipient}

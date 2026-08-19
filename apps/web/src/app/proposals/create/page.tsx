@@ -6,6 +6,7 @@ import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
+import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
 import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { ProposalActionEditor } from '@/components/proposal/proposal-action-editor';
@@ -61,6 +62,7 @@ export default function ProposalCreatePage() {
   const [amount, setAmount] = useState('1');
   const [queuedActions, setQueuedActions] = useState<ProposalQueuedAction[]>([]);
   const [editingAction, setEditingAction] = useState<{ id: string; index: number } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ kind: 'edit' | 'remove'; actionId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [txHash, setTxHash] = useState('');
@@ -129,14 +131,8 @@ export default function ProposalCreatePage() {
     setStatus(editingAction ? 'Action updated.' : 'Action queued.');
   }
 
-  function editAction(actionId: string) {
-    const index = queuedActions.findIndex((action) => action.id === actionId);
-    if (index === -1) {
-      return;
-    }
-
-    const action = queuedActions[index];
-    setQueuedActions((current) => current.filter((item) => item.id !== actionId));
+  function beginEditAction(action: ProposalQueuedAction, index: number) {
+    setQueuedActions((current) => current.filter((item) => item.id !== action.id));
     setEditingAction({ id: action.id, index });
     setActionType(action.type);
     setRecipient(action.recipient);
@@ -145,9 +141,43 @@ export default function ProposalCreatePage() {
     setStatus('Editing queued action.');
   }
 
-  function removeAction(actionId: string) {
+  function beginRemoveAction(actionId: string) {
     setQueuedActions((current) => current.filter((action) => action.id !== actionId));
     setStatus('Action removed.');
+  }
+
+  function requestEditAction(actionId: string) {
+    setPendingConfirm({ kind: 'edit', actionId });
+  }
+
+  function requestRemoveAction(actionId: string) {
+    setPendingConfirm({ kind: 'remove', actionId });
+  }
+
+  function cancelPendingConfirm() {
+    setPendingConfirm(null);
+  }
+
+  function confirmPendingAction() {
+    if (!pendingConfirm) return;
+
+    const actionIndex = queuedActions.findIndex((item) => item.id === pendingConfirm.actionId);
+    const action = actionIndex >= 0 ? queuedActions[actionIndex] : null;
+    setPendingConfirm(null);
+
+    if (!action) {
+      setStatus('That queued action is no longer available.');
+      return;
+    }
+
+    if (pendingConfirm.kind === 'edit') {
+      beginEditAction(action, actionIndex);
+      setStatus('Action moved back into the form for editing.');
+      return;
+    }
+
+    beginRemoveAction(action.id);
+    setStatus('Action removed from the queue.');
   }
 
   function cancelEdit() {
@@ -336,8 +366,8 @@ export default function ProposalCreatePage() {
                     <ProposalActionQueue
                       actions={queuedActions}
                       busy={busy}
-                      onEdit={(actionId) => editAction(actionId)}
-                      onRemove={(actionId) => removeAction(actionId)}
+                      onRequestEdit={requestEditAction}
+                      onRequestRemove={requestRemoveAction}
                     />
                   </Grid>
 
@@ -410,6 +440,17 @@ export default function ProposalCreatePage() {
             </Stack>
           </Card>
         </Stack>
+        <ProposalActionConfirmDialog
+          open={Boolean(pendingConfirm)}
+          title={pendingConfirm?.kind === 'edit' ? 'Edit queued action?' : 'Remove queued action?'}
+          message={pendingConfirm?.kind === 'edit'
+            ? 'This will remove the action from the queue and load its values into the form on the left immediately.'
+            : 'This will remove the action from the queue immediately.'}
+          confirmLabel={pendingConfirm?.kind === 'edit' ? 'Edit action' : 'Remove action'}
+          busy={busy}
+          onConfirm={confirmPendingAction}
+          onCancel={cancelPendingConfirm}
+        />
       </PageSection>
     </DaoShell>
   );
