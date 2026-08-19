@@ -3,7 +3,8 @@ import { Client as ContractClient } from '@stellar/stellar-sdk/contract';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getMercuryProposalDetail } from '@/lib/mercury';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
-import { proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
+import { parseProposalMetadata } from '@/lib/proposal-metadata';
+import { ProposalState, proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
 
 type GovernorClient = {
   proposal_state: (args: { proposal_id: Buffer }) => Promise<{ result: ProposalStateValue }>;
@@ -39,22 +40,24 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         client.proposal_proposer({ proposal_id: proposalBuffer })
       ]);
 
-        const payload = {
-          ...detail,
-          proposer: detail.proposer || proposerTx.result,
-          vote_end: detail.vote_end || deadlineTx.result,
-          vote_snapshot: detail.vote_snapshot || snapshotTx.result,
-          vote_start: detail.vote_start || snapshotTx.result + 1,
-          deadline: detail.deadline || deadlineTx.result,
-          state: stateTx.result,
-          label: proposalStateLabel(stateTx.result)
-        };
+      const payload = {
+        ...detail,
+        metadata: parseProposalMetadata(detail.description),
+        proposer: detail.proposer || proposerTx.result,
+        vote_end: detail.vote_end || deadlineTx.result,
+        vote_snapshot: detail.vote_snapshot || snapshotTx.result,
+        vote_start: detail.vote_start || snapshotTx.result + 1,
+        deadline: detail.deadline || deadlineTx.result,
+        state: stateTx.result,
+        label: proposalStateLabel(stateTx.result)
+      };
 
       return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
     } catch {
       return NextResponse.json(
         {
           ...detail,
+          metadata: parseProposalMetadata(detail.description),
           state: ProposalState.Pending,
           label: detail.label || 'Pending'
         },

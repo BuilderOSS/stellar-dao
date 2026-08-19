@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { Client as ContractClient } from '@stellar/stellar-sdk/contract';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { getMercuryActivityFeed } from '@/lib/mercury';
+import { getMercuryActivityFeed, getMercuryProposalDetail } from '@/lib/mercury';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
+import { parseProposalMetadata, type ProposalMetadata } from '@/lib/proposal-metadata';
 import { proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
 
 type GovernorClient = {
@@ -11,8 +12,7 @@ type GovernorClient = {
 
 type ProposalListItem = {
   proposalId: string;
-  title: string;
-  summary: string;
+  metadata: ProposalMetadata;
   state: ProposalStateValue | null;
   stateLabel: string;
   ledger: number;
@@ -23,14 +23,6 @@ type ProposalListItem = {
 
 type ProposalGroup = {
   proposalId: string;
-  created?: {
-    title: string;
-    summary: string;
-    ledger: number;
-    timestamp: number;
-    txHash: string;
-    contractId: string;
-  };
   latestLedger: number;
   latestTimestamp: number;
 };
@@ -60,21 +52,9 @@ export async function GET(request: Request) {
       }
 
       const current = groups.get(item.proposalId);
-      const created = item.title === 'Proposal Created'
-        ? {
-            title: item.title,
-            summary: item.summary,
-            ledger: item.ledger,
-            timestamp: item.timestamp,
-            txHash: item.txHash,
-            contractId: item.contractId
-          }
-        : undefined;
-
       if (!current) {
         groups.set(item.proposalId, {
           proposalId: item.proposalId,
-          created,
           latestLedger: item.ledger,
           latestTimestamp: item.timestamp
         });
@@ -83,9 +63,6 @@ export async function GET(request: Request) {
 
       current.latestLedger = Math.max(current.latestLedger, item.ledger);
       current.latestTimestamp = Math.max(current.latestTimestamp, item.timestamp);
-      if (!current.created && created) {
-        current.created = created;
-      }
     }
 
     const client = await ContractClient.from<GovernorClient>({
@@ -100,39 +77,31 @@ export async function GET(request: Request) {
         .sort((a, b) => b.latestTimestamp - a.latestTimestamp || b.latestLedger - a.latestLedger)
         .slice(0, limit)
         .map(async (group): Promise<ProposalListItem> => {
-          const created = group.created ?? {
-            title: 'Proposal',
-            summary: 'Proposal details unavailable.',
-            ledger: group.latestLedger,
-            timestamp: group.latestTimestamp,
-            txHash: '',
-            contractId: ''
-          };
+          const detail = await getMercuryProposalDetail(group.proposalId).catch(() => null);
+          const metadata = parseProposalMetadata(detail?.description ?? '');
 
           try {
             const state = await fetchProposalState(client, group.proposalId);
             return {
               proposalId: group.proposalId,
-              title: created.title,
-              summary: created.summary,
+              metadata,
               state,
               stateLabel: proposalStateLabel(state),
-              ledger: created.ledger,
-              timestamp: created.timestamp,
-              txHash: created.txHash,
-              contractId: created.contractId
+              ledger: detail?.ledger ?? group.latestLedger,
+              timestamp: detail?.timestamp ?? group.latestTimestamp,
+              txHash: detail?.txHash ?? '',
+              contractId: detail?.contractId ?? ''
             };
           } catch {
             return {
               proposalId: group.proposalId,
-              title: created.title,
-              summary: created.summary,
+              metadata,
               state: null,
               stateLabel: 'Unknown',
-              ledger: created.ledger,
-              timestamp: created.timestamp,
-              txHash: created.txHash,
-              contractId: created.contractId
+              ledger: detail?.ledger ?? group.latestLedger,
+              timestamp: detail?.timestamp ?? group.latestTimestamp,
+              txHash: detail?.txHash ?? '',
+              contractId: detail?.contractId ?? ''
             };
           }
         })

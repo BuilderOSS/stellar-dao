@@ -11,6 +11,7 @@ import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
+import type { ProposalMetadata } from '@/lib/proposal-metadata';
 import { proposalStateBadgeStyle } from '@/lib/proposal-state';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -18,6 +19,7 @@ import useSWR from 'swr';
 
 type ProposalDetailResponse = {
   proposalId: string;
+  metadata: ProposalMetadata;
   proposer: string;
   description: string;
   targets: string[];
@@ -225,7 +227,7 @@ export default function ProposalDetailPage() {
     <DaoShell>
       <PageSection
         eyebrow="Proposal detail"
-        title={detail ? `Proposal ${detail.proposalId}` : `Proposal ${proposalId}`}
+        title={detail ? detail.metadata.title : `Proposal ${proposalId}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Grid columns={{ base: 1, xl: 2 }} gap="4">
@@ -234,7 +236,7 @@ export default function ProposalDetailPage() {
               <div>
                 <Badge style={proposalStateBadgeStyle(detail?.label ?? 'Loading')}>{detail?.label ?? 'Loading'}</Badge>
               </div>
-              <Heading style={{ fontSize: '1.35rem' }}>Vote window and execution status</Heading>
+              <Heading style={{ fontSize: '1.35rem' }}>{detail?.metadata.title ?? 'Vote window and execution status'}</Heading>
               {loading ? <Text className="lede" style={{ margin: 0 }}>Loading proposal data…</Text> : null}
               {errorMessage ? <Text className="lede" style={{ margin: 0 }}>{errorMessage}</Text> : null}
               {detail ? (
@@ -243,7 +245,11 @@ export default function ProposalDetailPage() {
                   <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Snapshot ledger: {detail.vote_snapshot}</Text>
                   <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Deadline ledger: {detail.vote_end}</Text>
                   <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Ends in: {formatCountdown(detail.vote_end, now)}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {detail.description || '—'}</Text>
+                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {detail.metadata.description || '—'}</Text>
+                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>URL: {detail.metadata.url || '—'}</Text>
+                  {detail.metadata.url ? (
+                    <a href={detail.metadata.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{detail.metadata.url}</a>
+                  ) : null}
                 </Stack>
               ) : null}
               <ShortId value={proposalId} label="Proposal id" />
