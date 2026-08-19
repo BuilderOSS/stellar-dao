@@ -175,11 +175,16 @@ export function DaoShell({ children }: { children: ReactNode }) {
         style={{
           position: 'relative',
           pointerEvents: walletDisabled ? 'none' : undefined,
-          filter: walletDisabled ? 'saturate(0.7) brightness(0.65)' : undefined,
-          opacity: walletDisabled ? 0.7 : 1
         }}
       >
-        {children}
+        <div
+          style={{
+            filter: walletDisabled ? 'saturate(0.7) brightness(0.55)' : undefined,
+            opacity: walletDisabled ? 0.55 : 1
+          }}
+        >
+          {children}
+        </div>
 
         {walletDisabled ? (
           <div
