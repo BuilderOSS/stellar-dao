@@ -1,7 +1,7 @@
 extern crate std;
 
 use governor::{DaoGovernorContract, DaoGovernorContractClient};
-use soroban_sdk::{contract, contractimpl, symbol_short, Symbol, testutils::{Address as _, Ledger}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, token::{StellarAssetClient, TokenClient}, xdr::AccountFlags, Symbol, testutils::{Address as _, Ledger}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
 use stellar_governance::governor::ProposalState;
 use token::{DaoTokenContract, DaoTokenContractClient};
 use treasury::{DaoTreasuryContract, DaoTreasuryContractClient};
@@ -114,6 +114,14 @@ fn batch_mint_proposal_args(e: &Env, treasury: &Address, recipient: &Address, am
     vec![e, vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e), amount.into_val(e)]]
 }
 
+fn transfer_proposal_args_i128(e: &Env, from: &Address, to: &Address, amount: i128) -> Vec<Vec<Val>> {
+    vec![e, vec![e, from.clone().into_val(e), to.clone().into_val(e), amount.into_val(e)]]
+}
+
+fn transfer_proposal_args_u32(e: &Env, from: &Address, to: &Address, token_id: u32) -> Vec<Vec<Val>> {
+    vec![e, vec![e, from.clone().into_val(e), to.clone().into_val(e), token_id.into_val(e)]]
+}
+
 fn description_hash(e: &Env, description: &String) -> BytesN<32> {
     e.crypto().keccak256(&description.to_bytes()).to_bytes()
 }
@@ -220,6 +228,147 @@ fn dao_flow_mints_token_via_treasury_execution() {
     assert_eq!(token.balance(&recipient), 1);
     assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+}
+
+#[test]
+fn sac_classic_asset_without_auth_requirement_can_be_received_held_and_transferred_via_proposal() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+    let admin = Address::generate(&e);
+    let asset = e.register_stellar_asset_contract_v2(admin.clone());
+    let sac = StellarAssetClient::new(&e, &asset.address());
+    let asset_client = TokenClient::new(&e, &asset.address());
+
+    let _ = token.mint(&owner, &proposer);
+
+    let amount = 100_i128;
+    sac.mint(&treasury.address, &amount);
+    assert_eq!(asset_client.balance(&treasury.address), amount);
+
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let targets = vec![&e, asset.address().clone()];
+    let functions = vec![&e, symbol_short!("transfer")];
+    let args = transfer_proposal_args_i128(&e, &treasury.address, &target.address, amount);
+    let description = String::from_str(&e, "Transfer classic asset from treasury");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(asset_client.balance(&treasury.address), 0);
+    assert_eq!(asset_client.balance(&target.address), amount);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #11)")]
+fn sac_classic_asset_with_auth_requirement_rejects_unauthorized_treasury() {
+    let (e, token, treasury, _governor, _target, owner) = setup();
+    let admin = Address::generate(&e);
+    let asset = e.register_stellar_asset_contract_v2(admin.clone());
+    let sac = StellarAssetClient::new(&e, &asset.address());
+
+    let _ = token.mint(&owner, &Address::generate(&e));
+
+    asset.issuer().set_flag(AccountFlags::RequiredFlag);
+    sac.mint(&treasury.address, &100_i128);
+}
+
+#[test]
+fn sac_classic_asset_with_auth_requirement_can_be_received_held_and_transferred_via_proposal() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+    let admin = Address::generate(&e);
+    let asset = e.register_stellar_asset_contract_v2(admin.clone());
+    let sac = StellarAssetClient::new(&e, &asset.address());
+    let asset_client = TokenClient::new(&e, &asset.address());
+
+    let _ = token.mint(&owner, &proposer);
+
+    asset.issuer().set_flag(AccountFlags::RequiredFlag);
+    sac.set_authorized(&treasury.address, &true);
+    sac.set_authorized(&target.address, &true);
+    sac.mint(&treasury.address, &100_i128);
+    assert_eq!(asset_client.balance(&treasury.address), 100);
+
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let targets = vec![&e, asset.address().clone()];
+    let functions = vec![&e, symbol_short!("transfer")];
+    let args = transfer_proposal_args_i128(&e, &treasury.address, &target.address, 100);
+    let description = String::from_str(&e, "Transfer auth-required classic asset from treasury");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(asset_client.balance(&treasury.address), 0);
+    assert_eq!(asset_client.balance(&target.address), 100);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+}
+
+#[test]
+fn governance_token_can_be_received_held_and_transferred_via_proposal() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    let proposer_token_id = token.mint(&owner, &proposer);
+    let treasury_token_id = token.mint(&owner, &treasury.address);
+    assert_eq!(token.balance(&treasury.address), 1);
+
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let targets = vec![&e, token.address.clone()];
+    let functions = vec![&e, symbol_short!("transfer")];
+    let args = transfer_proposal_args_u32(&e, &treasury.address, &target.address, treasury_token_id);
+    let description = String::from_str(&e, "Transfer governance token from treasury");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(token.balance(&treasury.address), 0);
+    assert_eq!(token.balance(&target.address), 1);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+
+    let _ = proposer_token_id;
 }
 
 #[test]
@@ -347,11 +496,11 @@ fn reentrancy_attack_is_prevented() {
     //
     // Our CEI pattern (updating state before external calls) provides additional protection
     // as a best practice and defense-in-depth strategy.
-    let (e, token, treasury, governor, _target, owner) = setup();
+    let (e, token, _treasury, governor, _target, owner) = setup();
 
     // Register malicious contract
     let malicious_id = e.register(MaliciousReentrantContract, ());
-    let malicious = MaliciousReentrantContractClient::new(&e, &malicious_id);
+    let _malicious = MaliciousReentrantContractClient::new(&e, &malicious_id);
 
     // Create proposer with voting power
     let proposer = Address::generate(&e);

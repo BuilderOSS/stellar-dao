@@ -1,4 +1,7 @@
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Symbol, Val, Vec};
+use soroban_sdk::{
+    auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
+    contract, contractimpl, contracttype, vec, Address, Env, Symbol, Val, Vec,
+};
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_macros::only_owner;
 
@@ -89,6 +92,19 @@ impl DaoTreasuryContract {
     pub fn execute(e: &Env, target: Address, function: Symbol, args: Vec<Val>) -> Val {
         let governor = Self::governor(e);
         governor.require_auth();
+
+        e.authorize_as_current_contract(vec![
+            e,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: target.clone(),
+                    fn_name: function.clone(),
+                    args: args.clone(),
+                },
+                sub_invocations: vec![e],
+            }),
+        ]);
+
         let result = e.invoke_contract::<Val>(&target, &function, args.clone());
 
         #[cfg(feature = "mercury")]
