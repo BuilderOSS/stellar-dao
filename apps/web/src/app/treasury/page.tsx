@@ -1,8 +1,8 @@
- 'use client';
+'use client';
 
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
+import { Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -23,7 +23,6 @@ export default function TreasuryPage() {
             <Stack gap="2">
               <Text className="label">Treasury address</Text>
               {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
-              <Badge>Governor-authorized only</Badge>
             </Stack>
           </Card>
           <Card p="5">

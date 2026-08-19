@@ -31,7 +31,6 @@ export function AdminSectionNav({ active }: { active: Route }) {
           }}
         >
           {item.label}
-          {active === item.href ? <Badge>Current</Badge> : null}
         </Link>
       ))}
     </div>

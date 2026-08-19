@@ -97,10 +97,10 @@ export function DaoShell({ children }: { children: ReactNode }) {
             <Stack gap="1">
               <Text className="eyebrow">DAO governance</Text>
               <Heading style={{ fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1.02, margin: 0 }}>
-                DAO Test Stellar
+                {currentNetwork.tokenName}
               </Heading>
               <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
-                A single-DAO governance interface for voting, treasury execution, token details, and admin minting.
+                {currentNetwork.tokenDescription}
               </Text>
             </Stack>
 

@@ -13,26 +13,11 @@ import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Stack } from 'styled-system/jsx';
 
-async function mintToken(config: ReturnType<typeof getDaoNetworkConfig>, sessionAddress: string, recipient: string) {
-  const client = new TokenClient({
-    contractId: config.tokenContractId,
-    rpcUrl: config.rpcUrl,
-    networkPassphrase: config.passphrase,
-    publicKey: sessionAddress,
-    signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
-      networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
-      address: opts?.address ?? sessionAddress
-    }))
-  });
-
-  const assembled = await client.mint({ minter: sessionAddress, to: recipient });
-  return assembled.signAndSend();
-}
-
 export default function TokenAdminPage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('1');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const { data: mintAuthorities, error, isLoading, mutate } = useMercuryMintAuthorities();
@@ -55,13 +40,33 @@ export default function TokenAdminPage() {
       return;
     }
 
+    const mintAmount = Number(amount);
+    if (!Number.isInteger(mintAmount) || mintAmount < 1 || mintAmount > 20) {
+      setStatus('Mint amount must be between 1 and 20.');
+      return;
+    }
+
     setBusy(true);
-    setStatus('Preparing mint transaction...');
+    setStatus('Preparing batch mint transaction...');
 
     try {
-      const sent = await mintToken(config, session.address, recipient);
-      setStatus(`Minted token #${sent.result}${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      const client = new TokenClient({
+        contractId: config.tokenContractId,
+        rpcUrl: config.rpcUrl,
+        networkPassphrase: config.passphrase,
+        publicKey: session.address,
+        signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
+          networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+          address: opts?.address ?? session.address
+        }))
+      });
+
+      const assembled = await client.batch_mint({ minter: session.address, to: recipient, amount: mintAmount });
+      const sent = await assembled.signAndSend();
+      const countLabel = mintAmount === 1 ? 'token' : 'tokens';
+      setStatus(`Minted ${mintAmount} ${countLabel}${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
       setRecipient('');
+      setAmount('1');
       void mutate();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Mint failed');
@@ -82,15 +87,16 @@ export default function TokenAdminPage() {
 
           <Card p="5">
             <Stack gap="3">
-              <Badge>{hasMintAccess ? 'Mint enabled' : 'Read only'}</Badge>
+              <div><Badge>{hasMintAccess ? 'Mint enabled' : 'Read only'}</Badge></div>
               <Heading style={{ fontSize: '1.2rem' }}>Mint voting token</Heading>
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                {hasMintAccess ? 'Enter a recipient address and mint directly to that wallet.' : 'Only a mint authority or the owner can mint from this page.'}
+                {hasMintAccess ? 'Enter a recipient address and mint up to 20 tokens directly to that wallet.' : 'Only a mint authority or the owner can mint from this page.'}
               </Text>
               <Input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" disabled={!hasMintAccess} />
+              <Input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" max="20" step="1" placeholder="Amount (1-20)" disabled={!hasMintAccess} />
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Button type="button" onClick={handleMint} disabled={busy || !hasMintAccess}>
-                  {busy ? 'Minting...' : 'Mint token'}
+                  {busy ? 'Minting...' : 'Batch mint'}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => void mutate()} disabled={isLoading}>
                   {isLoading ? 'Refreshing...' : 'Refresh authorities'}

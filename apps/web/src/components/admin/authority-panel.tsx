@@ -44,7 +44,7 @@ export function AuthorityPanel({
   return (
     <Card p="5">
       <Stack gap="3">
-        <Badge>{badge}</Badge>
+        <div><Badge>{badge}</Badge></div>
         <Heading style={{ fontSize: '1.2rem' }}>{title}</Heading>
         <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{description}</Text>
 

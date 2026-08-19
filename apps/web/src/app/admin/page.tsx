@@ -27,7 +27,9 @@ function SectionCard({
   return (
     <Card p="5" style={{ opacity: allowed ? 1 : 0.72 }}>
       <Stack gap="3">
-        <Badge>{label}</Badge>
+        <div>
+          <Badge>{label}</Badge>
+        </div>
         <Heading style={{ fontSize: '1.2rem' }}>{title}</Heading>
         <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{description}</Text>
         <Link href={allowed ? href : '/admin'} style={{ color: 'inherit', pointerEvents: allowed ? 'auto' : 'none', textDecoration: 'none' }}>

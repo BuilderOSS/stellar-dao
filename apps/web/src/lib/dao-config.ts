@@ -5,6 +5,8 @@ export type DaoNetworkConfig = {
   label: string;
   rpcUrl: string;
   passphrase: string;
+  tokenName: string;
+  tokenDescription: string;
   adminAddress: string;
   tokenContractId: string;
   governorContractId: string;
@@ -30,6 +32,8 @@ export function getDaoNetworkConfig(name: DaoNetworkName): DaoNetworkConfig {
     label: name === 'testnet' ? 'Testnet' : 'Local',
     rpcUrl: process.env.NEXT_PUBLIC_STELLAR_RPC_URL ?? 'http://localhost:8000/rpc',
     passphrase: process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017',
+    tokenName: process.env.NEXT_PUBLIC_STELLAR_TOKEN_NAME ?? 'DAO Token',
+    tokenDescription: process.env.NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION ?? 'A single-DAO governance interface for voting, treasury execution, token details, and admin minting.',
     adminAddress: process.env.NEXT_PUBLIC_STELLAR_ADMIN_ADDRESS ?? defaultAdminAddress,
     tokenContractId: process.env.NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID ?? '',
     governorContractId: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_CONTRACT_ID ?? '',

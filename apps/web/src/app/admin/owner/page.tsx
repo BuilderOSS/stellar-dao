@@ -61,7 +61,7 @@ export default function OwnerPage() {
         <PageSection eyebrow="Admin" title="Owner" description="Owner-only authority management.">
           <Card p="5">
             <Stack gap="2">
-              <Badge>Access restricted</Badge>
+              <div><Badge>Access restricted</Badge></div>
               <Heading style={{ fontSize: '1.2rem' }}>Connect the owner wallet to continue</Heading>
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                 Only the configured bootstrap owner can add or remove mint and governance authorities.
@@ -117,7 +117,7 @@ export default function OwnerPage() {
 
           <Card p="5">
             <Stack gap="3">
-              <Badge>Owner</Badge>
+              <div><Badge>Owner</Badge></div>
               <Heading style={{ fontSize: '1.2rem' }}>Owner controls</Heading>
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                 The owner can add or remove both token and governance authorities. Those authorities can then use the matching admin pages.

@@ -133,7 +133,7 @@ export default function GovernanceAdminPage() {
         <PageSection eyebrow="Admin" title="Governance Admin" description="Governance settings and authority management.">
           <Card p="5">
             <Stack gap="2">
-              <Badge>Access restricted</Badge>
+              <div><Badge>Access restricted</Badge></div>
               <Heading style={{ fontSize: '1.2rem' }}>Connect a governance authority wallet to continue</Heading>
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                 You can still view the current governor values, but only a governance authority can update them.
@@ -166,10 +166,10 @@ export default function GovernanceAdminPage() {
           <Card p="5">
             <Stack gap="3">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div>
-                  <Badge>Live values</Badge>
+                <Stack gap="3">
+                  <div><Badge>Live values</Badge></div>
                   <Heading style={{ fontSize: '1.2rem' }}>Current governor settings</Heading>
-                </div>
+                </Stack>
                 <Button type="button" variant="outline" size="sm" onClick={() => void refreshSettings()} disabled={settingsLoading}>
                   {settingsLoading ? 'Refreshing...' : 'Refresh'}
                 </Button>
@@ -183,7 +183,9 @@ export default function GovernanceAdminPage() {
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <Card p="5">
               <Stack gap="3">
-                <Badge>Voting delay</Badge>
+                <div>
+                  <Badge>Voting delay</Badge>
+                </div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.votingDelay ?? '—'} ledgers</Text>
                 <Input value={drafts.votingDelay ?? String(settings?.votingDelay ?? '')} type="number" min="0" step="1" onChange={(event) => setDrafts((current) => ({ ...current, votingDelay: event.target.value }))} placeholder="New voting delay" />
                 <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(String(settings.votingDelay), drafts.votingDelay ?? String(settings.votingDelay)) ? 'Queued for the next batch.' : 'Measured in ledgers.'}</Text>
@@ -191,7 +193,9 @@ export default function GovernanceAdminPage() {
             </Card>
             <Card p="5">
               <Stack gap="3">
-                <Badge>Voting period</Badge>
+                <div>
+                  <Badge>Voting period</Badge>
+                </div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.votingPeriod ?? '—'} ledgers</Text>
                 <Input value={drafts.votingPeriod ?? String(settings?.votingPeriod ?? '')} type="number" min="0" step="1" onChange={(event) => setDrafts((current) => ({ ...current, votingPeriod: event.target.value }))} placeholder="New voting period" />
                 <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(String(settings.votingPeriod), drafts.votingPeriod ?? String(settings.votingPeriod)) ? 'Queued for the next batch.' : 'Measured in ledgers.'}</Text>
@@ -199,7 +203,9 @@ export default function GovernanceAdminPage() {
             </Card>
             <Card p="5">
               <Stack gap="3">
-                <Badge>Proposal threshold</Badge>
+                <div>
+                  <Badge>Proposal threshold</Badge>
+                </div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.proposalThreshold?.toString() ?? '—'} votes</Text>
                 <Input value={drafts.proposalThreshold ?? formatThreshold(settings?.proposalThreshold ?? 0n)} type="number" min="0" step="1" onChange={(event) => setDrafts((current) => ({ ...current, proposalThreshold: event.target.value }))} placeholder="New proposal threshold" />
                 <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(formatThreshold(settings.proposalThreshold), drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) ? 'Queued for the next batch.' : 'Measured in voting-token units.'}</Text>
@@ -207,7 +213,9 @@ export default function GovernanceAdminPage() {
             </Card>
             <Card p="5">
               <Stack gap="3">
-                <Badge>Quorum</Badge>
+                <div>
+                  <Badge>Quorum</Badge>
+                </div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.quorumBps ?? '—'} bps</Text>
                 <Input value={drafts.quorumBps ?? String(settings?.quorumBps ?? '')} type="number" min="0" max="10000" step="1" onChange={(event) => setDrafts((current) => ({ ...current, quorumBps: event.target.value }))} placeholder="New quorum bps" />
                 <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(String(settings.quorumBps), drafts.quorumBps ?? String(settings.quorumBps)) ? 'Queued for the next batch.' : 'Use basis points, capped at 10,000.'}</Text>
@@ -218,10 +226,10 @@ export default function GovernanceAdminPage() {
           <Card p="5">
             <Stack gap="3">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div>
-                  <Badge>Pending changes</Badge>
+                <Stack gap="3">
+                  <div><Badge>Pending changes</Badge></div>
                   <Heading style={{ fontSize: '1.2rem' }}>{pendingChanges.length} queued change{pendingChanges.length === 1 ? '' : 's'}</Heading>
-                </div>
+                </Stack>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <Button type="button" variant="outline" onClick={() => setDrafts(settings ? {
                     votingDelay: undefined,
