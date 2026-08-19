@@ -5,6 +5,8 @@ import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryActivityFeed, useMercuryProgramStatuses } from '@/lib/mercury-queries';
+import { useTokenInventory } from '@/lib/token-queries';
+import { TokenCard } from '@/components/token/token-card';
 import { Grid, Stack } from 'styled-system/jsx';
 
 function formatTimestamp(timestamp: number) {
@@ -21,6 +23,7 @@ export default function Page() {
   const config = getDaoNetworkConfig(network);
   const { data: mercuryStatuses, error: mercuryStatusError, isLoading: mercuryStatusLoading, mutate: refreshStatuses } = useMercuryProgramStatuses();
   const { data: mercuryFeed, error: mercuryFeedError, isLoading: mercuryFeedLoading, mutate: refreshFeed } = useMercuryActivityFeed(6);
+  const { data: tokens, error: tokenError, isLoading: tokenLoading, mutate: refreshTokens } = useTokenInventory();
 
   return (
     <DaoShell>
@@ -56,6 +59,34 @@ export default function Page() {
             </Stack>
           </Card>
         </Grid>
+
+        <Card p="5">
+          <Stack gap="3">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div>
+                <Text className="label">Tokens</Text>
+                <Heading style={{ fontSize: '1.35rem' }}>Current live supply</Heading>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Badge>{tokenLoading ? 'Syncing' : `${tokens?.totalSupply ?? 0} live`}</Badge>
+                <Button type="button" variant="outline" size="sm" onClick={() => void refreshTokens()} disabled={tokenLoading}>
+                  {tokenLoading ? 'Refreshing...' : 'Refresh tokens'}
+                </Button>
+              </div>
+            </div>
+
+            {tokenError ? <Text className="lede" style={{ margin: 0 }}>{tokenError.message}</Text> : null}
+            {!tokenLoading && !tokens?.items.length ? (
+              <Text className="lede" style={{ margin: 0 }}>No tokens indexed yet.</Text>
+            ) : (
+              <Grid columns={{ base: 1, md: 2, xl: 3 }} gap="4">
+                {tokens?.items.map((token) => (
+                  <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
+                ))}
+              </Grid>
+            )}
+          </Stack>
+        </Card>
 
         <Grid columns={{ base: 1, xl: 3 }} gap="4">
           {mercuryStatuses?.items.map((program) => (

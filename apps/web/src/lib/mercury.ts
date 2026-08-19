@@ -12,6 +12,7 @@ import type {
   MercuryProposalVoteItem,
   MercuryProposalVotesResponse
 } from '@/lib/mercury-types';
+import type { TokenInventoryItem, TokenInventoryResponse } from '@/lib/token-types';
 
 type MercuryTable = {
   table_name: string;
@@ -36,6 +37,11 @@ type MercuryStatusResponse = {
   total_executions: number;
   total_errors: number;
   avg_execution_ms: number | null;
+};
+
+type TokenEventRow = MercuryTableRow & {
+  token_id?: unknown;
+  to?: unknown;
 };
 
 const TABLE_SUFFIXES: Record<string, { title: string; summarize: (row: MercuryTableRow) => string; addresses: (row: MercuryTableRow) => string[] }> = {
@@ -273,6 +279,22 @@ async function queryTable(baseUrl: string, jwt: string, tableName: string, limit
   });
 }
 
+function toTokenItemFromRow(row: TokenEventRow): TokenInventoryItem | null {
+  const tokenId = asNumber(row.token_id);
+  const owner = asString(row.to);
+
+  if (!tokenId || !owner) return null;
+
+  return {
+    tokenId,
+    owner,
+    ledger: asNumber(row.ledger),
+    timestamp: asNumber(row.timestamp),
+    txHash: asString(row.transaction),
+    contractId: asString(row.contract_id)
+  };
+}
+
 function isProgramTable(table: MercuryTable, program: MercuryProgramConfig) {
   return table.table_name.startsWith(`program_${program.programId}_`) && table.project_name_plain === program.projectName;
 }
@@ -465,6 +487,50 @@ export async function getMercuryGovernorAuthorities() {
   }
 
   return { items, generatedAt: new Date().toISOString() };
+}
+
+export async function getMercuryTokenInventory(): Promise<TokenInventoryResponse> {
+  const config = getConfig();
+  if (!config) {
+    return { items: [], totalSupply: 0, generatedAt: new Date().toISOString(), message: 'Mercury is not configured.' };
+  }
+
+  const tokenProgram = config.programs.find((program) => program.key === 'token');
+  if (!tokenProgram) {
+    return { items: [], totalSupply: 0, generatedAt: new Date().toISOString(), message: 'Token Mercury program is not configured.' };
+  }
+
+  const tables = await listTables(config.baseUrl, config.jwt);
+  const relevantTables = tables.filter((table) => isProgramTable(table, tokenProgram) && (table.table_name.endsWith('_mint_indexed') || table.table_name.endsWith('_transfer_indexed')));
+
+  const rows = await Promise.all(relevantTables.map(async (table) => {
+    const data = await queryTable(config.baseUrl, config.jwt, table.table_name, 2000);
+    const kind = table.table_name.endsWith('_mint_indexed') ? 0 : 1;
+
+    return data
+      .map((row) => ({ ...row, _kind: kind }))
+      .map((row) => {
+        const item = toTokenItemFromRow(row as TokenEventRow);
+        if (!item) return null;
+        return { ...item, _kind: kind };
+      })
+      .filter((item): item is TokenInventoryItem & { _kind: number } => Boolean(item));
+  }));
+
+  const latest = new Map<number, TokenInventoryItem>();
+  for (const event of rows.flat().sort((a, b) => a.ledger - b.ledger || a.timestamp - b.timestamp || a._kind - b._kind || a.tokenId - b.tokenId)) {
+    latest.set(event.tokenId, {
+      tokenId: event.tokenId,
+      owner: event.owner,
+      ledger: event.ledger,
+      timestamp: event.timestamp,
+      txHash: event.txHash,
+      contractId: event.contractId
+    });
+  }
+
+  const items = [...latest.values()].sort((a, b) => a.tokenId - b.tokenId);
+  return { items, totalSupply: items.length, generatedAt: new Date().toISOString() };
 }
 
 export async function getMercuryProposalVotes(proposalId: string): Promise<MercuryProposalVotesResponse> {
