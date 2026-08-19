@@ -47,6 +47,12 @@ mod retroshade {
 
 const MAX_BATCH_MINT: u32 = 100;
 
+// TTL constants for delegation storage
+// Delegations should persist long-term as they represent voting power delegation
+const DAY_IN_LEDGERS: u32 = 17280; // ~5 seconds per ledger
+const DELEGATION_TTL_EXTEND_AMOUNT: u32 = 365 * DAY_IN_LEDGERS; // 1 year
+const DELEGATION_TTL_THRESHOLD: u32 = DELEGATION_TTL_EXTEND_AMOUNT - DAY_IN_LEDGERS; // ~364 days
+
 #[contracttype]
 enum TokenKey {
     MintAuthority(Address),
@@ -166,6 +172,16 @@ impl DaoTokenContract {
         .emit(e);
     }
 
+    /// Extends the TTL of delegation data to ensure it persists long-term
+    fn extend_delegation_ttl(e: &Env, account: &Address) {
+        let key = VotesStorageKey::Delegatee(account.clone());
+        e.storage().persistent().extend_ttl(
+            &key,
+            DELEGATION_TTL_THRESHOLD,
+            DELEGATION_TTL_EXTEND_AMOUNT,
+        );
+    }
+
     /// Ensures an account has a delegate set, defaulting to self-delegation.
     ///
     /// This function auto-delegates to self if no delegation exists, providing
@@ -203,6 +219,9 @@ impl DaoTokenContract {
             // is called by sequential_mint() or transfer(), which looks up the
             // delegatee we just set and properly updates voting power checkpoints.
         }
+
+        // Always extend TTL when delegation is checked/used
+        Self::extend_delegation_ttl(e, account);
     }
 
     fn ensure_mint_authority(e: &Env, minter: &Address) {

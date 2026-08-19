@@ -78,6 +78,13 @@ mod retroshade {
     }
 }
 
+// TTL constants for proposal storage
+// Proposals can stay active for voting_delay + voting_period + queue_delay
+// Using 60 days (518,400 ledgers) to safely cover max governance timeline
+const DAY_IN_LEDGERS: u32 = 17280; // ~5 seconds per ledger
+const PROPOSAL_TTL_EXTEND_AMOUNT: u32 = 60 * DAY_IN_LEDGERS; // 60 days
+const PROPOSAL_TTL_THRESHOLD: u32 = PROPOSAL_TTL_EXTEND_AMOUNT - DAY_IN_LEDGERS; // 59 days
+
 #[contracttype]
 enum GovernorKey {
     Treasury,
@@ -229,15 +236,34 @@ impl DaoGovernorContract {
         GovernorKey::Proposal(proposal_id.clone())
     }
 
+    /// Extends the TTL of a proposal to ensure it doesn't expire before execution
+    fn extend_proposal_ttl(e: &Env, proposal_id: &BytesN<32>) {
+        let key = Self::proposal_key(proposal_id);
+        e.storage().persistent().extend_ttl(
+            &key,
+            PROPOSAL_TTL_THRESHOLD,
+            PROPOSAL_TTL_EXTEND_AMOUNT,
+        );
+    }
+
     fn get_proposal(e: &Env, proposal_id: &BytesN<32>) -> ProposalCoreTime {
-        e.storage()
+        let proposal = e
+            .storage()
             .persistent()
             .get(&Self::proposal_key(proposal_id))
-            .unwrap_or_else(|| panic_with_error!(e, GovernorError::ProposalNotFound))
+            .unwrap_or_else(|| panic_with_error!(e, GovernorError::ProposalNotFound));
+
+        // Extend TTL when proposal is accessed
+        Self::extend_proposal_ttl(e, proposal_id);
+
+        proposal
     }
 
     fn set_proposal(e: &Env, proposal_id: &BytesN<32>, proposal: &ProposalCoreTime) {
         e.storage().persistent().set(&Self::proposal_key(proposal_id), proposal);
+
+        // Extend TTL when proposal is updated
+        Self::extend_proposal_ttl(e, proposal_id);
     }
 
     fn proposal_state_internal(e: &Env, proposal_id: &BytesN<32>, proposal: &ProposalCoreTime) -> ProposalState {
