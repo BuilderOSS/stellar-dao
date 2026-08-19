@@ -21,6 +21,39 @@ impl TargetContract {
     }
 }
 
+// Malicious contract that attempts reentrancy during execution
+#[contract]
+pub struct MaliciousReentrantContract;
+
+#[contractimpl]
+impl MaliciousReentrantContract {
+    /// Attempts to re-enter governor.execute() during execution
+    /// This should fail because the proposal state is updated before external calls
+    pub fn reentry(
+        e: &Env,
+        governor: Address,
+        targets: Vec<Address>,
+        functions: Vec<Symbol>,
+        args: Vec<Vec<Val>>,
+        desc_hash: BytesN<32>,
+        executor: Address,
+    ) {
+        // Mark that attack was attempted
+        e.storage().instance().set(&symbol_short!("attack"), &1);
+
+        // Try to re-enter execute() - should fail with ProposalAlreadyExecuted
+        let gov_client = DaoGovernorContractClient::new(e, &governor);
+        gov_client.execute(&targets, &functions, &args, &desc_hash, &executor);
+
+        // If we get here, the reentrancy attack succeeded (BAD!)
+        e.storage().instance().set(&symbol_short!("success"), &true);
+    }
+
+    pub fn get_attack_count(e: &Env) -> u32 {
+        e.storage().instance().get(&symbol_short!("attack")).unwrap_or(0)
+    }
+}
+
 fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'static>, DaoGovernorContractClient<'static>, TargetContractClient<'static>, Address) {
     let e = Env::default();
     e.mock_all_auths();
@@ -303,4 +336,81 @@ fn proposal_flow_with_modified_governance_parameters() {
 
     assert_eq!(target.get_value(), 42);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Context, InvalidAction)")]
+fn reentrancy_attack_is_prevented() {
+    // NOTE: Soroban provides built-in reentrancy protection at the platform level
+    // When a malicious contract attempts to re-enter during execution,
+    // the platform blocks it with: Error(Context, InvalidAction) - "Contract re-entry is not allowed"
+    //
+    // Our CEI pattern (updating state before external calls) provides additional protection
+    // as a best practice and defense-in-depth strategy.
+    let (e, token, treasury, governor, _target, owner) = setup();
+
+    // Register malicious contract
+    let malicious_id = e.register(MaliciousReentrantContract, ());
+    let malicious = MaliciousReentrantContractClient::new(&e, &malicious_id);
+
+    // Create proposer with voting power
+    let proposer = Address::generate(&e);
+    token.mint(&owner, &proposer);
+
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    // Create a malicious proposal that will attempt reentrancy
+    // The proposal will call malicious.reentry(), which will try to re-execute the same proposal
+    let targets = vec![&e, malicious_id.clone()];
+    let functions = vec![&e, symbol_short!("reentry")];
+
+    // Prepare arguments for the reentry call
+    let attack_targets = vec![&e, malicious_id.clone()];
+    let attack_functions = vec![&e, symbol_short!("reentry")];
+    let attack_args: Vec<Vec<Val>> = vec![&e, vec![&e]];
+    let description = String::from_str(&e, "Reentrancy attack test");
+    let desc_hash = description_hash(&e, &description);
+
+    // Args: (governor, targets, functions, args, desc_hash, executor)
+    let args = vec![
+        &e,
+        vec![
+            &e,
+            governor.address.clone().into_val(&e),
+            attack_targets.into_val(&e),
+            attack_functions.into_val(&e),
+            attack_args.into_val(&e),
+            desc_hash.into_val(&e),
+            proposer.clone().into_val(&e),
+        ],
+    ];
+
+    // Create the proposal
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Vote on the proposal
+    e.ledger().set_timestamp(2_011); // After voting delay
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Wait for voting period to end
+    e.ledger().set_timestamp(2_111); // After voting period
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    // Queue the proposal
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Execute the proposal - this will trigger the reentrancy attack
+    e.ledger().set_timestamp(2_412); // After ETA
+
+    // The execution will:
+    // 1. Mark proposal as Executed (CEI pattern)
+    // 2. Call malicious.reentry()
+    // 3. Malicious contract tries to re-enter execute()
+    // 4. Soroban blocks reentrancy with Error(Context, InvalidAction)
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    // If we get here without panic, the test will fail
+    // The should_panic annotation ensures the test passes only if reentrancy is blocked
 }

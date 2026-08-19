@@ -652,7 +652,7 @@ impl Governor for DaoGovernorContract {
         executor.require_auth();
         e.current_contract_address().require_auth();
 
-        // Validate proposal parameters are consistent
+        // CHECKS: Validate proposal parameters are consistent
         if targets.len() != functions.len() || targets.len() != args.len() {
             panic_with_error!(e, GovernorError::InvalidProposalLength);
         }
@@ -660,6 +660,7 @@ impl Governor for DaoGovernorContract {
         let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
         let mut proposal = Self::get_proposal(e, &proposal_id);
 
+        // CHECKS: Validate proposal state
         match Self::proposal_state_internal(e, &proposal_id, &proposal) {
             ProposalState::Queued => {}
             ProposalState::Executed => panic_with_error!(e, GovernorError::ProposalAlreadyExecuted),
@@ -671,6 +672,25 @@ impl Governor for DaoGovernorContract {
             panic_with_error!(e, GovernorError::ProposalNotQueued);
         }
 
+        // EFFECTS: Update state BEFORE external calls to prevent reentrancy
+        // This ensures that if any external call attempts to re-enter execute(),
+        // the proposal will already be marked as Executed and the call will fail
+        proposal.state = ProposalState::Executed;
+        Self::set_proposal(e, &proposal_id, &proposal);
+        emit_proposal_executed(e, &proposal_id);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ProposalLifecycleIndexed {
+            proposal_id: proposal_id.clone(),
+            proposer: proposal.proposer.clone(),
+            state: Self::proposal_state_symbol(e, ProposalState::Executed),
+            eta: proposal.eta,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
+
+        // INTERACTIONS: Now safe to make external calls
         // Execute all actions through treasury
         // Targets and functions are now the actual contracts/functions to call
         // We wrap them to call treasury.execute(target, function, args)
@@ -704,21 +724,6 @@ impl Governor for DaoGovernorContract {
             }
             .emit(e);
         }
-
-        proposal.state = ProposalState::Executed;
-        Self::set_proposal(e, &proposal_id, &proposal);
-        emit_proposal_executed(e, &proposal_id);
-
-        #[cfg(feature = "mercury")]
-        retroshade::ProposalLifecycleIndexed {
-            proposal_id: proposal_id.clone(),
-            proposer: proposal.proposer.clone(),
-            state: Self::proposal_state_symbol(e, ProposalState::Executed),
-            eta: proposal.eta,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
 
         proposal_id
     }

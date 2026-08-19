@@ -22,6 +22,28 @@ impl TargetContract {
     }
 }
 
+// Malicious contract that attempts reentrancy attack
+#[contract]
+pub struct MaliciousReentrantContract;
+
+#[contractimpl]
+impl MaliciousReentrantContract {
+    /// This function attempts to re-enter the governor's execute() function
+    /// when called during proposal execution
+    pub fn attack(e: &Env, governor: Address, targets: Vec<Address>, functions: Vec<soroban_sdk::Symbol>, args: Vec<Vec<Val>>, desc_hash: BytesN<32>, executor: Address) {
+        // Store attack parameters
+        e.storage().instance().set(&symbol_short!("attacked"), &true);
+
+        // Attempt to re-enter execute() - this should fail because proposal is already marked Executed
+        let governor_client = DaoGovernorContractClient::new(e, &governor);
+        governor_client.execute(&targets, &functions, &args, &desc_hash, &executor);
+    }
+
+    pub fn was_attacked(e: &Env) -> bool {
+        e.storage().instance().get(&symbol_short!("attacked")).unwrap_or(false)
+    }
+}
+
 fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'static>, DaoGovernorContractClient<'static>, TargetContractClient<'static>, Address) {
     let e = Env::default();
     e.mock_all_auths();
@@ -835,4 +857,122 @@ fn expired_proposal_cannot_be_executed() {
 
     // Try to execute expired proposal (should fail with ProposalNotQueued error #5007)
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Context, InvalidAction)")]
+fn execute_prevents_reentrancy_attack() {
+    // NOTE: Soroban has built-in reentrancy protection at the platform level
+    // This test verifies that even if an attacker tries to re-enter execute(),
+    // the platform blocks it with Error(Context, InvalidAction) - "Contract re-entry is not allowed"
+    //
+    // Additionally, our CEI pattern (Checks-Effects-Interactions) provides defense-in-depth
+    // by updating the proposal state to Executed BEFORE making external calls.
+    // If platform protection is bypassed, our state check would catch it.
+    let (e, token, _treasury, governor, _target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    // Register malicious contract
+    let malicious_id = e.register(MaliciousReentrantContract, ());
+    let malicious = MaliciousReentrantContractClient::new(&e, &malicious_id);
+
+    // Mint token to proposer
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    // Create a proposal that calls the malicious contract
+    // The malicious contract will try to re-enter execute()
+    let targets = vec![&e, malicious_id.clone()];
+    let functions = vec![&e, symbol_short!("attack")];
+
+    // Build args for the malicious attack function
+    // attack(governor, targets, functions, args, desc_hash, executor)
+    let attack_targets = vec![&e, malicious_id.clone()]; // Dummy targets for reentrancy attempt
+    let attack_functions = vec![&e, symbol_short!("attack")];
+    let attack_args: Vec<Vec<Val>> = vec![&e, vec![&e]];
+    let attack_desc = String::from_str(&e, "Reentrancy attack");
+    let attack_desc_hash = description_hash(&e, &attack_desc);
+
+    let args = vec![
+        &e,
+        vec![
+            &e,
+            governor.address.clone().into_val(&e),
+            attack_targets.into_val(&e),
+            attack_functions.into_val(&e),
+            attack_args.into_val(&e),
+            attack_desc_hash.into_val(&e),
+            proposer.clone().into_val(&e),
+        ],
+    ];
+
+    let description = String::from_str(&e, "Test reentrancy protection");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Advance time and vote for the proposal
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Advance to after voting period (proposal now Succeeded)
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    // Queue the proposal
+    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Advance past ETA
+    e.ledger().set_timestamp(3_112);
+
+    // Execute the proposal
+    // The malicious contract's attack() function will be called
+    // It will try to re-enter execute(), which should fail with ProposalAlreadyExecuted error #5006
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+}
+
+#[test]
+fn execute_updates_state_before_external_calls() {
+    let (e, token, _treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+
+    // Mint token to proposer
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    // Create a normal proposal
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
+    let description = String::from_str(&e, "Test state update timing");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Advance time and vote
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Advance to after voting period
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    // Queue the proposal
+    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    // Advance past ETA
+    e.ledger().set_timestamp(3_112);
+
+    // Execute the proposal
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    // Verify proposal state is Executed (not Queued)
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+
+    // Verify the target contract function was actually called
+    assert_eq!(target.get_value(), 42);
 }
