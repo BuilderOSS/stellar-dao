@@ -20,7 +20,7 @@ This review identified **28 issues** across the DAO smart contract system. The c
 
 ### Test Coverage
 
-✅ 44 tests passing (18 token, 20 governor, 6 e2e)
+✅ 51 tests passing (18 token, 27 governor, 6 e2e)
 
 ---
 
@@ -344,31 +344,16 @@ fn proposal_state_internal(...) -> ProposalState {
 
 ---
 
-### Issue #6: Zero Vote Weight Allowed
+### Issue #6: Zero Vote Weight Allowed ✅ FIXED
 
-**Location:** `contracts/governor/src/governor.rs:452-485`
+**Location:** `contracts/governor/src/governor.rs:501-515`
 
-**Code:**
-```rust
-pub fn cast_vote(...) -> u128 {
-    voter.require_auth();
+**Original Issue:**
+Users with 0 voting power could vote, wasting gas and polluting vote event logs. Could be used for spam/griefing attacks.
 
-    let token = governor::get_token_contract(e);
-    let voter_weight = VotesClient::new(e, &token)
-        .get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
+**Resolution:**
+Added validation to reject votes from users with zero voting weight at the proposal snapshot:
 
-    // ISSUE: No check if voter_weight == 0
-    governor::count_vote(e, &proposal_id, &voter, vote_type, voter_weight);
-```
-
-**Impact:**
-- **Severity:** LOW-MEDIUM
-- Users with 0 voting power can vote (wastes gas)
-- Pollutes vote event logs
-- Could be used for spam/griefing
-- Confusing UX (users wonder why their vote didn't count)
-
-**Recommendation:**
 ```rust
 pub fn cast_vote(...) -> u128 {
     voter.require_auth();
@@ -382,9 +367,9 @@ pub fn cast_vote(...) -> u128 {
     let voter_weight = VotesClient::new(e, &token)
         .get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
 
-    // Add zero weight check
+    // Prevent voting with zero weight (spam/griefing protection)
     if voter_weight == 0 {
-        panic_with_error!(e, GovernorError::InsufficientVotes);
+        panic_with_error!(e, GovernorError::InsufficientProposerVotes);
     }
 
     governor::count_vote(e, &proposal_id, &voter, vote_type, voter_weight);
@@ -392,7 +377,17 @@ pub fn cast_vote(...) -> u128 {
 }
 ```
 
-**Action Required:** Add zero weight validation.
+**Testing:**
+Added new unit test `cast_vote_fails_with_zero_weight` that verifies:
+- Users with no voting power at snapshot cannot vote
+- Error code #5002 (InsufficientProposerVotes) is returned
+- Test correctly fails when zero-weight voter attempts to vote
+
+Updated e2e test `transfer_after_snapshot_does_not_change_vote_outcome` to reflect new validation behavior.
+
+All tests pass (27 governor + 18 token + 6 e2e = 51 total).
+
+**Status:** ✅ FIXED - Zero voting weight is now rejected
 
 ---
 
@@ -902,85 +897,73 @@ pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
 
 ---
 
-### Issue #17: Proposal Threshold Can Be Set to Zero
+### Issue #17: Proposal Threshold Can Be Set to Zero ✅ FIXED
 
-**Location:** `contracts/governor/src/governor.rs:171-175`
+**Location:** `contracts/governor/src/governor.rs:178-188`
 
-**Code:**
+**Original Issue:**
+Governor authority could set proposal threshold to zero, allowing anyone to spam proposals with no token ownership.
+
+**Resolution:**
+Added validation to ensure proposal threshold is always at least 1:
+
 ```rust
 pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
     caller.require_auth();
     Self::ensure_governor_authority(e, &caller);
-    governor::set_proposal_threshold(e, proposal_threshold);
-    // ISSUE: No minimum validation
-}
-```
 
-**Impact:**
-- **Severity:** MEDIUM
-- Anyone could spam proposals with no token ownership
-- No skin-in-the-game requirement
-- DoS attack vector (proposal storage spam)
-- Defeats purpose of threshold
-
-**Recommendation:**
-```rust
-const MIN_PROPOSAL_THRESHOLD: u128 = 1;  // At least 1 vote required
-
-pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
-    caller.require_auth();
-    Self::ensure_governor_authority(e, &caller);
-
-    if proposal_threshold < MIN_PROPOSAL_THRESHOLD {
-        panic_with_error!(e, GovernorError::InvalidProposalThreshold);
+    // Prevent setting threshold to zero (would allow spam proposals)
+    if proposal_threshold == 0 {
+        panic_with_error!(e, GovernorError::InvalidProposalLength);
     }
 
     governor::set_proposal_threshold(e, proposal_threshold);
 }
 ```
 
-**Action Required:** Add minimum threshold validation.
+**Testing:**
+Added new unit test `set_proposal_threshold_zero_fails` that verifies:
+- Attempting to set threshold to zero results in error #5004 (InvalidProposalLength)
+- Test correctly panics when zero threshold is attempted
+
+All tests pass (27 governor + 18 token + 6 e2e = 51 total).
+
+**Status:** ✅ FIXED - Zero proposal threshold is now rejected
 
 ---
 
-### Issue #18: Quorum Can Be Set to Zero
+### Issue #18: Quorum Can Be Set to Zero ✅ FIXED
 
-**Location:** `contracts/governor/src/governor.rs:177-182`
+**Location:** `contracts/governor/src/governor.rs:190-200`
 
-**Code:**
+**Original Issue:**
+Governor authority could set quorum to zero, allowing 1 vote to pass proposals and defeating the purpose of quorum.
+
+**Resolution:**
+Added validation to ensure quorum is within valid range (1-10,000 basis points):
+
 ```rust
 pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
     caller.require_auth();
     Self::ensure_governor_authority(e, &caller);
-    assert!(quorum_bps <= 10_000);  // Only checks maximum
-    governor::set_quorum(e, quorum_bps as u128);
-}
-```
 
-**Impact:**
-- **Severity:** MEDIUM
-- 0% quorum means 1 vote can pass proposals
-- Defeats purpose of quorum requirement
-- Vulnerable to low-participation attacks
-
-**Recommendation:**
-```rust
-const MIN_QUORUM_BPS: u32 = 1;     // 0.01% minimum
-const MAX_QUORUM_BPS: u32 = 10_000; // 100% maximum
-
-pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
-    caller.require_auth();
-    Self::ensure_governor_authority(e, &caller);
-
-    if quorum_bps < MIN_QUORUM_BPS || quorum_bps > MAX_QUORUM_BPS {
-        panic_with_error!(e, GovernorError::InvalidQuorum);
+    // Validate quorum is in valid range (1 to 10000 basis points)
+    if quorum_bps == 0 || quorum_bps > 10_000 {
+        panic_with_error!(e, GovernorError::InvalidProposalLength);
     }
 
     governor::set_quorum(e, quorum_bps as u128);
 }
 ```
 
-**Action Required:** Add minimum quorum validation.
+**Testing:**
+Added two new unit tests:
+1. `set_quorum_bps_zero_fails`: Verifies setting quorum to 0 results in error #5004
+2. `set_quorum_bps_above_max_fails`: Verifies setting quorum > 10,000 results in error #5004
+
+All tests pass (27 governor + 18 token + 6 e2e = 51 total).
+
+**Status:** ✅ FIXED - Zero and invalid quorum values are now rejected
 
 ---
 

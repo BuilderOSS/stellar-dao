@@ -148,13 +148,18 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &alice);
 
     e.ledger().set_timestamp(2_011);
+    // Transfer token after snapshot - bob receives token but had 0 power at snapshot
     token.transfer(&alice, &bob, &token_id);
-    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "bob yes"), &bob);
+
+    // Alice can still vote (had power at snapshot)
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "alice yes"), &alice);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Defeated);
+    // Proposal succeeds with alice's vote
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
 
     let _ = desc_hash;
+    let _ = bob; // Bob can't vote (zero weight at snapshot)
 }
 
 #[test]

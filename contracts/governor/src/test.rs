@@ -654,3 +654,57 @@ fn proposal_state_transitions_with_large_timestamps() {
     e.ledger().set_timestamp(start_time + 111);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
 }
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #5002)")]
+fn cast_vote_fails_with_zero_weight() {
+    let (e, token, treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+    let zero_voter = Address::generate(&e);
+
+    // Give proposer voting power
+    let _ = token.mint(&owner, &proposer);
+
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let targets = vec![&e, treasury.address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Test zero vote");
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Move to voting period
+    e.ledger().set_timestamp(2_011);
+
+    // Try to vote with zero voting power (should fail)
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &zero_voter);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #5004)")]
+fn set_proposal_threshold_zero_fails() {
+    let (_e, _token, _treasury, governor, _target, owner) = setup();
+
+    // Try to set threshold to zero (should fail)
+    governor.set_proposal_threshold(&owner, &0);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #5004)")]
+fn set_quorum_bps_zero_fails() {
+    let (_e, _token, _treasury, governor, _target, owner) = setup();
+
+    // Try to set quorum to zero (should fail)
+    governor.set_quorum_bps(&owner, &0);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #5004)")]
+fn set_quorum_bps_above_max_fails() {
+    let (_e, _token, _treasury, governor, _target, owner) = setup();
+
+    // Try to set quorum above 100% (should fail)
+    governor.set_quorum_bps(&owner, &10_001);
+}

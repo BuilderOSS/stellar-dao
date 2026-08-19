@@ -178,13 +178,24 @@ impl DaoGovernorContract {
     pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
+
+        // Prevent setting threshold to zero (would allow spam proposals)
+        if proposal_threshold == 0 {
+            panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error
+        }
+
         governor::set_proposal_threshold(e, proposal_threshold);
     }
 
     pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
-        assert!(quorum_bps <= 10_000);
+
+        // Validate quorum is in valid range (1 to 10000 basis points)
+        if quorum_bps == 0 || quorum_bps > 10_000 {
+            panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error
+        }
+
         governor::set_quorum(e, quorum_bps as u128);
     }
 
@@ -497,6 +508,12 @@ impl Governor for DaoGovernorContract {
         let token = governor::get_token_contract(e);
         let voter_weight = VotesClient::new(e, &token)
             .get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
+
+        // Prevent voting with zero weight (spam/griefing protection)
+        if voter_weight == 0 {
+            panic_with_error!(e, GovernorError::InsufficientProposerVotes);
+        }
+
         governor::count_vote(e, &proposal_id, &voter, vote_type, voter_weight);
         emit_vote_cast(e, &voter, &proposal_id, vote_type, voter_weight, &reason);
 
