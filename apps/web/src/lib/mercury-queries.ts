@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import type { MercuryActivityResponse, MercuryMintAuthorityResponse, MercuryProgramStatusResponse } from '@/lib/mercury-types';
+import type { MercuryActivityResponse, MercuryGovernorAuthorityResponse, MercuryMintAuthorityResponse, MercuryProgramStatusResponse } from '@/lib/mercury-types';
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, { cache: 'no-store' });
@@ -21,4 +21,8 @@ export function useMercuryProgramStatuses() {
 
 export function useMercuryMintAuthorities() {
   return useSWR<MercuryMintAuthorityResponse>('/api/mercury/mint-authorities', fetchJson, { keepPreviousData: true });
+}
+
+export function useMercuryGovernorAuthorities() {
+  return useSWR<MercuryGovernorAuthorityResponse>('/api/mercury/governor-authorities', fetchJson, { keepPreviousData: true });
 }

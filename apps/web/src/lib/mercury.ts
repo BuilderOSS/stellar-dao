@@ -4,6 +4,7 @@ import type {
   MercuryProgramConfig,
   MercuryProgramKey,
   MercuryMintAuthorityItem,
+  MercuryGovernorAuthorityItem,
   MercuryProposalDetailItem,
   MercuryProposalDetailResponse,
   MercuryProgramStatusItem,
@@ -50,6 +51,11 @@ const TABLE_SUFFIXES: Record<string, { title: string; summarize: (row: MercuryTa
   mint_authority_changed_indexed: {
     title: 'Mint Authority Change',
     summarize: (row) => `${shorten(stringify(row.authority))} ${Boolean(row.enabled) ? 'allowed' : 'revoked'} to mint`,
+    addresses: (row) => collectAddresses(row, ['authority'])
+  },
+  governor_authority_changed_indexed: {
+    title: 'Governor Authority Change',
+    summarize: (row) => `${shorten(stringify(row.authority))} ${Boolean(row.enabled) ? 'allowed' : 'revoked'} to govern`,
     addresses: (row) => collectAddresses(row, ['authority'])
   },
   delegate_changed_indexed: {
@@ -322,6 +328,65 @@ export async function getMercuryMintAuthorities() {
   }));
 
   const latest = new Map<string, MercuryMintAuthorityItem>();
+  for (const item of rows.flat().sort((a, b) => b.ledger - a.ledger || b.timestamp - a.timestamp)) {
+    if (!latest.has(item.authority)) {
+      latest.set(item.authority, item);
+    }
+  }
+
+  const owner = config.adminAddress;
+  const items = [...latest.values()].filter((item) => item.enabled);
+  if (owner && !items.some((item) => item.authority === owner)) {
+    items.unshift({
+      authority: owner,
+      enabled: true,
+      ledger: 0,
+      timestamp: 0,
+      txHash: '',
+      contractId: '',
+      source: 'owner'
+    });
+  }
+
+  return { items, generatedAt: new Date().toISOString() };
+}
+
+export async function getMercuryGovernorAuthorities() {
+  const config = getConfig();
+  if (!config) {
+    return { items: [], generatedAt: new Date().toISOString(), message: 'Mercury is not configured.' };
+  }
+
+  const governorProgram = config.programs.find((program) => program.key === 'governor');
+  if (!governorProgram) {
+    return { items: [], generatedAt: new Date().toISOString(), message: 'Governor Mercury program is not configured.' };
+  }
+
+  const tables = await listTables(config.baseUrl, config.jwt);
+  const relevantTables = tables.filter((table) => isProgramTable(table, governorProgram) && table.table_name.endsWith('_governor_authority_changed_indexed'));
+  const rows = await Promise.all(relevantTables.map(async (table) => {
+    const data = await queryTable(config.baseUrl, config.jwt, table.table_name, 100);
+    const items: MercuryGovernorAuthorityItem[] = [];
+
+    for (const row of data) {
+      const authority = asString(row.authority);
+      if (!authority) continue;
+
+      items.push({
+        authority,
+        enabled: asBoolean(row.enabled),
+        ledger: asNumber(row.ledger),
+        timestamp: asNumber(row.timestamp),
+        txHash: asString(row.transaction),
+        contractId: asString(row.contract_id),
+        source: 'mercury' as const
+      });
+    }
+
+    return items;
+  }));
+
+  const latest = new Map<string, MercuryGovernorAuthorityItem>();
   for (const item of rows.flat().sort((a, b) => b.ledger - a.ledger || b.timestamp - a.timestamp)) {
     if (!latest.has(item.authority)) {
       latest.set(item.authority, item);

@@ -48,7 +48,7 @@ export function DaoShell({ children }: { children: ReactNode }) {
   const currentNetwork = getDaoNetworkConfig(network);
   const adminNavItem: { href: Route; label: string } = { href: '/admin', label: 'Admin' };
   const isAdmin = session.address && session.address === currentNetwork.adminAddress;
-  const navItems: Array<{ href: Route; label: string }> = isAdmin ? [...BASE_NAV_ITEMS, adminNavItem] : BASE_NAV_ITEMS;
+  const navItems: Array<{ href: Route; label: string }> = session.address ? [...BASE_NAV_ITEMS, adminNavItem] : BASE_NAV_ITEMS;
 
   useEffect(() => {
     StellarWalletsKit.init({ modules: defaultModules() });

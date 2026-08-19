@@ -1,0 +1,154 @@
+'use client';
+
+import { useState } from 'react';
+import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { Client as ContractClient, type AssembledTransaction, type MethodOptions, type SignTransaction } from '@stellar/stellar-sdk/contract';
+import { DaoShell } from '@/components/dao-shell';
+import { PageSection } from '@/components/page-section';
+import { AdminSectionNav } from '@/components/admin/admin-section-nav';
+import { AuthorityPanel } from '@/components/admin/authority-panel';
+import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { useDaoSessionStore } from '@/stores/dao-session-store';
+import { Grid, Stack } from 'styled-system/jsx';
+
+type OwnerAuthorityClient = {
+  set_mint_authority: (args: { authority: string; enabled: boolean }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
+  set_governor_authority: (args: { authority: string; enabled: boolean }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
+};
+
+async function submitAuthorityUpdate(config: ReturnType<typeof getDaoNetworkConfig>, sessionAddress: string, method: 'set_mint_authority' | 'set_governor_authority', authority: string, enabled: boolean) {
+  const client = await ContractClient.from<OwnerAuthorityClient>({
+    contractId: method === 'set_mint_authority' ? config.tokenContractId : config.governorContractId,
+    rpcUrl: config.rpcUrl,
+    networkPassphrase: config.passphrase,
+    publicKey: sessionAddress,
+    signTransaction: (async (xdr, opts) => StellarWalletsKit.signTransaction(xdr, {
+      networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+      address: opts?.address ?? sessionAddress
+    })) as SignTransaction
+  });
+
+  const authorityClient = client as unknown as OwnerAuthorityClient;
+  const assembled = await authorityClient[method]({ authority, enabled });
+  return assembled.signAndSend();
+}
+
+export default function OwnerPage() {
+  const session = useDaoSessionStore();
+  const config = getDaoNetworkConfig(getDefaultDaoNetwork());
+  const [mintAuthority, setMintAuthority] = useState('');
+  const [governorAuthority, setGovernorAuthority] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+  const { data: mintAuthorities, mutate: refreshMintAuthorities, error: mintAuthorityError, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
+  const { data: governorAuthorities, mutate: refreshGovernorAuthorities, error: governorAuthorityError, isLoading: governorAuthoritiesLoading } = useMercuryGovernorAuthorities();
+  const isOwner = Boolean(session.address && session.address === config.adminAddress);
+
+  if (!isOwner) {
+    return (
+      <DaoShell>
+        <PageSection eyebrow="Admin" title="Owner" description="Owner-only authority management.">
+          <Card p="5">
+            <Stack gap="2">
+              <Badge>Access restricted</Badge>
+              <Heading style={{ fontSize: '1.2rem' }}>Connect the owner wallet to continue</Heading>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                Only the configured bootstrap owner can add or remove mint and governance authorities.
+              </Text>
+              <ShortId value={config.adminAddress} label="Owner address" />
+            </Stack>
+          </Card>
+        </PageSection>
+      </DaoShell>
+    );
+  }
+
+  async function updateAuthority(method: 'set_mint_authority' | 'set_governor_authority', authority: string, enabled: boolean) {
+    if (!session.address || !authority) {
+      setStatus('Authority address is required.');
+      return;
+    }
+
+    if ((method === 'set_mint_authority' && !config.tokenContractId) || (method === 'set_governor_authority' && !config.governorContractId)) {
+      setStatus('Missing contract id in the active network config.');
+      return;
+    }
+
+    setBusy(true);
+    setStatus(enabled ? 'Saving authority grant...' : 'Saving authority revoke...');
+
+    try {
+      const sent = await submitAuthorityUpdate(config, session.address, method, authority, enabled);
+      setStatus(`${enabled ? 'Updated' : 'Revoked'} authority${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      if (method === 'set_mint_authority') {
+        setMintAuthority('');
+        void refreshMintAuthorities();
+      } else {
+        setGovernorAuthority('');
+        void refreshGovernorAuthorities();
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Authority update failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <DaoShell>
+      <PageSection
+        eyebrow="Admin"
+        title="Owner"
+        description="Manage mint and governance authorities from one control center."
+      >
+        <Stack gap="4">
+          <AdminSectionNav active="/admin/owner" />
+
+          <Card p="5">
+            <Stack gap="3">
+              <Badge>Owner</Badge>
+              <Heading style={{ fontSize: '1.2rem' }}>Owner controls</Heading>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                The owner can add or remove both token and governance authorities. Those authorities can then use the matching admin pages.
+              </Text>
+              {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
+            </Stack>
+          </Card>
+
+          <Grid columns={{ base: 1, xl: 2 }} gap="4">
+            <AuthorityPanel
+              title="Mint authority"
+              badge="Token"
+              description="Grant or revoke who can mint voting tokens."
+              items={mintAuthorities?.items ?? []}
+              value={mintAuthority}
+              onValueChange={setMintAuthority}
+              onAllow={() => void updateAuthority('set_mint_authority', mintAuthority, true)}
+              onRevoke={() => void updateAuthority('set_mint_authority', mintAuthority, false)}
+              allowLabel="Allow minting"
+              revokeLabel="Revoke minting"
+              busy={busy || mintAuthoritiesLoading}
+              emptyLabel={mintAuthorityError?.message || 'No mint authorities indexed yet.'}
+            />
+            <AuthorityPanel
+              title="Governor authority"
+              badge="Governance"
+              description="Grant or revoke who can update governor settings."
+              items={governorAuthorities?.items ?? []}
+              value={governorAuthority}
+              onValueChange={setGovernorAuthority}
+              onAllow={() => void updateAuthority('set_governor_authority', governorAuthority, true)}
+              onRevoke={() => void updateAuthority('set_governor_authority', governorAuthority, false)}
+              allowLabel="Allow governance"
+              revokeLabel="Revoke governance"
+              busy={busy || governorAuthoritiesLoading}
+              emptyLabel={governorAuthorityError?.message || 'No governance authorities indexed yet.'}
+            />
+          </Grid>
+        </Stack>
+      </PageSection>
+    </DaoShell>
+  );
+}

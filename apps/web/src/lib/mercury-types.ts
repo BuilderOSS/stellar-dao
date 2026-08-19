@@ -89,6 +89,22 @@ export type MercuryMintAuthorityResponse = {
   message?: string;
 };
 
+export type MercuryGovernorAuthorityItem = {
+  authority: string;
+  enabled: boolean;
+  ledger: number;
+  timestamp: number;
+  txHash: string;
+  contractId: string;
+  source: 'owner' | 'mercury';
+};
+
+export type MercuryGovernorAuthorityResponse = {
+  items: MercuryGovernorAuthorityItem[];
+  generatedAt: string;
+  message?: string;
+};
+
 export type MercuryProgramStatusItem = {
   key: MercuryProgramKey;
   label: string;
