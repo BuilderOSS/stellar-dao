@@ -303,3 +303,268 @@ fn set_treasury_requires_owner() {
 
     governor.set_treasury(&new_treasury);
 }
+
+#[test]
+fn owner_can_set_governor_authority() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let authorized_addr = Address::generate(&e);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+    assert!(governor.governor_authority(&authorized_addr));
+
+    governor.set_governor_authority(&authorized_addr, &false);
+    assert!(!governor.governor_authority(&authorized_addr));
+
+    let _ = owner;
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn set_governor_authority_requires_owner() {
+    let (e, _token, _treasury, governor, _target, _owner) = setup();
+    let attacker = Address::generate(&e);
+    let authorized_addr = Address::generate(&e);
+
+    e.mock_auths(&[MockAuth {
+        address: &attacker,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_governor_authority",
+            args: (&authorized_addr, &true).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+}
+
+#[test]
+fn authorized_governor_can_set_voting_delay() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let authorized_addr = Address::generate(&e);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+
+    e.mock_auths(&[MockAuth {
+        address: &authorized_addr,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_voting_delay",
+            args: (&authorized_addr, &20u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_voting_delay(&authorized_addr, &20);
+    assert_eq!(governor.voting_delay(), 20);
+
+    let _ = owner;
+}
+
+#[test]
+fn authorized_governor_can_set_voting_period() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let authorized_addr = Address::generate(&e);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+
+    e.mock_auths(&[MockAuth {
+        address: &authorized_addr,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_voting_period",
+            args: (&authorized_addr, &200u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_voting_period(&authorized_addr, &200);
+    assert_eq!(governor.voting_period(), 200);
+
+    let _ = owner;
+}
+
+#[test]
+fn authorized_governor_can_set_proposal_threshold() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let authorized_addr = Address::generate(&e);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+
+    e.mock_auths(&[MockAuth {
+        address: &authorized_addr,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_proposal_threshold",
+            args: (&authorized_addr, &5u128).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_proposal_threshold(&authorized_addr, &5);
+    assert_eq!(governor.proposal_threshold(), 5);
+
+    let _ = owner;
+}
+
+#[test]
+fn authorized_governor_can_set_quorum_bps() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let authorized_addr = Address::generate(&e);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+
+    e.mock_auths(&[MockAuth {
+        address: &authorized_addr,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_quorum_bps",
+            args: (&authorized_addr, &2000u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_quorum_bps(&authorized_addr, &2000);
+    assert_eq!(governor.quorum_bps(), 2000);
+
+    let _ = owner;
+}
+
+#[test]
+fn authorized_governor_can_set_queue_delay() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let authorized_addr = Address::generate(&e);
+
+    governor.set_governor_authority(&authorized_addr, &true);
+
+    e.mock_auths(&[MockAuth {
+        address: &authorized_addr,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_queue_delay",
+            args: (&authorized_addr, &500u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_queue_delay(&authorized_addr, &500);
+
+    let _ = owner;
+}
+
+#[test]
+#[should_panic(expected = "governor authority required")]
+fn unauthorized_cannot_set_voting_delay() {
+    let (e, _token, _treasury, governor, _target, _owner) = setup();
+    let unauthorized = Address::generate(&e);
+
+    e.mock_auths(&[MockAuth {
+        address: &unauthorized,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_voting_delay",
+            args: (&unauthorized, &20u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_voting_delay(&unauthorized, &20);
+}
+
+#[test]
+#[should_panic(expected = "governor authority required")]
+fn unauthorized_cannot_set_voting_period() {
+    let (e, _token, _treasury, governor, _target, _owner) = setup();
+    let unauthorized = Address::generate(&e);
+
+    e.mock_auths(&[MockAuth {
+        address: &unauthorized,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_voting_period",
+            args: (&unauthorized, &200u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_voting_period(&unauthorized, &200);
+}
+
+#[test]
+#[should_panic(expected = "governor authority required")]
+fn unauthorized_cannot_set_proposal_threshold() {
+    let (e, _token, _treasury, governor, _target, _owner) = setup();
+    let unauthorized = Address::generate(&e);
+
+    e.mock_auths(&[MockAuth {
+        address: &unauthorized,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_proposal_threshold",
+            args: (&unauthorized, &5u128).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_proposal_threshold(&unauthorized, &5);
+}
+
+#[test]
+#[should_panic(expected = "governor authority required")]
+fn unauthorized_cannot_set_quorum_bps() {
+    let (e, _token, _treasury, governor, _target, _owner) = setup();
+    let unauthorized = Address::generate(&e);
+
+    e.mock_auths(&[MockAuth {
+        address: &unauthorized,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_quorum_bps",
+            args: (&unauthorized, &2000u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_quorum_bps(&unauthorized, &2000);
+}
+
+#[test]
+#[should_panic(expected = "governor authority required")]
+fn unauthorized_cannot_set_queue_delay() {
+    let (e, _token, _treasury, governor, _target, _owner) = setup();
+    let unauthorized = Address::generate(&e);
+
+    e.mock_auths(&[MockAuth {
+        address: &unauthorized,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_queue_delay",
+            args: (&unauthorized, &500u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_queue_delay(&unauthorized, &500);
+}
+
+#[test]
+fn owner_has_implicit_governor_authority() {
+    let (e, _token, _treasury, governor, _target, owner) = setup();
+
+    // Owner doesn't need to be explicitly granted authority
+    assert!(!governor.governor_authority(&owner));
+
+    // Owner can still modify settings
+    e.mock_auths(&[MockAuth {
+        address: &owner,
+        invoke: &MockAuthInvoke {
+            contract: &governor.address,
+            fn_name: "set_voting_delay",
+            args: (&owner, &25u32).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]);
+
+    governor.set_voting_delay(&owner, &25);
+    assert_eq!(governor.voting_delay(), 25);
+}

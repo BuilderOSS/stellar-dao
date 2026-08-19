@@ -1,7 +1,7 @@
 extern crate std;
 
 use governor::{DaoGovernorContract, DaoGovernorContractClient};
-use soroban_sdk::{contract, contractimpl, symbol_short, testutils::{Address as _, Ledger}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, Symbol, testutils::{Address as _, Ledger}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
 use stellar_governance::governor::ProposalState;
 use token::{DaoTokenContract, DaoTokenContractClient};
 use treasury::{DaoTreasuryContract, DaoTreasuryContractClient};
@@ -79,6 +79,12 @@ fn proposal_args(e: &Env, target: &Address) -> Vec<Vec<Val>> {
 fn mint_proposal_args(e: &Env, token: &Address, treasury: &Address, recipient: &Address) -> Vec<Vec<Val>> {
     let mint_args: Vec<Val> = vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e)];
     let call_args: Vec<Val> = vec![e, token.clone().into_val(e), symbol_short!("mint").into_val(e), mint_args.into_val(e)];
+    vec![e, call_args]
+}
+
+fn batch_mint_proposal_args(e: &Env, token: &Address, treasury: &Address, recipient: &Address, amount: u32) -> Vec<Vec<Val>> {
+    let mint_args: Vec<Val> = vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e), amount.into_val(e)];
+    let call_args: Vec<Val> = vec![e, token.clone().into_val(e), Symbol::new(e, "batch_mint").into_val(e), mint_args.into_val(e)];
     vec![e, call_args]
 }
 
@@ -184,5 +190,122 @@ fn dao_flow_mints_token_via_treasury_execution() {
 
     assert_eq!(token.balance(&recipient), 1);
     assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+}
+
+#[test]
+fn dao_flow_batch_mints_tokens_via_treasury() {
+    let (e, token, _treasury, governor, _target, owner) = setup();
+    let proposer = Address::generate(&e);
+    let recipient = Address::generate(&e);
+
+    let _ = token.mint(&owner, &proposer);
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let treasury_address = governor.treasury();
+    let targets = vec![&e, treasury_address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = batch_mint_proposal_args(&e, &token.address, &treasury_address, &recipient, 10);
+    let description = String::from_str(&e, "Batch mint 10 tokens through treasury");
+    let desc_hash = description_hash(&e, &description);
+
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    e.ledger().set_timestamp(2_011);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    e.ledger().set_timestamp(2_111);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
+
+    e.ledger().set_timestamp(2_411);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(token.balance(&recipient), 10);
+    assert_eq!(token.get_votes(&recipient), 10);
+    assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+}
+
+#[test]
+fn governor_authority_can_modify_governance_parameters() {
+    let (e, token, _treasury, governor, _target, owner) = setup();
+    let authorized_governor = Address::generate(&e);
+
+    // Owner grants governor authority
+    governor.set_governor_authority(&authorized_governor, &true);
+    assert!(governor.governor_authority(&authorized_governor));
+
+    // Authorized governor can modify voting delay
+    governor.set_voting_delay(&authorized_governor, &20);
+    assert_eq!(governor.voting_delay(), 20);
+
+    // Authorized governor can modify voting period
+    governor.set_voting_period(&authorized_governor, &200);
+    assert_eq!(governor.voting_period(), 200);
+
+    // Authorized governor can modify proposal threshold
+    governor.set_proposal_threshold(&authorized_governor, &5);
+    assert_eq!(governor.proposal_threshold(), 5);
+
+    // Authorized governor can modify quorum
+    governor.set_quorum_bps(&authorized_governor, &2000);
+    assert_eq!(governor.quorum_bps(), 2000);
+
+    // Authorized governor can modify queue delay
+    governor.set_queue_delay(&authorized_governor, &500);
+
+    let _ = token;
+    let _ = owner;
+}
+
+#[test]
+fn proposal_flow_with_modified_governance_parameters() {
+    let (e, token, _treasury, governor, target, owner) = setup();
+    let proposer = Address::generate(&e);
+    let authorized_governor = Address::generate(&e);
+
+    // Mint 10 tokens to proposer using batch mint
+    let last_token_id = token.batch_mint(&owner, &proposer, &10);
+    assert_eq!(last_token_id, 9);
+    assert_eq!(token.get_votes(&proposer), 10);
+
+    // Grant governor authority and modify parameters
+    governor.set_governor_authority(&authorized_governor, &true);
+    governor.set_voting_delay(&authorized_governor, &5); // Shorter delay
+    governor.set_voting_period(&authorized_governor, &50); // Shorter period
+    governor.set_proposal_threshold(&authorized_governor, &5); // Higher threshold
+    governor.set_quorum_bps(&authorized_governor, &5000); // 50% quorum
+
+    e.ledger().set_sequence_number(200);
+    e.ledger().set_timestamp(2_000);
+
+    let treasury_address = governor.treasury();
+    let targets = vec![&e, treasury_address.clone()];
+    let functions = vec![&e, symbol_short!("execute")];
+    let args = proposal_args(&e, &target.address);
+    let description = String::from_str(&e, "Test with modified parameters");
+    let desc_hash = description_hash(&e, &description);
+
+    // Propose with new threshold (needs 5 votes, proposer has 10)
+    let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
+
+    // Vote starts after 5 seconds (new voting delay)
+    e.ledger().set_timestamp(2_006);
+    governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
+
+    // Vote ends after 50 seconds (new voting period)
+    e.ledger().set_timestamp(2_056);
+    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_356_u32, &proposer);
+
+    e.ledger().set_timestamp(2_356);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(target.get_value(), 42);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
 }

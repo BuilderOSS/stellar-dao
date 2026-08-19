@@ -45,6 +45,8 @@ mod retroshade {
     }
 }
 
+const MAX_BATCH_MINT: u32 = 100;
+
 #[contracttype]
 enum TokenKey {
     MintAuthority(Address),
@@ -92,6 +94,36 @@ impl DaoTokenContract {
         .emit(e);
 
         token_id
+    }
+
+    pub fn batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32) -> u32 {
+        if amount == 0 || amount > MAX_BATCH_MINT {
+            panic!("invalid batch mint amount");
+        }
+
+        minter.require_auth();
+        Self::ensure_mint_authority(e, minter);
+        Self::ensure_self_delegate(e, to);
+
+        let mut last_token_id = 0;
+
+        #[cfg(feature = "mercury")]
+        let ledger = e.ledger().sequence();
+
+        for _ in 0..amount {
+            let token_id = NonFungibleVotes::sequential_mint(e, to);
+            last_token_id = token_id;
+
+            #[cfg(feature = "mercury")]
+            retroshade::TokenMintIndexed {
+                to: to.clone(),
+                token_id,
+                ledger,
+            }
+            .emit(e);
+        }
+
+        last_token_id
     }
 
     pub fn balance(e: &Env, account: &Address) -> u32 {

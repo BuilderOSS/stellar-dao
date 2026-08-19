@@ -68,6 +68,14 @@ mod retroshade {
         pub ledger: u32,
         pub timestamp: u64,
     }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct GovernorAuthorityChangedIndexed {
+        pub authority: Address,
+        pub enabled: bool,
+        pub ledger: u32,
+    }
 }
 
 #[contracttype]
@@ -75,6 +83,7 @@ enum GovernorKey {
     Treasury,
     QueueDelay,
     Proposal(BytesN<32>),
+    GovernorAuthority(Address),
 }
 
 #[contracttype]
@@ -136,28 +145,38 @@ impl DaoGovernorContract {
         e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
     }
 
+    pub fn set_queue_delay(e: &Env, caller: Address, queue_delay: u32) {
+        caller.require_auth();
+        Self::ensure_governor_authority(e, &caller);
+        e.storage().instance().set(&GovernorKey::QueueDelay, &queue_delay);
+    }
+
     #[only_owner]
     pub fn set_token_contract(e: &Env, token_contract: Address) {
         governor::set_token_contract(e, &token_contract);
     }
 
-    #[only_owner]
-    pub fn set_voting_delay(e: &Env, voting_delay: u32) {
+    pub fn set_voting_delay(e: &Env, caller: Address, voting_delay: u32) {
+        caller.require_auth();
+        Self::ensure_governor_authority(e, &caller);
         governor::set_voting_delay(e, voting_delay);
     }
 
-    #[only_owner]
-    pub fn set_voting_period(e: &Env, voting_period: u32) {
+    pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
+        caller.require_auth();
+        Self::ensure_governor_authority(e, &caller);
         governor::set_voting_period(e, voting_period);
     }
 
-    #[only_owner]
-    pub fn set_proposal_threshold(e: &Env, proposal_threshold: u128) {
+    pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
+        caller.require_auth();
+        Self::ensure_governor_authority(e, &caller);
         governor::set_proposal_threshold(e, proposal_threshold);
     }
 
-    #[only_owner]
-    pub fn set_quorum_bps(e: &Env, quorum_bps: u32) {
+    pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
+        caller.require_auth();
+        Self::ensure_governor_authority(e, &caller);
         assert!(quorum_bps <= 10_000);
         governor::set_quorum(e, quorum_bps as u128);
     }
@@ -168,6 +187,42 @@ impl DaoGovernorContract {
 
     fn queue_delay(e: &Env) -> u32 {
         e.storage().instance().get(&GovernorKey::QueueDelay).unwrap_or(0)
+    }
+
+    pub fn quorum_bps(e: &Env) -> u32 {
+        governor::get_quorum(e, e.ledger().sequence()) as u32
+    }
+
+    #[only_owner]
+    pub fn set_governor_authority(e: &Env, authority: Address, enabled: bool) {
+        e.storage().instance().set(&GovernorKey::GovernorAuthority(authority.clone()), &enabled);
+
+        #[cfg(feature = "mercury")]
+        retroshade::GovernorAuthorityChangedIndexed {
+            authority,
+            enabled,
+            ledger: e.ledger().sequence(),
+        }
+        .emit(e);
+    }
+
+    pub fn governor_authority(e: &Env, authority: Address) -> bool {
+        e.storage()
+            .instance()
+            .get(&GovernorKey::GovernorAuthority(authority))
+            .unwrap_or(false)
+    }
+
+    fn ensure_governor_authority(e: &Env, caller: &Address) {
+        let Some(owner) = stellar_access::ownable::get_owner(e) else {
+            panic!("owner not set");
+        };
+
+        if caller == &owner || Self::governor_authority(e, caller.clone()) {
+            return;
+        }
+
+        panic!("governor authority required");
     }
 
     fn proposal_key(proposal_id: &BytesN<32>) -> GovernorKey {
