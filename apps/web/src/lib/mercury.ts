@@ -4,7 +4,11 @@ import type {
   MercuryProgramConfig,
   MercuryProgramKey,
   MercuryMintAuthorityItem,
-  MercuryProgramStatusItem
+  MercuryProposalDetailItem,
+  MercuryProposalDetailResponse,
+  MercuryProgramStatusItem,
+  MercuryProposalVoteItem,
+  MercuryProposalVotesResponse
 } from '@/lib/mercury-types';
 
 type MercuryTable = {
@@ -107,6 +111,22 @@ function asString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function asStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => asString(item));
+  }
+
+  return [];
+}
+
+function asNestedStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => asStringArray(item));
+  }
+
+  return [];
+}
+
 function asBoolean(value: unknown) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') return value === 'true';
@@ -200,6 +220,7 @@ function toActivityItem(program: MercuryProgramConfig, tableName: string, row: M
   if (!meta) return null;
 
   const id = asString(row._mercury_event_id) || `${tableName}:${asString(row.transaction)}:${asNumber(row.ledger)}`;
+  const proposalId = asString(row.proposal_id) || asString(row.proposalId);
 
   return {
     id,
@@ -210,6 +231,7 @@ function toActivityItem(program: MercuryProgramConfig, tableName: string, row: M
     kind: suffix.replace(/_indexed$/, ''),
     title: meta.title,
     summary: meta.summarize(row),
+    proposalId: proposalId || undefined,
     ledger: asNumber(row.ledger),
     timestamp: asNumber(row.timestamp),
     txHash: asString(row.transaction),
@@ -321,4 +343,148 @@ export async function getMercuryMintAuthorities() {
   }
 
   return { items, generatedAt: new Date().toISOString() };
+}
+
+export async function getMercuryProposalVotes(proposalId: string): Promise<MercuryProposalVotesResponse> {
+  const config = getConfig();
+  if (!config) {
+    return { items: [], generatedAt: new Date().toISOString(), message: 'Mercury is not configured.' };
+  }
+
+  const governorProgram = config.programs.find((program) => program.key === 'governor');
+  if (!governorProgram) {
+    return { items: [], generatedAt: new Date().toISOString(), message: 'Governor Mercury program is not configured.' };
+  }
+
+  const tables = await listTables(config.baseUrl, config.jwt);
+  const relevantTables = tables.filter((table) => isProgramTable(table, governorProgram) && table.table_name.endsWith('_proposal_vote_indexed'));
+  const rows = await Promise.all(relevantTables.map(async (table) => {
+    const data = await queryTable(config.baseUrl, config.jwt, table.table_name, 100);
+    const items: MercuryProposalVoteItem[] = [];
+
+    for (const row of data) {
+      const rowProposalId = asString(row.proposal_id) || asString(row.proposalId);
+      if (!rowProposalId || rowProposalId !== proposalId) continue;
+
+      const voter = asString(row.voter);
+      if (!voter) continue;
+
+      items.push({
+        id: asString(row._mercury_event_id) || `${table.table_name}:${asString(row.transaction)}:${asNumber(row.ledger)}`,
+        proposalId: rowProposalId,
+        voter,
+        support: asNumber(row.support),
+        weight: stringify(row.weight),
+        reason: asString(row.reason),
+        ledger: asNumber(row.ledger),
+        timestamp: asNumber(row.timestamp),
+        txHash: asString(row.transaction),
+        contractId: asString(row.contract_id)
+      });
+    }
+
+    return items;
+  }));
+
+  const items = rows.flat().sort((a, b) => b.timestamp - a.timestamp || b.ledger - a.ledger);
+  return { items, generatedAt: new Date().toISOString() };
+}
+
+export async function getMercuryProposalDetail(proposalId: string): Promise<MercuryProposalDetailResponse> {
+  const config = getConfig();
+  if (!config) {
+    return {
+      proposalId,
+      proposer: '',
+      description: '',
+      targets: [],
+      functions: [],
+      args: [],
+      snapshot: 0,
+      deadline: 0,
+      vote_snapshot: 0,
+      vote_end: 0,
+      vote_start: 0,
+      label: 'Pending',
+      ledger: 0,
+      timestamp: 0,
+      txHash: '',
+      contractId: '',
+      generatedAt: new Date().toISOString(),
+      message: 'Mercury is not configured.'
+    };
+  }
+
+  const governorProgram = config.programs.find((program) => program.key === 'governor');
+  if (!governorProgram) {
+    return {
+      proposalId,
+      proposer: '',
+      description: '',
+      targets: [],
+      functions: [],
+      args: [],
+      snapshot: 0,
+      deadline: 0,
+      vote_snapshot: 0,
+      vote_end: 0,
+      vote_start: 0,
+      label: 'Pending',
+      ledger: 0,
+      timestamp: 0,
+      txHash: '',
+      contractId: '',
+      generatedAt: new Date().toISOString(),
+      message: 'Governor Mercury program is not configured.'
+    };
+  }
+
+  const tables = await listTables(config.baseUrl, config.jwt);
+  const relevantTables = tables.filter((table) => isProgramTable(table, governorProgram) && table.table_name.endsWith('_proposal_created_indexed'));
+  for (const table of relevantTables) {
+    const data = await queryTable(config.baseUrl, config.jwt, table.table_name, 100);
+    const row = data.find((item) => (asString(item.proposal_id) || asString(item.proposalId)) === proposalId);
+    if (!row) continue;
+
+    return {
+      proposalId,
+      proposer: asString(row.proposer),
+      description: asString(row.description),
+      targets: asStringArray(row.targets),
+      functions: asStringArray(row.functions),
+      args: asNestedStringArray(row.args),
+      snapshot: asNumber(row.snapshot),
+      deadline: asNumber(row.deadline),
+      vote_snapshot: asNumber(row.snapshot),
+      vote_end: asNumber(row.deadline),
+      vote_start: asNumber(row.snapshot) + 1,
+      label: 'Pending',
+      ledger: asNumber(row.ledger),
+      timestamp: asNumber(row.timestamp),
+      txHash: asString(row.transaction),
+      contractId: asString(row.contract_id),
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+    return {
+      proposalId,
+      proposer: '',
+      description: '',
+      targets: [],
+      functions: [],
+      args: [],
+      snapshot: 0,
+      deadline: 0,
+      vote_snapshot: 0,
+      vote_end: 0,
+      vote_start: 0,
+      label: 'Pending',
+      ledger: 0,
+      timestamp: 0,
+      txHash: '',
+      contractId: '',
+      generatedAt: new Date().toISOString(),
+    message: 'Proposal not found.'
+  };
 }

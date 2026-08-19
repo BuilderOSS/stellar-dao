@@ -16,11 +16,55 @@ export type MercuryActivityItem = {
   kind: string;
   title: string;
   summary: string;
+  proposalId?: string;
   ledger: number;
   timestamp: number;
   txHash: string;
   contractId: string;
   addresses: string[];
+};
+
+export type MercuryProposalVoteItem = {
+  id: string;
+  proposalId: string;
+  voter: string;
+  support: number;
+  weight: string;
+  reason: string;
+  ledger: number;
+  timestamp: number;
+  txHash: string;
+  contractId: string;
+};
+
+export type MercuryProposalDetailItem = {
+  proposalId: string;
+  proposer: string;
+  description: string;
+  targets: string[];
+  functions: string[];
+  args: string[][];
+  snapshot: number;
+  deadline: number;
+  vote_snapshot: number;
+  vote_end: number;
+  vote_start: number;
+  label: string;
+  ledger: number;
+  timestamp: number;
+  txHash: string;
+  contractId: string;
+};
+
+export type MercuryProposalVotesResponse = {
+  items: MercuryProposalVoteItem[];
+  generatedAt: string;
+  message?: string;
+};
+
+export type MercuryProposalDetailResponse = MercuryProposalDetailItem & {
+  generatedAt: string;
+  message?: string;
 };
 
 export type MercuryMintAuthorityItem = {

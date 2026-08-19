@@ -10,6 +10,7 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
+import Link from 'next/link';
 
 type GovernorClient = {
   propose: (args: { targets: string[]; functions: string[]; args: string[][]; description: string; proposer: string }, options?: MethodOptions) => Promise<AssembledTransaction<string>>;
@@ -18,7 +19,7 @@ type GovernorClient = {
 function proposalBucket(title: string) {
   switch (title) {
     case 'Proposal Created':
-      return 'Draft';
+      return 'Pending';
     case 'Proposal Call':
       return 'Execution';
     case 'Proposal Lifecycle':
@@ -147,15 +148,17 @@ export default function ProposalsPage() {
                 <Grid columns={{ base: 1 }} gap="4">
                   {items.map((item) => (
                     <Card key={item.id} p="4">
-                      <Stack gap="2">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                          <Badge>{proposalBucket(item.title)}</Badge>
-                          <Badge>{item.title}</Badge>
-                        </div>
-                        <Heading style={{ fontSize: '1.1rem' }}>{item.summary}</Heading>
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{formatTimestamp(item.timestamp)}</Text>
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Ledger {item.ledger}</Text>
-                      </Stack>
+                      <Link href={item.proposalId ? `/proposals/${item.proposalId}` : '#'} style={{ textDecoration: 'none' }}>
+                        <Stack gap="2">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                            <Badge>{proposalBucket(item.title)}</Badge>
+                            <Badge>{item.title}</Badge>
+                          </div>
+                          <Heading style={{ fontSize: '1.1rem' }}>{item.summary}</Heading>
+                          <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{formatTimestamp(item.timestamp)}</Text>
+                          <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Ledger {item.ledger}</Text>
+                        </Stack>
+                      </Link>
                     </Card>
                   ))}
                 </Grid>
