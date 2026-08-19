@@ -1,6 +1,6 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
 use stellar_access::ownable::{get_owner, set_owner, Ownable};
-use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
+use stellar_governance::votes::{delegate, emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
 
@@ -166,11 +166,30 @@ impl DaoTokenContract {
         .emit(e);
     }
 
+    /// Ensures an account has a delegate set, defaulting to self-delegation.
+    ///
+    /// This function auto-delegates to self if no delegation exists, providing
+    /// better UX by ensuring users automatically receive voting power when they
+    /// receive tokens.
+    ///
+    /// Note: We cannot use `stellar_governance::votes::delegate()` here because
+    /// it requires authentication from the account. Instead, we:
+    /// 1. Set the delegatee storage directly (before minting/transfer)
+    /// 2. Let `transfer_voting_units()` (called by mint/transfer) handle vote movement
+    ///
+    /// This approach is safe because:
+    /// - Storage write happens before vote transfer
+    /// - `transfer_voting_units()` properly updates voting power checkpoints
+    /// - Events are emitted for transparency
     fn ensure_self_delegate(e: &Env, account: &Address) {
         if get_delegate(e, account).is_none() {
+            // Set delegatee storage (same as library's delegate() function)
             e.storage().persistent().set(&VotesStorageKey::Delegatee(account.clone()), account);
+
+            // Emit standard delegation event (same as library)
             emit_delegate_changed(e, account, None, account);
 
+            // Emit Mercury indexing event
             #[cfg(feature = "mercury")]
             retroshade::DelegateChangedIndexed {
                 delegator: account.clone(),
@@ -179,6 +198,10 @@ impl DaoTokenContract {
                 ledger: e.ledger().sequence(),
             }
             .emit(e);
+
+            // Note: Vote movement happens automatically when transfer_voting_units()
+            // is called by sequential_mint() or transfer(), which looks up the
+            // delegatee we just set and properly updates voting power checkpoints.
         }
     }
 
