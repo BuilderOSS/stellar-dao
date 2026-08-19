@@ -7,6 +7,7 @@ import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
+import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Button, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { keccak256Bytes } from '@/lib/keccak';
@@ -75,6 +76,7 @@ export default function ProposalDetailPage() {
   const [voteReason, setVoteReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [txHash, setTxHash] = useState('');
   const [now, setNow] = useState(() => Date.now());
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -111,6 +113,7 @@ export default function ProposalDetailPage() {
     if (!detail) return;
     setBusy(true);
     setStatus('Submitting vote...');
+    setTxHash('');
 
     try {
       const governor = await getGovernor();
@@ -121,7 +124,8 @@ export default function ProposalDetailPage() {
         voter: session.address
       });
       const sent = await assembled.signAndSend();
-      setStatus(`Vote submitted${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setStatus('Vote submitted');
+      setTxHash(sent.sendTransactionResponse?.hash ?? '');
       setVoteReason('');
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Vote failed');
@@ -134,6 +138,7 @@ export default function ProposalDetailPage() {
     if (!detail || !config.treasuryContractId) return;
     setBusy(true);
     setStatus('Queueing proposal...');
+    setTxHash('');
 
     try {
       const governor = await getGovernor();
@@ -163,7 +168,8 @@ export default function ProposalDetailPage() {
 
       const assembled = await governor.queue(payload);
       const sent = await assembled.signAndSend();
-      setStatus(`Proposal queued${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setStatus('Proposal queued');
+      setTxHash(sent.sendTransactionResponse?.hash ?? '');
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Queue failed');
     } finally {
@@ -179,6 +185,7 @@ export default function ProposalDetailPage() {
     }
     setBusy(true);
     setStatus('Executing proposal...');
+    setTxHash('');
 
     try {
       const governor = await getGovernor();
@@ -191,7 +198,8 @@ export default function ProposalDetailPage() {
         executor: session.address
       });
       const sent = await assembled.signAndSend();
-      setStatus(`Proposal executed${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setStatus('Proposal executed');
+      setTxHash(sent.sendTransactionResponse?.hash ?? '');
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Execute failed');
     } finally {
@@ -257,6 +265,7 @@ export default function ProposalDetailPage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
             <Text className="lede" style={{ margin: 0 }}>{status}</Text>
+            {txHash ? <Text className="lede" style={{ margin: 0 }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
             <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
               {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>

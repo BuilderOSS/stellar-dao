@@ -8,6 +8,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
+import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/mercury-queries';
@@ -51,6 +52,7 @@ export default function OwnerPage() {
   const [governorAuthority, setGovernorAuthority] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [txHash, setTxHash] = useState('');
   const { data: mintAuthorities, mutate: refreshMintAuthorities, error: mintAuthorityError, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
   const { data: governorAuthorities, mutate: refreshGovernorAuthorities, error: governorAuthorityError, isLoading: governorAuthoritiesLoading } = useMercuryGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
@@ -87,10 +89,12 @@ export default function OwnerPage() {
 
     setBusy(true);
     setStatus(enabled ? 'Saving authority grant...' : 'Saving authority revoke...');
+    setTxHash('');
 
     try {
       const sent = await submitAuthorityUpdate(config, session.address, method, authority, enabled);
-      setStatus(`${enabled ? 'Updated' : 'Revoked'} authority${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setStatus(`${enabled ? 'Updated' : 'Revoked'} authority`);
+      setTxHash(sent.sendTransactionResponse?.hash ?? '');
       if (method === 'set_mint_authority') {
         setMintAuthority('');
         void refreshMintAuthorities();
@@ -123,6 +127,7 @@ export default function OwnerPage() {
                 The owner can add or remove both token and governance authorities. Those authorities can then use the matching admin pages.
               </Text>
               {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
+              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
             </Stack>
           </Card>
 

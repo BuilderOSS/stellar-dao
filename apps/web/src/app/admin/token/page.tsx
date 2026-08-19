@@ -7,6 +7,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
+import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
@@ -20,6 +21,7 @@ export default function TokenAdminPage() {
   const [amount, setAmount] = useState('1');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [txHash, setTxHash] = useState('');
   const { data: mintAuthorities, error, isLoading, mutate } = useMercuryMintAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
   const hasMintAccess = Boolean(isOwner || mintAuthorities?.items.some((item) => item.authority === session.address));
@@ -48,6 +50,7 @@ export default function TokenAdminPage() {
 
     setBusy(true);
     setStatus('Preparing batch mint transaction...');
+    setTxHash('');
 
     try {
       const client = new TokenClient({
@@ -64,7 +67,8 @@ export default function TokenAdminPage() {
       const assembled = await client.batch_mint({ minter: session.address, to: recipient, amount: mintAmount });
       const sent = await assembled.signAndSend();
       const countLabel = mintAmount === 1 ? 'token' : 'tokens';
-      setStatus(`Minted ${mintAmount} ${countLabel}${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setStatus(`Minted ${mintAmount} ${countLabel}`);
+      setTxHash(sent.sendTransactionResponse?.hash ?? '');
       setRecipient('');
       setAmount('1');
       void mutate();
@@ -103,6 +107,7 @@ export default function TokenAdminPage() {
                 </Button>
               </div>
               {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
+              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
               {error ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{error.message}</Text> : null}
             </Stack>
           </Card>

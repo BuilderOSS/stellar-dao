@@ -6,6 +6,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
+import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
@@ -56,6 +57,7 @@ export default function GovernanceAdminPage() {
   const [drafts, setDrafts] = useState<Drafts>(EMPTY_DRAFTS);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [txHash, setTxHash] = useState('');
   const { data: settings, mutate: refreshSettings, error: settingsError, isLoading: settingsLoading } = useGovernorSettings(config, session.address || config.adminAddress);
   const { data: governorAuthorities, error: authorityError, isLoading: authorityLoading, mutate: refreshAuthorities } = useMercuryGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
@@ -102,6 +104,7 @@ export default function GovernanceAdminPage() {
 
     setBusy(true);
     setStatus('Building atomic governance update...');
+    setTxHash('');
 
     try {
       const sent = await submitContractBatch({
@@ -118,7 +121,8 @@ export default function GovernanceAdminPage() {
         }))
       });
 
-      setStatus(`Applied ${changes.length} change${changes.length === 1 ? '' : 's'}${sent.hash ? ` (tx ${sent.hash})` : ''}`);
+      setStatus(`Applied ${changes.length} change${changes.length === 1 ? '' : 's'}`);
+      setTxHash(sent.hash ?? '');
       await Promise.all([refreshSettings(), refreshAuthorities()]);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Governance update failed');
@@ -177,6 +181,7 @@ export default function GovernanceAdminPage() {
 
               {settingsError ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{settingsError.message}</Text> : null}
               {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
+              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
             </Stack>
           </Card>
 

@@ -6,6 +6,7 @@ import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
+import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, Select, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { buildMintProposalCall } from '@/lib/proposal-call';
@@ -39,6 +40,7 @@ export default function ProposalCreatePage() {
   const [recipient, setRecipient] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [txHash, setTxHash] = useState('');
   const proposalDescription = useMemo(() => encodeProposalMetadata(metadata), [metadata]);
   const metadataIsValid = metadata.title.trim().length > 0 && metadata.description.trim().length > 0;
   const recipientIsValid = recipient.trim().length > 0;
@@ -62,6 +64,7 @@ export default function ProposalCreatePage() {
 
     setBusy(true);
     setStatus('Preparing mint proposal...');
+    setTxHash('');
 
     try {
       const governor = new GovernorClient({
@@ -87,7 +90,8 @@ export default function ProposalCreatePage() {
       });
 
       const sent = await assembled.signAndSend();
-      setStatus(`Proposal submitted${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
+      setStatus('Proposal submitted');
+      setTxHash(sent.sendTransactionResponse?.hash ?? '');
       setStep(1);
       setMetadata(EMPTY_METADATA);
       setTxType('mint-governance-token');
@@ -257,6 +261,7 @@ export default function ProposalCreatePage() {
               ) : null}
 
               {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
+              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
               <ShortId value={config.governorContractId} label="Governor" />
               <ShortId value={config.treasuryContractId} label="Treasury" />
               <ShortId value={config.tokenContractId} label="Token" />
