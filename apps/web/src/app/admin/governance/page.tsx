@@ -1,20 +1,22 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
+import { DurationInput } from '@/components/admin/duration-input';
 import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
 import { useMercuryGovernorAuthorities } from '@/lib/mercury-queries';
+import { formatDuration } from '@/lib/format-duration';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { submitContractBatch } from '@/lib/admin-transaction';
 import { type SignTransaction } from '@stellar/stellar-sdk/contract';
-import { Stack, Grid } from 'styled-system/jsx';
+import { Grid, Stack } from 'styled-system/jsx';
 
 type Drafts = Partial<{
   votingDelay: string;
@@ -23,14 +25,12 @@ type Drafts = Partial<{
   quorumBps: string;
 }>;
 
+type GovernorSettingKey = 'votingDelay' | 'votingPeriod' | 'proposalThreshold' | 'quorumBps';
+
 const EMPTY_DRAFTS: Drafts = {};
 
 function formatThreshold(value: bigint) {
   return value.toString();
-}
-
-function isChanged(current: string, next: string) {
-  return next.trim() !== '' && next.trim() !== current.trim();
 }
 
 function parseWholeNumber(value: string) {
@@ -51,11 +51,16 @@ function parseBigIntValue(value: string) {
   return BigInt(trimmed);
 }
 
+function formatSecondsValue(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? formatDuration(value) : '—';
+}
+
 export default function GovernanceAdminPage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [drafts, setDrafts] = useState<Drafts>(EMPTY_DRAFTS);
   const [busy, setBusy] = useState(false);
+  const [activeAction, setActiveAction] = useState<GovernorSettingKey | ''>('');
   const [status, setStatus] = useState('');
   const [txHash, setTxHash] = useState('');
   const { data: settings, mutate: refreshSettings, error: settingsError, isLoading: settingsLoading } = useGovernorSettings(config, session.address || config.adminAddress);
@@ -63,72 +68,131 @@ export default function GovernanceAdminPage() {
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
   const hasGovernanceAccess = Boolean(isOwner || governorAuthorities?.items.some((item) => item.authority === session.address));
 
-  const pendingChanges = useMemo(() => {
-    if (!settings) return [];
+  async function getGovernor() {
+    if (!session.address) {
+      throw new Error('Connect a governance authority wallet first.');
+    }
 
-    const votingDelayText = drafts.votingDelay ?? String(settings.votingDelay);
-    const votingPeriodText = drafts.votingPeriod ?? String(settings.votingPeriod);
-    const proposalThresholdText = drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold);
-    const quorumBpsText = drafts.quorumBps ?? String(settings.quorumBps);
+    if (!config.governorContractId) {
+      throw new Error('Missing governor contract id in the active network config.');
+    }
 
-    const votingDelay = parseWholeNumber(votingDelayText);
-    const votingPeriod = parseWholeNumber(votingPeriodText);
-    const proposalThreshold = parseBigIntValue(proposalThresholdText);
-    const quorumBps = parseWholeNumber(quorumBpsText);
+    return new GovernorClient({
+      contractId: config.governorContractId,
+      rpcUrl: config.rpcUrl,
+      networkPassphrase: config.passphrase,
+      publicKey: session.address,
+      signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) =>
+        StellarWalletsKit.signTransaction(xdr, {
+          networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+          address: opts?.address ?? session.address
+        })) as SignTransaction
+    });
+  }
 
-    return [
-      isChanged(String(settings.votingDelay), votingDelayText) && votingDelay !== null ? { label: 'Voting delay', current: String(settings.votingDelay), next: votingDelayText.trim(), method: 'set_voting_delay' as const, args: { caller: session.address || '', voting_delay: votingDelay } } : null,
-      isChanged(String(settings.votingPeriod), votingPeriodText) && votingPeriod !== null ? { label: 'Voting period', current: String(settings.votingPeriod), next: votingPeriodText.trim(), method: 'set_voting_period' as const, args: { caller: session.address || '', voting_period: votingPeriod } } : null,
-      isChanged(formatThreshold(settings.proposalThreshold), proposalThresholdText) && proposalThreshold !== null ? { label: 'Proposal threshold', current: formatThreshold(settings.proposalThreshold), next: proposalThresholdText.trim(), method: 'set_proposal_threshold' as const, args: { caller: session.address || '', proposal_threshold: proposalThreshold } } : null,
-      isChanged(String(settings.quorumBps), quorumBpsText) && quorumBps !== null ? { label: 'Quorum bps', current: String(settings.quorumBps), next: quorumBpsText.trim(), method: 'set_quorum_bps' as const, args: { caller: session.address || '', quorum_bps: quorumBps } } : null
-    ].filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [drafts, session.address, settings]);
-
-  async function applyChanges() {
-    if (!session.address || !hasGovernanceAccess) {
+  async function submitGovernorUpdate(action: GovernorSettingKey, label: string, run: (governor: GovernorClient) => Promise<string>) {
+    if (!hasGovernanceAccess) {
       setStatus('Connect a governance authority wallet first.');
       return;
     }
 
-    if (!config.governorContractId) {
-      setStatus('Missing governor contract id in the active network config.');
-      return;
-    }
-
-    if (!pendingChanges.length) {
-      setStatus('No changes queued.');
-      return;
-    }
-
-    const changes = pendingChanges;
-
     setBusy(true);
-    setStatus('Building atomic governance update...');
+    setActiveAction(action);
+    setStatus(`Applying ${label.toLowerCase()}...`);
     setTxHash('');
 
     try {
-      const sent = await submitContractBatch({
-        config,
-        publicKey: session.address,
-        signTransaction: (async (xdr, opts) => StellarWalletsKit.signTransaction(xdr, {
-          networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
-          address: opts?.address ?? session.address
-        })) as SignTransaction,
-        calls: changes.map((change) => ({
-          contractId: config.governorContractId,
-          method: change.method,
-          args: change.args
-        }))
-      });
-
-      setStatus(`Applied ${changes.length} change${changes.length === 1 ? '' : 's'}`);
-      setTxHash(sent.hash ?? '');
+      const governor = await getGovernor();
+      const hash = await run(governor);
+      setStatus(`${label} updated`);
+      setTxHash(hash);
       await Promise.all([refreshSettings(), refreshAuthorities()]);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Governance update failed');
+      setStatus(error instanceof Error ? error.message : `${label} update failed`);
     } finally {
       setBusy(false);
+      setActiveAction('');
     }
+  }
+
+  async function applyVotingDelay() {
+    if (!settings) return;
+    const value = parseWholeNumber(drafts.votingDelay ?? String(settings.votingDelay));
+    if (value === null) {
+      setStatus('Voting delay must be a whole number.');
+      return;
+    }
+
+    if (value === settings.votingDelay) {
+      setStatus('Voting delay is unchanged.');
+      return;
+    }
+
+    await submitGovernorUpdate('votingDelay', 'Voting delay', async (governor) => {
+      const assembled = await governor.set_voting_delay({ caller: session.address || '', voting_delay: value });
+      const sent = await assembled.signAndSend();
+      return sent.sendTransactionResponse?.hash ?? '';
+    });
+  }
+
+  async function applyVotingPeriod() {
+    if (!settings) return;
+    const value = parseWholeNumber(drafts.votingPeriod ?? String(settings.votingPeriod));
+    if (value === null) {
+      setStatus('Voting period must be a whole number.');
+      return;
+    }
+
+    if (value === settings.votingPeriod) {
+      setStatus('Voting period is unchanged.');
+      return;
+    }
+
+    await submitGovernorUpdate('votingPeriod', 'Voting period', async (governor) => {
+      const assembled = await governor.set_voting_period({ caller: session.address || '', voting_period: value });
+      const sent = await assembled.signAndSend();
+      return sent.sendTransactionResponse?.hash ?? '';
+    });
+  }
+
+  async function applyProposalThreshold() {
+    if (!settings) return;
+    const value = parseBigIntValue(drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold));
+    if (value === null) {
+      setStatus('Proposal threshold must be a whole number.');
+      return;
+    }
+
+    if (value === settings.proposalThreshold) {
+      setStatus('Proposal threshold is unchanged.');
+      return;
+    }
+
+    await submitGovernorUpdate('proposalThreshold', 'Proposal threshold', async (governor) => {
+      const assembled = await governor.set_proposal_threshold({ caller: session.address || '', proposal_threshold: value });
+      const sent = await assembled.signAndSend();
+      return sent.sendTransactionResponse?.hash ?? '';
+    });
+  }
+
+  async function applyQuorumBps() {
+    if (!settings) return;
+    const value = parseWholeNumber(drafts.quorumBps ?? String(settings.quorumBps));
+    if (value === null) {
+      setStatus('Quorum must be a whole number.');
+      return;
+    }
+
+    if (value === settings.quorumBps) {
+      setStatus('Quorum is unchanged.');
+      return;
+    }
+
+    await submitGovernorUpdate('quorumBps', 'Quorum', async (governor) => {
+      const assembled = await governor.set_quorum_bps({ caller: session.address || '', quorum_bps: value });
+      const sent = await assembled.signAndSend();
+      return sent.sendTransactionResponse?.hash ?? '';
+    });
   }
 
   if (!hasGovernanceAccess) {
@@ -162,7 +226,7 @@ export default function GovernanceAdminPage() {
       <PageSection
         eyebrow="Admin"
         title="Governance Admin"
-        description="Edit governor parameters, queue multiple changes, and apply them atomically."
+        description="Edit governor parameters and apply them one at a time."
       >
         <Stack gap="4">
           <AdminSectionNav active="/admin/governance" />
@@ -188,81 +252,99 @@ export default function GovernanceAdminPage() {
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <Card p="5">
               <Stack gap="3">
-                <div>
-                  <Badge>Voting delay</Badge>
+                <div><Badge>Voting delay</Badge></div>
+                <DurationInput
+                  id="voting-delay"
+                  label="Voting delay"
+                  value={drafts.votingDelay ?? settings?.votingDelay ?? ''}
+                  onChange={(seconds) => setDrafts((current) => ({ ...current, votingDelay: String(seconds) }))}
+                  helperText={`Current: ${settings ? formatSecondsValue(settings.votingDelay) : '—'} · Measured in seconds.`}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="button"
+                    onClick={() => void applyVotingDelay()}
+                    disabled={busy || activeAction === 'votingDelay' || !settings || parseWholeNumber(drafts.votingDelay ?? String(settings.votingDelay)) === null || (drafts.votingDelay ?? String(settings.votingDelay)) === String(settings.votingDelay)}
+                  >
+                    {busy && activeAction === 'votingDelay' ? 'Applying...' : 'Apply'}
+                  </Button>
                 </div>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.votingDelay ?? '—'} ledgers</Text>
-                <Input value={drafts.votingDelay ?? String(settings?.votingDelay ?? '')} type="number" min="0" step="1" onChange={(event) => setDrafts((current) => ({ ...current, votingDelay: event.target.value }))} placeholder="New voting delay" />
-                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(String(settings.votingDelay), drafts.votingDelay ?? String(settings.votingDelay)) ? 'Queued for the next batch.' : 'Measured in ledgers.'}</Text>
               </Stack>
             </Card>
+
             <Card p="5">
               <Stack gap="3">
-                <div>
-                  <Badge>Voting period</Badge>
+                <div><Badge>Voting period</Badge></div>
+                <DurationInput
+                  id="voting-period"
+                  label="Voting period"
+                  value={drafts.votingPeriod ?? settings?.votingPeriod ?? ''}
+                  onChange={(seconds) => setDrafts((current) => ({ ...current, votingPeriod: String(seconds) }))}
+                  helperText={`Current: ${settings ? formatSecondsValue(settings.votingPeriod) : '—'} · Measured in seconds.`}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="button"
+                    onClick={() => void applyVotingPeriod()}
+                    disabled={busy || activeAction === 'votingPeriod' || !settings || parseWholeNumber(drafts.votingPeriod ?? String(settings.votingPeriod)) === null || (drafts.votingPeriod ?? String(settings.votingPeriod)) === String(settings.votingPeriod)}
+                  >
+                    {busy && activeAction === 'votingPeriod' ? 'Applying...' : 'Apply'}
+                  </Button>
                 </div>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.votingPeriod ?? '—'} ledgers</Text>
-                <Input value={drafts.votingPeriod ?? String(settings?.votingPeriod ?? '')} type="number" min="0" step="1" onChange={(event) => setDrafts((current) => ({ ...current, votingPeriod: event.target.value }))} placeholder="New voting period" />
-                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(String(settings.votingPeriod), drafts.votingPeriod ?? String(settings.votingPeriod)) ? 'Queued for the next batch.' : 'Measured in ledgers.'}</Text>
               </Stack>
             </Card>
+
             <Card p="5">
               <Stack gap="3">
-                <div>
-                  <Badge>Proposal threshold</Badge>
-                </div>
+                <div><Badge>Proposal threshold</Badge></div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.proposalThreshold?.toString() ?? '—'} votes</Text>
-                <Input value={drafts.proposalThreshold ?? formatThreshold(settings?.proposalThreshold ?? 0n)} type="number" min="0" step="1" onChange={(event) => setDrafts((current) => ({ ...current, proposalThreshold: event.target.value }))} placeholder="New proposal threshold" />
-                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(formatThreshold(settings.proposalThreshold), drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) ? 'Queued for the next batch.' : 'Measured in voting-token units.'}</Text>
+                <Input
+                  value={drafts.proposalThreshold ?? formatThreshold(settings?.proposalThreshold ?? 0n)}
+                  type="number"
+                  min="0"
+                  step="1"
+                  onChange={(event) => setDrafts((current) => ({ ...current, proposalThreshold: event.target.value }))}
+                  placeholder="New proposal threshold"
+                />
+                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings ? 'Apply this change in a single transaction.' : 'Loading current value...'}</Text>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="button"
+                    onClick={() => void applyProposalThreshold()}
+                    disabled={busy || activeAction === 'proposalThreshold' || !settings || parseBigIntValue(drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) === null || (drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) === formatThreshold(settings.proposalThreshold)}
+                  >
+                    {busy && activeAction === 'proposalThreshold' ? 'Applying...' : 'Apply'}
+                  </Button>
+                </div>
               </Stack>
             </Card>
+
             <Card p="5">
               <Stack gap="3">
-                <div>
-                  <Badge>Quorum</Badge>
-                </div>
+                <div><Badge>Quorum</Badge></div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.quorumBps ?? '—'} bps</Text>
-                <Input value={drafts.quorumBps ?? String(settings?.quorumBps ?? '')} type="number" min="0" max="10000" step="1" onChange={(event) => setDrafts((current) => ({ ...current, quorumBps: event.target.value }))} placeholder="New quorum bps" />
-                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings && isChanged(String(settings.quorumBps), drafts.quorumBps ?? String(settings.quorumBps)) ? 'Queued for the next batch.' : 'Use basis points, capped at 10,000.'}</Text>
+                <Input
+                  value={drafts.quorumBps ?? String(settings?.quorumBps ?? '')}
+                  type="number"
+                  min="0"
+                  max="10000"
+                  step="1"
+                  onChange={(event) => setDrafts((current) => ({ ...current, quorumBps: event.target.value }))}
+                  placeholder="New quorum bps"
+                />
+                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings ? 'Apply this change in a single transaction.' : 'Loading current value...'}</Text>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="button"
+                    onClick={() => void applyQuorumBps()}
+                    disabled={busy || activeAction === 'quorumBps' || !settings || parseWholeNumber(drafts.quorumBps ?? String(settings.quorumBps)) === null || (drafts.quorumBps ?? String(settings.quorumBps)) === String(settings.quorumBps)}
+                  >
+                    {busy && activeAction === 'quorumBps' ? 'Applying...' : 'Apply'}
+                  </Button>
+                </div>
               </Stack>
             </Card>
           </Grid>
-
-          <Card p="5">
-            <Stack gap="3">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <Stack gap="3">
-                  <div><Badge>Pending changes</Badge></div>
-                  <Heading style={{ fontSize: '1.2rem' }}>{pendingChanges.length} queued change{pendingChanges.length === 1 ? '' : 's'}</Heading>
-                </Stack>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <Button type="button" variant="outline" onClick={() => setDrafts(settings ? {
-                    votingDelay: undefined,
-                    votingPeriod: undefined,
-                    proposalThreshold: undefined,
-                    quorumBps: undefined
-                  } : EMPTY_DRAFTS)} disabled={busy || !settings}>Reset</Button>
-                  <Button type="button" onClick={() => void applyChanges()} disabled={busy || !pendingChanges.length}>
-                    {busy ? 'Applying...' : `Apply ${pendingChanges.length || ''} changes`}
-                  </Button>
-                </div>
-              </div>
-              {!pendingChanges.length ? (
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Edit any field above to queue it for the next atomic update.</Text>
-              ) : (
-                <Stack gap="2">
-                  {pendingChanges.map((change) => (
-                    <Card key={change.label} p="3">
-                      <Stack gap="1">
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{change.label}</Text>
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Current: {change.current} → New: {change.next}</Text>
-                      </Stack>
-                    </Card>
-                  ))}
-                </Stack>
-              )}
-            </Stack>
-          </Card>
 
           <AuthorityPanel
             title="Governor authorities"

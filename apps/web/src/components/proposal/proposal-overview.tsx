@@ -29,19 +29,24 @@ function formatDateTime(timestamp: number) {
   }
 }
 
+function hasValidTimestamp(value: number) {
+  return Number.isFinite(value) && value > 0;
+}
+
 function getTimeline(detail: ProposalDetail, now: number) {
   switch (detail.state) {
     case ProposalState.Pending:
+      const startTime = hasValidTimestamp(detail.vote_start) ? detail.vote_start : detail.vote_end;
       return {
         eyebrow: 'Voting starts',
-        headline: `Voting starts in ${formatCountdown(detail.vote_start || detail.vote_end, now)}`,
-        subline: `Opens ${formatDateTime(detail.vote_start || detail.vote_end)}`
+        headline: hasValidTimestamp(startTime) ? `Voting starts in ${formatCountdown(startTime, now)}` : 'Voting has not started yet',
+        subline: hasValidTimestamp(startTime) ? `Opens ${formatDateTime(startTime)}` : 'Waiting for the voting schedule to become available.'
       };
     case ProposalState.Active:
       return {
         eyebrow: 'Voting ends',
-        headline: `Voting ends in ${formatCountdown(detail.vote_end, now)}`,
-        subline: `Closes ${formatDateTime(detail.vote_end)}`
+        headline: hasValidTimestamp(detail.vote_end) ? `Voting ends in ${formatCountdown(detail.vote_end, now)}` : 'Voting is active',
+        subline: hasValidTimestamp(detail.vote_end) ? `Closes ${formatDateTime(detail.vote_end)}` : 'Voting end time is not available.'
       };
     case ProposalState.Succeeded:
       return {

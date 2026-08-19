@@ -48,6 +48,11 @@ function formatTimestamp(timestamp: number) {
   }
 }
 
+function shortenProposalId(value: string) {
+  if (value.length <= 16) return value;
+  return `${value.slice(0, 6)}…${value.slice(-6)}`;
+}
+
 async function fetchProposalPageData([, proposalId]: readonly ['proposal-detail', string]): Promise<ProposalPageData> {
   const [detailResponse, votesResponse] = await Promise.all([
     fetch(`/api/proposals/${proposalId}`, { cache: 'no-store' }),
@@ -225,7 +230,7 @@ export default function ProposalDetailPage() {
     <DaoShell>
       <PageSection
         eyebrow="Proposal detail"
-        title={detail ? detail.metadata.title : `Proposal ${proposalId}`}
+        title={detail ? detail.metadata.title : `Proposal ${shortenProposalId(proposalId)}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">
