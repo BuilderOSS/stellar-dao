@@ -7,23 +7,20 @@ import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { TxExplorerLink } from '@/components/tx-explorer-link';
-import { Badge, Button, Card, Heading, Input, Select, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
+import { ProposalActionEditor } from '@/components/proposal/proposal-action-editor';
+import { ProposalActionQueue } from '@/components/proposal/proposal-action-queue';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { buildMintProposalCall } from '@/lib/proposal-call';
+import {
+  buildProposalCallVectors,
+  type ProposalActionType,
+  type ProposalQueuedAction
+} from '@/lib/proposal-call';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { Stack } from 'styled-system/jsx';
+import { Grid, Stack } from 'styled-system/jsx';
 
-type ProposalTxType = 'mint-governance-token';
 type ProposalStep = 1 | 2 | 3;
-
-const PROPOSAL_TX_TYPES: Array<{ value: ProposalTxType; label: string; description: string }> = [
-  {
-    value: 'mint-governance-token',
-    label: 'Mint governance token',
-    description: 'Creates a treasury-backed proposal that mints voting tokens for a recipient.'
-  }
-];
 
 const EMPTY_METADATA: ProposalMetadataDraft = {
   title: '',
@@ -31,22 +28,136 @@ const EMPTY_METADATA: ProposalMetadataDraft = {
   url: ''
 };
 
+const EMPTY_ACTION_STATE = {
+  type: 'mint-governance-token' as ProposalActionType,
+  recipient: '',
+  amount: '1'
+};
+
+function makeActionId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `action_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isPositiveWholeNumber(value: string) {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return false;
+  }
+
+  return Number.isSafeInteger(Number(trimmed)) && Number(trimmed) > 0;
+}
+
 export default function ProposalCreatePage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [step, setStep] = useState<ProposalStep>(1);
   const [metadata, setMetadata] = useState<ProposalMetadataDraft>(EMPTY_METADATA);
-  const [txType, setTxType] = useState<ProposalTxType>('mint-governance-token');
+  const [actionType, setActionType] = useState<ProposalActionType>(EMPTY_ACTION_STATE.type);
   const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('1');
+  const [queuedActions, setQueuedActions] = useState<ProposalQueuedAction[]>([]);
+  const [editingAction, setEditingAction] = useState<{ id: string; index: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [txHash, setTxHash] = useState('');
+
   const proposalDescription = useMemo(() => encodeProposalMetadata(metadata), [metadata]);
   const metadataIsValid = metadata.title.trim().length > 0 && metadata.description.trim().length > 0;
   const recipientIsValid = recipient.trim().length > 0;
-  const canReview = metadataIsValid && txType === 'mint-governance-token' && recipientIsValid;
+  const amountIsValid = actionType === 'batch-mint-governance-token' ? isPositiveWholeNumber(amount) : true;
+  const actionIsValid = recipientIsValid && amountIsValid;
+  const canReview = metadataIsValid && queuedActions.length > 0 && !editingAction;
 
-  async function createMintProposal() {
+  function resetActionDraft(nextType?: ProposalActionType) {
+    if (typeof nextType !== 'undefined') {
+      setActionType(nextType);
+    }
+
+    setRecipient('');
+    setAmount('1');
+    setEditingAction(null);
+  }
+
+  function resetComposer() {
+    setMetadata(EMPTY_METADATA);
+    setQueuedActions([]);
+    resetActionDraft('mint-governance-token');
+    setStep(1);
+  }
+
+  function clearActionDraft() {
+    resetActionDraft();
+    setStatus('Action draft cleared.');
+  }
+
+  function queueAction() {
+    if (!recipientIsValid) {
+      setStatus('Recipient is required.');
+      return;
+    }
+
+    if (actionType === 'batch-mint-governance-token' && !isPositiveWholeNumber(amount)) {
+      setStatus('Amount must be a positive whole number.');
+      return;
+    }
+
+    const action: ProposalQueuedAction = {
+      id: editingAction?.id ?? makeActionId(),
+      type: actionType,
+      recipient: recipient.trim(),
+      amount: actionType === 'batch-mint-governance-token' ? amount.trim() : '1'
+    };
+
+    setQueuedActions((current) => {
+      if (!editingAction) {
+        return [...current, action];
+      }
+
+      const next = [...current];
+      const insertAt = Math.max(0, Math.min(editingAction.index, next.length));
+      next.splice(insertAt, 0, action);
+      return next;
+    });
+
+    setEditingAction(null);
+    setRecipient('');
+    setAmount('1');
+    setStatus(editingAction ? 'Action updated.' : 'Action queued.');
+  }
+
+  function editAction(actionId: string) {
+    const index = queuedActions.findIndex((action) => action.id === actionId);
+    if (index === -1) {
+      return;
+    }
+
+    const action = queuedActions[index];
+    setQueuedActions((current) => current.filter((item) => item.id !== actionId));
+    setEditingAction({ id: action.id, index });
+    setActionType(action.type);
+    setRecipient(action.recipient);
+    setAmount(action.amount);
+    setStep(2);
+    setStatus('Editing queued action.');
+  }
+
+  function removeAction(actionId: string) {
+    setQueuedActions((current) => current.filter((action) => action.id !== actionId));
+    setStatus('Action removed.');
+  }
+
+  function cancelEdit() {
+    setEditingAction(null);
+    setRecipient('');
+    setAmount('1');
+    setStatus('Edit cancelled.');
+  }
+
+  async function submitProposal() {
     if (!session.address) {
       setStatus('Connect a wallet first.');
       return;
@@ -57,13 +168,23 @@ export default function ProposalCreatePage() {
       return;
     }
 
-    if (!recipientIsValid) {
-      setStatus('Recipient is required.');
+    if (!metadataIsValid) {
+      setStatus('Title and description are required.');
+      return;
+    }
+
+    if (editingAction) {
+      setStatus('Save or cancel the action you are editing before submitting.');
+      return;
+    }
+
+    if (!queuedActions.length) {
+      setStatus('Add at least one action.');
       return;
     }
 
     setBusy(true);
-    setStatus('Preparing mint proposal...');
+    setStatus('Preparing proposal...');
     setTxHash('');
 
     try {
@@ -79,7 +200,7 @@ export default function ProposalCreatePage() {
           }))
       });
 
-      const { targets, functions, args } = buildMintProposalCall(recipient, config.tokenContractId, config.treasuryContractId);
+      const { targets, functions, args } = buildProposalCallVectors(queuedActions, config.tokenContractId, config.treasuryContractId);
 
       const assembled = await governor.propose({
         targets,
@@ -90,12 +211,9 @@ export default function ProposalCreatePage() {
       });
 
       const sent = await assembled.signAndSend();
+      resetComposer();
       setStatus('Proposal submitted');
       setTxHash(sent.sendTransactionResponse?.hash ?? '');
-      setStep(1);
-      setMetadata(EMPTY_METADATA);
-      setTxType('mint-governance-token');
-      setRecipient('');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Proposal failed');
     } finally {
@@ -113,9 +231,14 @@ export default function ProposalCreatePage() {
     setStep(2);
   }
 
-  function advanceFromTxType() {
-    if (!recipientIsValid) {
-      setStatus('Recipient is required.');
+  function advanceFromActions() {
+    if (!queuedActions.length) {
+      setStatus('Add at least one action.');
+      return;
+    }
+
+    if (editingAction) {
+      setStatus('Save or cancel the action you are editing first.');
       return;
     }
 
@@ -128,7 +251,7 @@ export default function ProposalCreatePage() {
       <PageSection
         eyebrow="Proposals"
         title="Create proposal"
-        description="Draft proposal metadata, choose a transaction type, and review the call details before submitting."
+        description="Draft proposal metadata, queue one or more actions, and review the final governor call before submitting."
       >
         <Stack gap="4">
           <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
@@ -140,7 +263,7 @@ export default function ProposalCreatePage() {
 
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Badge style={step === 1 ? { background: '#dbeafe', color: '#1d4ed8' } : { background: '#f3f4f6', color: '#4b5563' }}>1. Metadata</Badge>
-                <Badge style={step === 2 ? { background: '#dbeafe', color: '#1d4ed8' } : { background: '#f3f4f6', color: '#4b5563' }}>2. Transaction</Badge>
+                <Badge style={step === 2 ? { background: '#dbeafe', color: '#1d4ed8' } : { background: '#f3f4f6', color: '#4b5563' }}>2. Actions</Badge>
                 <Badge style={step === 3 ? { background: '#dbeafe', color: '#1d4ed8' } : { background: '#f3f4f6', color: '#4b5563' }}>3. Review</Badge>
               </div>
 
@@ -186,33 +309,43 @@ export default function ProposalCreatePage() {
               {step === 2 ? (
                 <Stack gap="3">
                   <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                    Choose the proposal transaction type.
-                  </Text>
-                  <Select value={txType} onChange={(event) => setTxType(event.target.value as ProposalTxType)}>
-                    {PROPOSAL_TX_TYPES.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
-
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                    {PROPOSAL_TX_TYPES[0].description}
+                    Add one or more actions. Click a queued action to pull it back into the editor and change it.
                   </Text>
 
-                  {txType === 'mint-governance-token' ? (
-                    <Input
-                      value={recipient}
-                      onChange={(event) => setRecipient(event.target.value)}
-                      placeholder="Recipient address"
+                  <Grid columns={{ base: 1, xl: 2 }} gap="4">
+                    <ProposalActionEditor
+                      actionType={actionType}
+                      recipient={recipient}
+                      amount={amount}
+                      editingActionId={editingAction?.id ?? null}
+                      busy={busy}
+                      canSave={actionIsValid}
+                      onActionTypeChange={(nextType) => {
+                        setActionType(nextType);
+                        if (nextType === 'batch-mint-governance-token' && amount.trim() === '') {
+                          setAmount('1');
+                        }
+                      }}
+                      onRecipientChange={setRecipient}
+                      onAmountChange={setAmount}
+                      onSave={queueAction}
+                      onClear={editingAction ? cancelEdit : clearActionDraft}
+                      onCancelEdit={cancelEdit}
                     />
-                  ) : null}
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                    <ProposalActionQueue
+                      actions={queuedActions}
+                      busy={busy}
+                      onEdit={(actionId) => editAction(actionId)}
+                      onRemove={(actionId) => removeAction(actionId)}
+                    />
+                  </Grid>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                     <Button type="button" variant="outline" onClick={() => setStep(1)}>
                       Back
                     </Button>
-                    <Button type="button" onClick={advanceFromTxType} disabled={!recipientIsValid}>
+                    <Button type="button" onClick={advanceFromActions} disabled={!canReview}>
                       Next
                     </Button>
                   </div>
@@ -222,25 +355,33 @@ export default function ProposalCreatePage() {
               {step === 3 ? (
                 <Stack gap="3">
                   <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                    Review the encoded proposal metadata and direct call details before submitting on-chain.
+                    Review the proposal metadata and queued actions before submitting on-chain.
                   </Text>
+
+                  <Grid columns={{ base: 1, xl: 2 }} gap="4">
+                    <Card p="4">
+                      <Stack gap="2">
+                        <Text className="label">Metadata</Text>
+                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Title: {metadata.title}</Text>
+                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {metadata.description}</Text>
+                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>URL: {metadata.url || '—'}</Text>
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.82rem' }}>{proposalDescription}</pre>
+                      </Stack>
+                    </Card>
+
+                    <ProposalActionQueue actions={queuedActions} busy={busy} />
+                  </Grid>
+
                   <Card p="4">
                     <Stack gap="2">
-                      <Text className="label">Metadata</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Title: {metadata.title}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {metadata.description}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>URL: {metadata.url || '—'}</Text>
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.82rem' }}>{proposalDescription}</pre>
-                    </Stack>
-                  </Card>
-                  <Card p="4">
-                    <Stack gap="2">
-                      <Text className="label">Transaction</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Type: Mint governance token</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Target: {config.tokenContractId}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Function: mint</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Recipient: {recipient}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Treasury/minter: {config.treasuryContractId}</Text>
+                      <Text className="label">Governor call vectors</Text>
+                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.82rem' }}>
+                        {JSON.stringify(
+                          buildProposalCallVectors(queuedActions, config.tokenContractId, config.treasuryContractId),
+                          null,
+                          2
+                        )}
+                      </pre>
                     </Stack>
                   </Card>
 
@@ -248,7 +389,7 @@ export default function ProposalCreatePage() {
                     <Button type="button" variant="outline" onClick={() => setStep(2)}>
                       Back
                     </Button>
-                    <Button type="button" onClick={createMintProposal} disabled={busy || !canReview}>
+                    <Button type="button" onClick={submitProposal} disabled={busy || !canReview}>
                       {busy ? 'Submitting...' : 'Submit proposal'}
                     </Button>
                   </div>
@@ -257,7 +398,7 @@ export default function ProposalCreatePage() {
 
               {step < 3 ? (
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                  {step === 1 ? 'Start with the proposal metadata.' : 'Now choose the transaction type and recipient.'}
+                  {step === 1 ? 'Start with the proposal metadata.' : 'Queue one or more actions, then continue to review.'}
                 </Text>
               ) : null}
 

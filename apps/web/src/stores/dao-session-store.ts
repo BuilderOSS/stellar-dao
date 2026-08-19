@@ -7,6 +7,8 @@ type DaoSessionState = {
   address: string;
   status: string;
   syncedAt: string;
+  walletNetworkPassphrase: string;
+  walletNetworkIssue: string;
 };
 
 type DaoSessionActions = {
@@ -18,7 +20,9 @@ type DaoSessionStore = DaoSessionState & DaoSessionActions;
 const initialState: DaoSessionState = {
   address: '',
   status: 'Disconnected',
-  syncedAt: ''
+  syncedAt: '',
+  walletNetworkPassphrase: '',
+  walletNetworkIssue: ''
 };
 
 const memoryStorage = {
@@ -54,7 +58,9 @@ export const useDaoSessionStore = create<DaoSessionStore>()(
       partialize: (state) => ({
         address: state.address,
         status: state.status,
-        syncedAt: state.syncedAt
+        syncedAt: state.syncedAt,
+        walletNetworkPassphrase: state.walletNetworkPassphrase,
+        walletNetworkIssue: state.walletNetworkIssue
       })
     }
   )

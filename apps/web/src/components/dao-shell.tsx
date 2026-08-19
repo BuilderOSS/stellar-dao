@@ -40,12 +40,45 @@ function NavLink({ href, label, active }: { href: Route; label: string; active: 
   );
 }
 
+async function validateWalletNetwork(
+  address: string,
+  currentNetwork: ReturnType<typeof getDaoNetworkConfig>,
+  updateSession: ReturnType<typeof useDaoSessionStore.getState>['updateSession']
+) {
+  try {
+    const walletNetwork = await StellarWalletsKit.getNetwork();
+    const matchesConfiguredNetwork = walletNetwork.networkPassphrase === currentNetwork.passphrase;
+    const status = matchesConfiguredNetwork
+      ? `Connected on ${currentNetwork.label}`
+      : `Wallet network mismatch: ${walletNetwork.network ?? 'unknown'} is not ${currentNetwork.label}`;
+
+    updateSession({
+      address,
+      status,
+      walletNetworkPassphrase: walletNetwork.networkPassphrase,
+      walletNetworkIssue: matchesConfiguredNetwork
+        ? ''
+        : `Wallet is on ${walletNetwork.network ?? 'an unknown network'} and must be switched to ${currentNetwork.label}.`
+    });
+  } catch (error) {
+    updateSession({
+      address,
+      status: 'Wallet network validation unavailable',
+      walletNetworkPassphrase: '',
+      walletNetworkIssue: error instanceof Error
+        ? error.message
+        : 'This wallet cannot report its network, so the app cannot validate it.'
+    });
+  }
+}
+
 export function DaoShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const session = useDaoSessionStore();
   const updateSession = useDaoSessionStore((state) => state.updateSession);
   const network = getDefaultDaoNetwork();
   const currentNetwork = getDaoNetworkConfig(network);
+  const walletDisabled = Boolean(session.address && session.walletNetworkIssue);
   const adminNavItem: { href: Route; label: string } = { href: '/admin', label: 'Admin' };
   const isAdmin = session.address && session.address === currentNetwork.adminAddress;
   const navItems: Array<{ href: Route; label: string }> = session.address ? [...BASE_NAV_ITEMS, adminNavItem] : BASE_NAV_ITEMS;
@@ -55,14 +88,11 @@ export function DaoShell({ children }: { children: ReactNode }) {
 
     const onStateUpdated = StellarWalletsKit.on(KitEventType.STATE_UPDATED, (event) => {
       const nextAddress = event.payload.address ?? '';
-      updateSession({
-        address: nextAddress,
-        status: nextAddress ? `Connected on ${currentNetwork.label}` : 'Disconnected'
-      });
+      updateSession({ address: nextAddress });
     });
 
     const onDisconnect = StellarWalletsKit.on(KitEventType.DISCONNECT, () => {
-      updateSession({ address: '', status: 'Disconnected', syncedAt: '' });
+      updateSession({ address: '', status: 'Disconnected', syncedAt: '', walletNetworkPassphrase: '', walletNetworkIssue: '' });
     });
 
     return () => {
@@ -71,10 +101,18 @@ export function DaoShell({ children }: { children: ReactNode }) {
     };
   }, [currentNetwork.label, updateSession]);
 
+  useEffect(() => {
+    if (!session.address) {
+      return;
+    }
+
+    void validateWalletNetwork(session.address, currentNetwork, updateSession);
+  }, [currentNetwork, session.address, updateSession]);
+
   async function connectWallet() {
     try {
       const result = await StellarWalletsKit.authModal();
-      updateSession({ address: result.address, status: `Connected on ${currentNetwork.label}` });
+      await validateWalletNetwork(result.address, currentNetwork, updateSession);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Wallet connection failed';
       updateSession({ status: message });
@@ -85,7 +123,7 @@ export function DaoShell({ children }: { children: ReactNode }) {
     try {
       await StellarWalletsKit.disconnect();
     } finally {
-      updateSession({ address: '', status: 'Disconnected', syncedAt: '' });
+      updateSession({ address: '', status: 'Disconnected', syncedAt: '', walletNetworkPassphrase: '', walletNetworkIssue: '' });
     }
   }
 
@@ -104,11 +142,9 @@ export function DaoShell({ children }: { children: ReactNode }) {
               </Text>
             </Stack>
 
-            <Grid columns={{ base: 1, sm: 2 }} gap="3">
-              <Badge>{currentNetwork.label}</Badge>
-              <Badge>{session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
+            <Grid columns={1} gap="3">
+              <Badge>{session.walletNetworkIssue ? 'Wallet invalid' : session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
               <Badge>{session.status}</Badge>
-              {isAdmin ? <Badge>Admin</Badge> : null}
               {session.address ? <ShortId value={session.address} /> : null}
             </Grid>
           </div>
@@ -131,10 +167,48 @@ export function DaoShell({ children }: { children: ReactNode }) {
               {session.address ? 'Disconnect wallet' : 'Connect wallet'}
             </Button>
           </div>
+
         </Stack>
       </Card>
 
-      {children}
+      <div
+        style={{
+          position: 'relative',
+          pointerEvents: walletDisabled ? 'none' : undefined,
+          filter: walletDisabled ? 'saturate(0.7) brightness(0.65)' : undefined,
+          opacity: walletDisabled ? 0.7 : 1
+        }}
+      >
+        {children}
+
+        {walletDisabled ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              padding: '24px',
+              background: 'rgba(2, 6, 23, 0.72)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 20
+            }}
+          >
+            <Card p="4" style={{ maxWidth: '760px', width: '100%', borderColor: 'rgba(239, 68, 68, 0.55)', background: 'rgba(127, 29, 29, 0.24)' }}>
+              <Stack gap="2">
+                <div><Badge>Network mismatch</Badge></div>
+                <Text className="lede" style={{ margin: 0, fontWeight: 700 }}>
+                  {session.walletNetworkIssue}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Switch the connected wallet to {currentNetwork.label} to continue using the app.
+                </Text>
+              </Stack>
+            </Card>
+          </div>
+        ) : null}
+      </div>
     </main>
   );
 }
