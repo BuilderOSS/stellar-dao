@@ -64,7 +64,9 @@ export default function Page() {
                 <Text className="label">Mercury {program.label}</Text>
                 <Heading style={{ fontSize: '1.2rem' }}>Program #{program.programId}</Heading>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{program.projectName}</Text>
-                <Badge>{program.running ? 'Running' : 'Stopped'}</Badge>
+                <div>
+                  <Badge>{program.running ? 'Running' : 'Stopped'}</Badge>
+                </div>
                 <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>
                   Executions {program.totalExecutions} | Errors {program.totalErrors}
                 </Text>
