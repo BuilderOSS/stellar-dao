@@ -51,76 +51,45 @@ After analyzing the stellar_governance library, the current implementation is ac
 
 ---
 
-### Issue #2: Execute Function Multi-Action Restriction
+### Issue #2: Redundant Treasury/Execute Proposal Pattern ✅ REFACTORED
 
-**Location:** `contracts/governor/src/governor.rs:498-503`
+**Location:** `contracts/governor/src/governor.rs:644-719`
 
-**Impact:**
-- **Severity:** MEDIUM (Design Clarification Needed)
-- Proposals could be created with multiple targets/functions but execution would fail
-- Misleading UX: users could vote on proposals that can never execute
-- Used `assert!` instead of proper error handling
+**Original Issue:**
+The original implementation required users to specify the treasury contract address as the target and "execute" as the function for every proposal action, with the actual target/function buried in the args. This created:
+- Redundant, error-prone UX requiring users to hardcode treasury address
+- Opaque proposal details (actual targets/functions hidden in args)
+- Unnecessary complexity for proposal creators
+- Validation that enforced this pattern in execute()
 
 **Resolution:**
-Modified the `execute()` function to support multi-action proposals:
+Refactored the proposal API to accept actual target contracts and functions directly, with the governor handling treasury indirection internally:
 
-1. **Removed single-action restriction**: Eliminated `assert!(targets.len() == 1)` and similar assertions
-2. **Added proper validation**: Loop through all actions to validate:
-   - All targets must be the treasury contract
-   - All functions must be "execute"
-   - Arrays must have consistent lengths
-3. **Execute all actions**: Loop through and execute each action through treasury
-4. **Improved error handling**: Replaced `assert!` with `panic_with_error!` for proper error reporting
-5. **Event emission**: Emit `ProposalCallIndexed` event for each action executed
+1. **Removed treasury/"execute" validation**: Eliminated the validation that required all targets to be treasury and all functions to be "execute"
+2. **Updated execute() to wrap calls**: Governor now wraps actual targets/functions for treasury.execute() calls internally
+3. **Simplified test helpers**: Updated all test helper functions to return actual args instead of wrapped treasury call args
+4. **Updated all tests**: Modified 30 governor unit tests and 6 e2e tests to use the cleaner API
 
-**Code Changes:**
+**New User Experience:**
 ```rust
-fn execute(...) -> BytesN<32> {
-    executor.require_auth();
-    e.current_contract_address().require_auth();
+// Before (redundant):
+let targets = vec![&e, treasury_address.clone()];
+let functions = vec![&e, symbol_short!("execute")];
+let args = vec![e, vec![e, target.into_val(e), symbol_short!("set_value").into_val(e), vec![e, 42_u32].into_val(e)]];
 
-    // Validate proposal parameters are consistent
-    if targets.len() != functions.len() || targets.len() != args.len() {
-        panic_with_error!(e, GovernorError::InvalidProposalLength);
-    }
-
-    // Validate all actions go through treasury with execute function
-    let treasury = Self::treasury(e);
-    let execute_symbol = Symbol::new(e, "execute");
-    for i in 0..targets.len() {
-        if targets.get(i).unwrap() != treasury {
-            panic_with_error!(e, GovernorError::InvalidProposalLength);
-        }
-        if functions.get(i).unwrap() != execute_symbol {
-            panic_with_error!(e, GovernorError::InvalidProposalLength);
-        }
-    }
-
-    // ... state checks ...
-
-    // Execute all actions through treasury
-    for i in 0..args.len() {
-        e.invoke_contract::<Val>(&treasury, &execute_symbol, args.get(i).unwrap());
-
-        #[cfg(feature = "mercury")]
-        retroshade::ProposalCallIndexed {
-            proposal_id: proposal_id.clone(),
-            ledger: e.ledger().sequence(),
-        }
-        .emit(e);
-    }
-
-    // ... mark executed and emit proposal executed event
-}
+// After (clean):
+let targets = vec![&e, target.address.clone()];  // Actual target!
+let functions = vec![&e, symbol_short!("set_value")];  // Actual function!
+let args = vec![e, vec![e, 42_u32.into_val(e)]];  // Just the args!
 ```
 
 **Testing:**
-- All 20 governor unit tests pass
-- All 6 e2e integration tests pass
-- Existing tests verify single-action proposals still work
-- Multi-action support enables more complex governance proposals
+- All 57 tests pass (30 governor + 18 token + 6 e2e + 3 treasury)
+- Existing tests updated to use new cleaner API
+- Multi-action proposals work correctly
+- Proposal hashing unchanged (backward compatible)
 
-**Status:** ✅ FIXED - Proposals can now contain multiple actions
+**Status:** ✅ REFACTORED - Proposal API now accepts actual targets/functions, governor handles treasury wrapping internally
 
 ---
 

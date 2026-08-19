@@ -1,3 +1,5 @@
+import type { ProposalCallArgs } from '@/lib/proposal-call';
+
 export type MercuryProgramKey = 'token' | 'governor' | 'treasury';
 
 export type MercuryProgramConfig = {
@@ -43,9 +45,10 @@ export type MercuryProposalDetailItem = {
   description: string;
   targets: string[];
   functions: string[];
-  args: string[][];
+  args: ProposalCallArgs;
   snapshot: number;
   deadline: number;
+  eta: number;
   vote_snapshot: number;
   vote_end: number;
   vote_start: number;

@@ -1,4 +1,5 @@
 import type { ProposalMetadata } from '@/lib/proposal-metadata';
+import type { ProposalCallArgs } from '@/lib/proposal-call';
 import type { ProposalState } from '@/lib/proposal-state';
 
 export type ProposalDetail = {
@@ -8,7 +9,7 @@ export type ProposalDetail = {
   description: string;
   targets: string[];
   functions: string[];
-  args: string[][];
+  args: ProposalCallArgs;
   vote_end: number;
   vote_snapshot: number;
   vote_start: number;

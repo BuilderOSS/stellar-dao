@@ -1,8 +1,8 @@
 use core::convert::TryInto;
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, panic_with_error, Address, BytesN, Env, String,
-    Symbol, Val, Vec,
+    contract, contractimpl, contracttype, panic_with_error, vec, Address, BytesN, Env, IntoVal,
+    String, Symbol, Val, Vec,
 };
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_macros::only_owner;
@@ -657,18 +657,6 @@ impl Governor for DaoGovernorContract {
             panic_with_error!(e, GovernorError::InvalidProposalLength);
         }
 
-        // Validate all actions go through treasury with execute function
-        let treasury = Self::treasury(e);
-        let execute_symbol = Symbol::new(e, "execute");
-        for i in 0..targets.len() {
-            if targets.get(i).unwrap() != treasury {
-                panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error for now
-            }
-            if functions.get(i).unwrap() != execute_symbol {
-                panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error for now
-            }
-        }
-
         let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
         let mut proposal = Self::get_proposal(e, &proposal_id);
 
@@ -684,17 +672,34 @@ impl Governor for DaoGovernorContract {
         }
 
         // Execute all actions through treasury
-        for i in 0..args.len() {
-            e.invoke_contract::<Val>(&treasury, &execute_symbol, args.get(i).unwrap());
+        // Targets and functions are now the actual contracts/functions to call
+        // We wrap them to call treasury.execute(target, function, args)
+        let treasury = Self::treasury(e);
+        let execute_symbol = Symbol::new(e, "execute");
+
+        for i in 0..targets.len() {
+            let target = targets.get(i).unwrap();
+            let function = functions.get(i).unwrap();
+            let call_args = args.get(i).unwrap();
+
+            // Build args for treasury.execute(target, function, args)
+            let treasury_args = vec![
+                e,
+                target.into_val(e),
+                function.into_val(e),
+                call_args.into_val(e),
+            ];
+
+            e.invoke_contract::<Val>(&treasury, &execute_symbol, treasury_args);
 
             // Emit event for each action
             #[cfg(feature = "mercury")]
             retroshade::ProposalCallIndexed {
                 proposal_id: proposal_id.clone(),
                 treasury: treasury.clone(),
-                target: targets.get(i).unwrap().clone(),
-                function: functions.get(i).unwrap().clone(),
-                args: vec![e, args.get(i).unwrap().clone()],
+                target: target.clone(),
+                function: function.clone(),
+                args: vec![e, call_args.clone()],
                 timestamp: e.ledger().timestamp(),
             }
             .emit(e);

@@ -8,12 +8,13 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, Heading, Input, Select, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { buildMintProposalCall } from '@/lib/proposal-call';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Stack } from 'styled-system/jsx';
 
 type GovernorClient = {
-  propose: (args: { targets: string[]; functions: string[]; args: string[][]; description: string; proposer: string }, options?: MethodOptions) => Promise<AssembledTransaction<string>>;
+  propose: (args: { targets: string[]; functions: string[]; args: unknown[][]; description: string; proposer: string }, options?: MethodOptions) => Promise<AssembledTransaction<string>>;
 };
 
 type ProposalTxType = 'mint-governance-token';
@@ -79,9 +80,7 @@ export default function ProposalCreatePage() {
           })) as SignTransaction
       });
 
-      const targets = [config.treasuryContractId];
-      const functions = ['execute'];
-      const args = [[config.tokenContractId, config.treasuryContractId, recipient]];
+      const { targets, functions, args } = buildMintProposalCall(recipient, config.tokenContractId, config.treasuryContractId);
 
       const assembled = await governor.propose({
         targets,

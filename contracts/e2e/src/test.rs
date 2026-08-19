@@ -66,26 +66,19 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     (e, token, treasury, governor, target, owner)
 }
 
-fn proposal_args(e: &Env, target: &Address) -> Vec<Vec<Val>> {
-    let call_args: Vec<Val> = vec![
-        e,
-        target.clone().into_val(e),
-        symbol_short!("set_value").into_val(e),
-        vec![e, 42_u32].into_val(e),
-    ];
-    vec![e, call_args]
+fn proposal_args(e: &Env) -> Vec<Vec<Val>> {
+    // Args for calling target.set_value(42)
+    vec![e, vec![e, 42_u32.into_val(e)]]
 }
 
-fn mint_proposal_args(e: &Env, token: &Address, treasury: &Address, recipient: &Address) -> Vec<Vec<Val>> {
-    let mint_args: Vec<Val> = vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e)];
-    let call_args: Vec<Val> = vec![e, token.clone().into_val(e), symbol_short!("mint").into_val(e), mint_args.into_val(e)];
-    vec![e, call_args]
+fn mint_proposal_args(e: &Env, treasury: &Address, recipient: &Address) -> Vec<Vec<Val>> {
+    // Args for calling token.mint(treasury, recipient)
+    vec![e, vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e)]]
 }
 
-fn batch_mint_proposal_args(e: &Env, token: &Address, treasury: &Address, recipient: &Address, amount: u32) -> Vec<Vec<Val>> {
-    let mint_args: Vec<Val> = vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e), amount.into_val(e)];
-    let call_args: Vec<Val> = vec![e, token.clone().into_val(e), Symbol::new(e, "batch_mint").into_val(e), mint_args.into_val(e)];
-    vec![e, call_args]
+fn batch_mint_proposal_args(e: &Env, treasury: &Address, recipient: &Address, amount: u32) -> Vec<Vec<Val>> {
+    // Args for calling token.batch_mint(treasury, recipient, amount)
+    vec![e, vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e), amount.into_val(e)]]
 }
 
 fn description_hash(e: &Env, description: &String) -> BytesN<32> {
@@ -102,10 +95,9 @@ fn dao_flow_executes_treasury_call() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Call target through treasury");
     let desc_hash = description_hash(&e, &description);
 
@@ -138,10 +130,9 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Snapshot transfer test");
     let desc_hash = description_hash(&e, &description);
 
@@ -173,9 +164,9 @@ fn dao_flow_mints_token_via_treasury_execution() {
     e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = mint_proposal_args(&e, &token.address, &treasury_address, &recipient);
+    let targets = vec![&e, token.address.clone()];
+    let functions = vec![&e, symbol_short!("mint")];
+    let args = mint_proposal_args(&e, &treasury_address, &recipient);
     let description = String::from_str(&e, "Mint token through treasury");
     let desc_hash = description_hash(&e, &description);
 
@@ -209,9 +200,9 @@ fn dao_flow_batch_mints_tokens_via_treasury() {
     e.ledger().set_timestamp(2_000);
 
     let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = batch_mint_proposal_args(&e, &token.address, &treasury_address, &recipient, 10);
+    let targets = vec![&e, token.address.clone()];
+    let functions = vec![&e, Symbol::new(&e, "batch_mint")];
+    let args = batch_mint_proposal_args(&e, &treasury_address, &recipient, 10);
     let description = String::from_str(&e, "Batch mint 10 tokens through treasury");
     let desc_hash = description_hash(&e, &description);
 
@@ -288,10 +279,9 @@ fn proposal_flow_with_modified_governance_parameters() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Test with modified parameters");
     let desc_hash = description_hash(&e, &description);
 

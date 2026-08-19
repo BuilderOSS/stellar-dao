@@ -66,14 +66,9 @@ fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'
     (e, token, treasury, governor, target, owner)
 }
 
-fn proposal_args(e: &Env, target: &Address) -> Vec<Vec<Val>> {
-    let call_args: Vec<Val> = vec![
-        e,
-        target.clone().into_val(e),
-        symbol_short!("set_value").into_val(e),
-        vec![e, 42_u32].into_val(e),
-    ];
-    vec![e, call_args]
+fn proposal_args(e: &Env) -> Vec<Vec<Val>> {
+    // Args for calling target.set_value(42)
+    vec![e, vec![e, 42_u32.into_val(e)]]
 }
 
 fn description_hash(e: &Env, description: &String) -> BytesN<32> {
@@ -92,10 +87,9 @@ fn full_governance_flow_executes_treasury_call() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Call target through treasury");
     let desc_hash = description_hash(&e, &description);
 
@@ -127,18 +121,16 @@ fn propose_fails_below_threshold() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Not enough votes");
 
     let _ = governor.propose(&targets, &functions, &args, &description, &proposer);
 }
 
 #[test]
-#[should_panic]
-fn execute_rejects_non_treasury_target() {
+fn execute_accepts_direct_target_calls() {
     let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
 
@@ -149,7 +141,7 @@ fn execute_rejects_non_treasury_target() {
 
     let targets = vec![&e, target.address.clone()];
     let functions = vec![&e, symbol_short!("set_value")];
-    let args = vec![&e, vec![&e, 42_u32].into_val(&e)];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Call target directly");
     let desc_hash = description_hash(&e, &description);
 
@@ -158,7 +150,11 @@ fn execute_rejects_non_treasury_target() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
     e.ledger().set_timestamp(2_111);
 
-    let _ = governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    e.ledger().set_timestamp(2_411);
+    governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
+
+    assert_eq!(target.get_value(), 42);
 }
 
 #[test]
@@ -172,10 +168,9 @@ fn execute_fails_before_queue_delay_elapses() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Queue delay check");
     let desc_hash = description_hash(&e, &description);
 
@@ -190,7 +185,7 @@ fn execute_fails_before_queue_delay_elapses() {
 }
 
 #[test]
-#[should_panic(expected = "#5007")]
+#[should_panic(expected = "#5008")]
 fn execute_cannot_run_twice() {
     let (e, token, _treasury, governor, target, owner) = setup();
     let proposer = Address::generate(&e);
@@ -200,10 +195,9 @@ fn execute_cannot_run_twice() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let treasury_address = governor.treasury();
-    let targets = vec![&e, treasury_address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Execute twice");
     let desc_hash = description_hash(&e, &description);
 
@@ -212,6 +206,8 @@ fn execute_cannot_run_twice() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
     e.ledger().set_timestamp(2_111);
 
+    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 }
@@ -582,9 +578,9 @@ fn proposal_handles_large_timestamps() {
     e.ledger().set_timestamp(4_000_000_000);
     e.ledger().set_sequence_number(200);
 
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Test large timestamp");
 
     // Should succeed without overflow
@@ -609,9 +605,9 @@ fn proposal_timestamps_stored_as_u64() {
     e.ledger().set_timestamp(now);
     e.ledger().set_sequence_number(200);
 
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Test u64 storage");
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
@@ -633,9 +629,9 @@ fn proposal_state_transitions_with_large_timestamps() {
     e.ledger().set_timestamp(start_time);
     e.ledger().set_sequence_number(200);
 
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Test state transitions");
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
@@ -668,9 +664,9 @@ fn cast_vote_fails_with_zero_weight() {
     e.ledger().set_sequence_number(200);
     e.ledger().set_timestamp(2_000);
 
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Test zero vote");
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
@@ -720,9 +716,9 @@ fn queued_proposal_expires_after_14_days() {
     e.ledger().set_timestamp(2_000);
 
     // Create and pass a proposal
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Test expiration");
     let desc_hash = description_hash(&e, &description);
 
@@ -772,9 +768,9 @@ fn queued_proposal_can_execute_before_expiration() {
     e.ledger().set_timestamp(2_000);
 
     // Create and pass a proposal
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Execute before expiration");
     let desc_hash = description_hash(&e, &description);
 
@@ -814,9 +810,9 @@ fn expired_proposal_cannot_be_executed() {
     e.ledger().set_timestamp(2_000);
 
     // Create and pass a proposal
-    let targets = vec![&e, treasury.address.clone()];
-    let functions = vec![&e, symbol_short!("execute")];
-    let args = proposal_args(&e, &target.address);
+    let targets = vec![&e, target.address.clone()];
+    let functions = vec![&e, symbol_short!("set_value")];
+    let args = proposal_args(&e);
     let description = String::from_str(&e, "Expired execution test");
     let desc_hash = description_hash(&e, &description);
 

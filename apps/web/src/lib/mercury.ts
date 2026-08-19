@@ -1,4 +1,5 @@
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import type { ProposalCallArgs } from '@/lib/proposal-call';
 import type {
   MercuryActivityItem,
   MercuryProgramConfig,
@@ -125,12 +126,68 @@ function asStringArray(value: unknown) {
   return [];
 }
 
-function asNestedStringArray(value: unknown) {
+function decodeMercuryValue(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => asStringArray(item));
+    return value.map((item) => decodeMercuryValue(item));
   }
 
-  return [];
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+      try {
+        return decodeMercuryValue(JSON.parse(trimmed));
+      } catch {
+        return value;
+      }
+    }
+
+    return value;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 1) {
+    const [key, inner] = entries[0];
+    if (key === 'string' || key === 'symbol' || key === 'address') {
+      return decodeMercuryValue(inner);
+    }
+
+    if (key === 'vec') {
+      return decodeMercuryValue(inner);
+    }
+
+    if (key === 'bytes' || key === 'binary') {
+      return decodeMercuryValue(inner);
+    }
+
+    if (key === 'u32' || key === 'i32' || key === 'u64' || key === 'i64' || key === 'u128' || key === 'i128') {
+      return typeof inner === 'string' || typeof inner === 'number' || typeof inner === 'bigint' ? Number(inner) : decodeMercuryValue(inner);
+    }
+
+    if (key === 'bool') {
+      return Boolean(inner);
+    }
+  }
+
+  const decoded: Record<string, unknown> = {};
+  for (const [key, inner] of entries) {
+    decoded[key] = decodeMercuryValue(inner);
+  }
+
+  return decoded;
+}
+
+function asDecodedStringArray(value: unknown) {
+  const decoded = decodeMercuryValue(value);
+  return Array.isArray(decoded) ? decoded.map((item) => asString(item)) : [];
+}
+
+function asDecodedCallArgs(value: unknown) {
+  const decoded = decodeMercuryValue(value);
+  return Array.isArray(decoded) ? decoded as ProposalCallArgs : [];
 }
 
 function asBoolean(value: unknown) {
@@ -467,6 +524,7 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
       args: [],
       snapshot: 0,
       deadline: 0,
+      eta: 0,
       vote_snapshot: 0,
       vote_end: 0,
       vote_start: 0,
@@ -491,6 +549,7 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
       args: [],
       snapshot: 0,
       deadline: 0,
+      eta: 0,
       vote_snapshot: 0,
       vote_end: 0,
       vote_start: 0,
@@ -506,20 +565,35 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
 
   const tables = await listTables(config.baseUrl, config.jwt);
   const relevantTables = tables.filter((table) => isProgramTable(table, governorProgram) && table.table_name.endsWith('_proposal_created_indexed'));
+  const lifecycleTables = tables.filter((table) => isProgramTable(table, governorProgram) && table.table_name.endsWith('_proposal_lifecycle_indexed'));
   for (const table of relevantTables) {
     const data = await queryTable(config.baseUrl, config.jwt, table.table_name, 100);
     const row = data.find((item) => (asString(item.proposal_id) || asString(item.proposalId)) === proposalId);
     if (!row) continue;
 
+    let eta = 0;
+    for (const lifecycleTable of lifecycleTables) {
+      const lifecycleData = await queryTable(config.baseUrl, config.jwt, lifecycleTable.table_name, 100);
+      const lifecycleRow = lifecycleData
+        .filter((item) => (asString(item.proposal_id) || asString(item.proposalId)) === proposalId)
+        .sort((a, b) => asNumber(b.timestamp) - asNumber(a.timestamp))[0];
+
+      if (lifecycleRow) {
+        eta = asNumber(lifecycleRow.eta);
+        if (eta > 0) break;
+      }
+    }
+
     return {
       proposalId,
       proposer: asString(row.proposer),
       description: asString(row.description),
-      targets: asStringArray(row.targets),
-      functions: asStringArray(row.functions),
-      args: asNestedStringArray(row.args),
+      targets: asDecodedStringArray(row.targets),
+      functions: asDecodedStringArray(row.functions),
+      args: asDecodedCallArgs(row.args),
       snapshot: asNumber(row.snapshot),
       deadline: asNumber(row.deadline),
+      eta,
       vote_snapshot: asNumber(row.snapshot),
       vote_end: asNumber(row.deadline),
       vote_start: asNumber(row.snapshot) + 1,
@@ -541,6 +615,7 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
       args: [],
       snapshot: 0,
       deadline: 0,
+      eta: 0,
       vote_snapshot: 0,
       vote_end: 0,
       vote_start: 0,

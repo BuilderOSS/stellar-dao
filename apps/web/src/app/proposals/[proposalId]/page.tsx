@@ -12,6 +12,7 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { proposalActionMode } from '@/lib/proposal-state';
+import { normalizeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
@@ -31,8 +32,8 @@ type ProposalPageData = {
 
 type GovernorClient = {
   cast_vote: (args: { proposal_id: Buffer; vote_type: number; reason: string; voter: string }, options?: MethodOptions) => Promise<AssembledTransaction<bigint>>;
-  queue: (args: { targets: string[]; functions: string[]; args: string[][]; description_hash: Buffer; eta: number; operator: string }, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>;
-  execute: (args: { targets: string[]; functions: string[]; args: string[][]; description_hash: Buffer; executor: string }, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>;
+  queue: (args: { targets: string[]; functions: string[]; args: ProposalCallArgs; description_hash: Buffer; eta: number; operator: string }, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>;
+  execute: (args: { targets: string[]; functions: string[]; args: ProposalCallArgs; description_hash: Buffer; executor: string }, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>;
   has_voted: (args: { proposal_id: Buffer; account: string }, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>;
 };
 
@@ -143,14 +144,31 @@ export default function ProposalDetailPage() {
 
     try {
       const governor = await getGovernor();
-      const assembled = await governor.queue({
+      const args = normalizeProposalCallArgs(detail.args);
+      const payload = {
         targets: detail.targets,
         functions: detail.functions,
-        args: detail.args,
+        args,
         description_hash: descriptionHash(detail.description),
         eta: Math.floor(Date.now() / 1000) + 60,
         operator: session.address
+      };
+
+      console.log('[proposal queue] calling governor.queue', {
+        proposalId,
+        caller: session.address,
+        governorContractId: config.governorContractId,
+        treasuryContractId: config.treasuryContractId,
+        state: detail.state,
+        label: detail.label,
+        args,
+        payload: {
+          ...payload,
+          description_hash: `0x${payload.description_hash.toString('hex')}`
+        }
       });
+
+      const assembled = await governor.queue(payload);
       const sent = await assembled.signAndSend();
       setStatus(`Proposal queued${sent.sendTransactionResponse?.hash ? ` (tx ${sent.sendTransactionResponse.hash})` : ''}`);
     } catch (err) {
@@ -162,15 +180,20 @@ export default function ProposalDetailPage() {
 
   async function executeProposal() {
     if (!detail || !config.treasuryContractId || !config.tokenContractId) return;
+    if (detail.eta && Date.now() < detail.eta * 1000) {
+      setStatus('Queued proposal is not ready to execute yet.');
+      return;
+    }
     setBusy(true);
     setStatus('Executing proposal...');
 
     try {
       const governor = await getGovernor();
+      const args = normalizeProposalCallArgs(detail.args);
       const assembled = await governor.execute({
         targets: detail.targets,
         functions: detail.functions,
-        args: detail.args,
+        args,
         description_hash: descriptionHash(detail.description),
         executor: session.address
       });
@@ -224,7 +247,7 @@ export default function ProposalDetailPage() {
               <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
             ) : null}
             {detail && actionMode === 'execute' ? (
-              <ProposalExecutePanel busy={busy} onExecute={() => void executeProposal()} />
+              <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
             ) : null}
             {detail && actionMode === 'outcome' ? (
               <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />
