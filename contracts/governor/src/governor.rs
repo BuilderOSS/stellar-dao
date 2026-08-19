@@ -76,6 +76,17 @@ mod retroshade {
         pub enabled: bool,
         pub ledger: u32,
     }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct ParameterChangedIndexed {
+        pub parameter: Symbol,
+        pub old_value: u128,
+        pub new_value: u128,
+        pub changed_by: Address,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
 }
 
 // TTL constants for proposal storage
@@ -155,7 +166,22 @@ impl DaoGovernorContract {
     pub fn set_queue_delay(e: &Env, caller: Address, queue_delay: u32) {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
+
+        #[cfg(feature = "mercury")]
+        let old_value = Self::queue_delay(e);
+
         e.storage().instance().set(&GovernorKey::QueueDelay, &queue_delay);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ParameterChangedIndexed {
+            parameter: Symbol::new(e, "queue_delay"),
+            old_value: old_value as u128,
+            new_value: queue_delay as u128,
+            changed_by: caller.clone(),
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     #[only_owner]
@@ -166,13 +192,43 @@ impl DaoGovernorContract {
     pub fn set_voting_delay(e: &Env, caller: Address, voting_delay: u32) {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
+
+        #[cfg(feature = "mercury")]
+        let old_value = Self::voting_delay(e);
+
         governor::set_voting_delay(e, voting_delay);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ParameterChangedIndexed {
+            parameter: Symbol::new(e, "voting_delay"),
+            old_value: old_value as u128,
+            new_value: voting_delay as u128,
+            changed_by: caller.clone(),
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
+
+        #[cfg(feature = "mercury")]
+        let old_value = Self::voting_period(e);
+
         governor::set_voting_period(e, voting_period);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ParameterChangedIndexed {
+            parameter: Symbol::new(e, "voting_period"),
+            old_value: old_value as u128,
+            new_value: voting_period as u128,
+            changed_by: caller.clone(),
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn set_proposal_threshold(e: &Env, caller: Address, proposal_threshold: u128) {
@@ -184,7 +240,21 @@ impl DaoGovernorContract {
             panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error
         }
 
+        #[cfg(feature = "mercury")]
+        let old_value = governor::get_proposal_threshold(e);
+
         governor::set_proposal_threshold(e, proposal_threshold);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ParameterChangedIndexed {
+            parameter: Symbol::new(e, "proposal_threshold"),
+            old_value,
+            new_value: proposal_threshold,
+            changed_by: caller.clone(),
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {
@@ -196,7 +266,21 @@ impl DaoGovernorContract {
             panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error
         }
 
+        #[cfg(feature = "mercury")]
+        let old_value = Self::quorum_bps(e) as u128;
+
         governor::set_quorum(e, quorum_bps as u128);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ParameterChangedIndexed {
+            parameter: Symbol::new(e, "quorum_bps"),
+            old_value,
+            new_value: quorum_bps as u128,
+            changed_by: caller.clone(),
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn treasury(e: &Env) -> Address {
