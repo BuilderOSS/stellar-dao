@@ -175,7 +175,10 @@ function writeEnvIfMissing(contracts) {
   const updated = [
     ['NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID', contracts.token],
     ['NEXT_PUBLIC_STELLAR_GOVERNOR_CONTRACT_ID', contracts.governor],
-    ['NEXT_PUBLIC_STELLAR_TREASURY_CONTRACT_ID', contracts.treasury]
+    ['NEXT_PUBLIC_STELLAR_TREASURY_CONTRACT_ID', contracts.treasury],
+    ['NEXT_PUBLIC_STELLAR_TOKEN_NAME', config.token.name],
+    ['NEXT_PUBLIC_STELLAR_TOKEN_SYMBOL', config.token.symbol],
+    ['NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION', config.token.description]
   ].reduce((content, [key, value]) => upsertEnvValue(content, key, value), lines);
 
   mkdirSync('apps/web', { recursive: true });

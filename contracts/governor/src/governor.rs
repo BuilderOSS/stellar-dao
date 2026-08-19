@@ -801,6 +801,8 @@ impl Governor for DaoGovernorContract {
         // We wrap them to call treasury.execute(target, function, args)
         let treasury = Self::treasury(e);
         let execute_symbol = Symbol::new(e, "execute");
+
+        #[cfg(feature = "mercury")]
         let action_count: u32 = targets
             .len()
             .try_into()
@@ -810,6 +812,8 @@ impl Governor for DaoGovernorContract {
             let target = targets.get(i).unwrap();
             let function = functions.get(i).unwrap();
             let call_args = args.get(i).unwrap();
+
+            #[cfg(feature = "mercury")]
             let action_index: u32 = i
                 .try_into()
                 .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow));
