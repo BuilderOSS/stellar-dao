@@ -874,7 +874,7 @@ fn execute_prevents_reentrancy_attack() {
 
     // Register malicious contract
     let malicious_id = e.register(MaliciousReentrantContract, ());
-    let malicious = MaliciousReentrantContractClient::new(&e, &malicious_id);
+    let _malicious = MaliciousReentrantContractClient::new(&e, &malicious_id);
 
     // Mint token to proposer
     let _ = token.mint(&owner, &proposer);

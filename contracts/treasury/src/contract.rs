@@ -18,6 +18,25 @@ mod retroshade {
         pub ledger: u32,
         pub timestamp: u64,
     }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct TreasuryInitializedIndexed {
+        pub owner: Address,
+        pub governor: Address,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct GovernorChangedIndexed {
+        pub old_governor: Address,
+        pub new_governor: Address,
+        pub changed_by: Address,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
 }
 
 #[contracttype]
@@ -33,11 +52,34 @@ impl DaoTreasuryContract {
     pub fn __constructor(e: &Env, owner: Address, governor: Address) {
         set_owner(e, &owner);
         e.storage().instance().set(&TreasuryKey::Governor, &governor);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TreasuryInitializedIndexed {
+            owner,
+            governor,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     #[only_owner]
     pub fn set_governor(e: &Env, governor: Address) {
+        #[cfg(feature = "mercury")]
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
+        #[cfg(feature = "mercury")]
+        let old_governor = Self::governor(e);
         e.storage().instance().set(&TreasuryKey::Governor, &governor);
+
+        #[cfg(feature = "mercury")]
+        retroshade::GovernorChangedIndexed {
+            old_governor,
+            new_governor: governor,
+            changed_by,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn governor(e: &Env) -> Address {

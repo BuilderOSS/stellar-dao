@@ -30,7 +30,9 @@ mod retroshade {
         pub functions: Vec<Symbol>,
         pub args: Vec<Vec<Val>>,
         pub snapshot: u32,
+        pub vote_start: u64,
         pub deadline: u32,
+        pub action_count: u32,
         pub ledger: u32,
         pub timestamp: u64,
     }
@@ -39,10 +41,13 @@ mod retroshade {
     #[contracttype]
     pub struct ProposalCallIndexed {
         pub proposal_id: BytesN<32>,
+        pub executor: Address,
         pub treasury: Address,
         pub target: Address,
         pub function: Symbol,
         pub args: Vec<Vec<Val>>,
+        pub action_index: u32,
+        pub action_count: u32,
         pub timestamp: u64,
     }
 
@@ -73,8 +78,48 @@ mod retroshade {
     #[contracttype]
     pub struct GovernorAuthorityChangedIndexed {
         pub authority: Address,
+        pub old_enabled: bool,
         pub enabled: bool,
+        pub changed_by: Address,
         pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct GovernorInitializedIndexed {
+        pub owner: Address,
+        pub name: String,
+        pub version: String,
+        pub token_contract: Address,
+        pub treasury_contract: Address,
+        pub voting_delay: u32,
+        pub voting_period: u32,
+        pub queue_delay: u32,
+        pub proposal_threshold: u128,
+        pub quorum_bps: u32,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct TreasuryChangedIndexed {
+        pub old_treasury: Address,
+        pub new_treasury: Address,
+        pub changed_by: Address,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct TokenContractChangedIndexed {
+        pub old_token_contract: Address,
+        pub new_token_contract: Address,
+        pub changed_by: Address,
+        pub ledger: u32,
+        pub timestamp: u64,
     }
 
     #[derive(Retroshade)]
@@ -166,11 +211,42 @@ impl DaoGovernorContract {
         governor::set_proposal_threshold(e, proposal_threshold);
         governor::set_quorum(e, quorum_bps as u128);
         e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
+
+        #[cfg(feature = "mercury")]
+        retroshade::GovernorInitializedIndexed {
+            owner,
+            name: String::from_str(e, "MvpDaoGovernor"),
+            version: String::from_str(e, "1.0.0"),
+            token_contract,
+            treasury_contract,
+            voting_delay,
+            voting_period,
+            queue_delay,
+            proposal_threshold,
+            quorum_bps,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     #[only_owner]
     pub fn set_treasury(e: &Env, treasury_contract: Address) {
+        #[cfg(feature = "mercury")]
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
+        #[cfg(feature = "mercury")]
+        let old_treasury = Self::treasury(e);
         e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TreasuryChangedIndexed {
+            old_treasury,
+            new_treasury: treasury_contract,
+            changed_by,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn set_queue_delay(e: &Env, caller: Address, queue_delay: u32) {
@@ -196,7 +272,21 @@ impl DaoGovernorContract {
 
     #[only_owner]
     pub fn set_token_contract(e: &Env, token_contract: Address) {
+        #[cfg(feature = "mercury")]
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
+        #[cfg(feature = "mercury")]
+        let old_token_contract = governor::get_token_contract(e);
         governor::set_token_contract(e, &token_contract);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TokenContractChangedIndexed {
+            old_token_contract,
+            new_token_contract: token_contract,
+            changed_by,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     pub fn set_voting_delay(e: &Env, caller: Address, voting_delay: u32) {
@@ -307,13 +397,20 @@ impl DaoGovernorContract {
 
     #[only_owner]
     pub fn set_governor_authority(e: &Env, authority: Address, enabled: bool) {
+        #[cfg(feature = "mercury")]
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
+        #[cfg(feature = "mercury")]
+        let old_enabled = Self::governor_authority(e, authority.clone());
         e.storage().instance().set(&GovernorKey::GovernorAuthority(authority.clone()), &enabled);
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorAuthorityChangedIndexed {
             authority,
+            old_enabled,
             enabled,
+            changed_by,
             ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
         }
         .emit(e);
     }
@@ -591,7 +688,15 @@ impl Governor for DaoGovernorContract {
             functions: functions.clone(),
             args: args.clone(),
             snapshot: proposal.vote_snapshot,
-            deadline: proposal.vote_end,
+            vote_start: proposal.vote_start,
+            deadline: proposal
+                .vote_end
+                .try_into()
+                .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
+            action_count: targets
+                .len()
+                .try_into()
+                .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
             ledger: e.ledger().sequence(),
             timestamp: e.ledger().timestamp(),
         }
@@ -696,11 +801,18 @@ impl Governor for DaoGovernorContract {
         // We wrap them to call treasury.execute(target, function, args)
         let treasury = Self::treasury(e);
         let execute_symbol = Symbol::new(e, "execute");
+        let action_count: u32 = targets
+            .len()
+            .try_into()
+            .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow));
 
         for i in 0..targets.len() {
             let target = targets.get(i).unwrap();
             let function = functions.get(i).unwrap();
             let call_args = args.get(i).unwrap();
+            let action_index: u32 = i
+                .try_into()
+                .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow));
 
             // Build args for treasury.execute(target, function, args)
             let treasury_args = vec![
@@ -716,10 +828,13 @@ impl Governor for DaoGovernorContract {
             #[cfg(feature = "mercury")]
             retroshade::ProposalCallIndexed {
                 proposal_id: proposal_id.clone(),
+                executor: executor.clone(),
                 treasury: treasury.clone(),
                 target: target.clone(),
                 function: function.clone(),
                 args: vec![e, call_args.clone()],
+                action_index,
+                action_count,
                 timestamp: e.ledger().timestamp(),
             }
             .emit(e);

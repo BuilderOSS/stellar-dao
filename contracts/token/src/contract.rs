@@ -1,5 +1,5 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
-use stellar_access::ownable::{get_owner, set_owner, Ownable};
+use stellar_access::ownable::{set_owner, Ownable};
 use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
@@ -12,27 +12,56 @@ mod retroshade {
 
     #[derive(Retroshade)]
     #[contracttype]
+    pub struct TokenInitializedIndexed {
+        pub owner: Address,
+        pub uri: String,
+        pub name: String,
+        pub symbol: String,
+        pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
     pub struct TokenMintIndexed {
+        pub minter: Address,
         pub to: Address,
         pub token_id: u32,
         pub ledger: u32,
+        pub timestamp: u64,
     }
 
     #[derive(Retroshade)]
     #[contracttype]
     pub struct TokenTransferIndexed {
+        pub operator: Address,
         pub from: Address,
         pub to: Address,
         pub token_id: u32,
         pub ledger: u32,
+        pub timestamp: u64,
+    }
+
+    #[derive(Retroshade)]
+    #[contracttype]
+    pub struct ApprovalChangedIndexed {
+        pub owner: Address,
+        pub spender: Address,
+        pub token_id: u32,
+        pub expiration_ledger: u32,
+        pub ledger: u32,
+        pub timestamp: u64,
     }
 
     #[derive(Retroshade)]
     #[contracttype]
     pub struct MintAuthorityChangedIndexed {
         pub authority: Address,
+        pub old_enabled: bool,
         pub enabled: bool,
+        pub changed_by: Address,
         pub ledger: u32,
+        pub timestamp: u64,
     }
 
     #[derive(Retroshade)]
@@ -42,6 +71,7 @@ mod retroshade {
         pub from_delegate: Option<Address>,
         pub to_delegate: Address,
         pub ledger: u32,
+        pub timestamp: u64,
     }
 }
 
@@ -64,19 +94,43 @@ pub struct DaoTokenContract;
 #[contractimpl]
 impl DaoTokenContract {
     pub fn __constructor(e: &Env, owner: Address, uri: String, name: String, symbol: String) {
+        #[cfg(feature = "mercury")]
+        let uri_for_event = uri.clone();
+        #[cfg(feature = "mercury")]
+        let name_for_event = name.clone();
+        #[cfg(feature = "mercury")]
+        let symbol_for_event = symbol.clone();
         Base::set_metadata(e, uri, name, symbol);
         set_owner(e, &owner);
+
+        #[cfg(feature = "mercury")]
+        retroshade::TokenInitializedIndexed {
+            owner,
+            uri: uri_for_event,
+            name: name_for_event,
+            symbol: symbol_for_event,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
     }
 
     #[only_owner]
     pub fn set_mint_authority(e: &Env, authority: Address, enabled: bool) {
+        #[cfg(feature = "mercury")]
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
+        #[cfg(feature = "mercury")]
+        let old_enabled = Self::mint_authority(e, authority.clone());
         e.storage().instance().set(&TokenKey::MintAuthority(authority.clone()), &enabled);
 
         #[cfg(feature = "mercury")]
         retroshade::MintAuthorityChangedIndexed {
             authority,
+            old_enabled,
             enabled,
+            changed_by,
             ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
         }
         .emit(e);
     }
@@ -93,9 +147,11 @@ impl DaoTokenContract {
 
         #[cfg(feature = "mercury")]
         retroshade::TokenMintIndexed {
+            minter: minter.clone(),
             to: to.clone(),
             token_id,
             ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
         }
         .emit(e);
 
@@ -115,6 +171,8 @@ impl DaoTokenContract {
 
         #[cfg(feature = "mercury")]
         let ledger = e.ledger().sequence();
+        #[cfg(feature = "mercury")]
+        let timestamp = e.ledger().timestamp();
 
         for _ in 0..amount {
             let token_id = NonFungibleVotes::sequential_mint(e, to);
@@ -122,9 +180,11 @@ impl DaoTokenContract {
 
             #[cfg(feature = "mercury")]
             retroshade::TokenMintIndexed {
+                minter: minter.clone(),
                 to: to.clone(),
                 token_id,
                 ledger,
+                timestamp,
             }
             .emit(e);
         }
@@ -140,20 +200,18 @@ impl DaoTokenContract {
         Base::owner_of(e, token_id)
     }
 
-    pub fn approve(e: &Env, owner: &Address, spender: &Address, token_id: u32, expiration_ledger: u32) {
-        Base::approve(e, owner, spender, token_id, expiration_ledger);
-    }
-
     pub fn transfer(e: &Env, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer(e, from, to, token_id);
 
         #[cfg(feature = "mercury")]
         retroshade::TokenTransferIndexed {
+            operator: from.clone(),
             from: from.clone(),
             to: to.clone(),
             token_id,
             ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
         }
         .emit(e);
     }
@@ -164,10 +222,27 @@ impl DaoTokenContract {
 
         #[cfg(feature = "mercury")]
         retroshade::TokenTransferIndexed {
+            operator: spender.clone(),
             from: from.clone(),
             to: to.clone(),
             token_id,
             ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
+        }
+        .emit(e);
+    }
+
+    pub fn approve(e: &Env, owner: &Address, spender: &Address, token_id: u32, expiration_ledger: u32) {
+        Base::approve(e, owner, spender, token_id, expiration_ledger);
+
+        #[cfg(feature = "mercury")]
+        retroshade::ApprovalChangedIndexed {
+            owner: owner.clone(),
+            spender: spender.clone(),
+            token_id,
+            expiration_ledger,
+            ledger: e.ledger().sequence(),
+            timestamp: e.ledger().timestamp(),
         }
         .emit(e);
     }
@@ -212,6 +287,7 @@ impl DaoTokenContract {
                 from_delegate: None,
                 to_delegate: account.clone(),
                 ledger: e.ledger().sequence(),
+                timestamp: e.ledger().timestamp(),
             }
             .emit(e);
 
@@ -225,7 +301,7 @@ impl DaoTokenContract {
     }
 
     fn ensure_mint_authority(e: &Env, minter: &Address) {
-        let Some(owner) = get_owner(e) else {
+        let Some(owner) = stellar_access::ownable::get_owner(e) else {
             panic!("owner not set");
         };
 
