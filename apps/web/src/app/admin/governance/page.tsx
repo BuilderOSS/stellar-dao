@@ -8,7 +8,7 @@ import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { DurationInput } from '@/components/admin/duration-input';
-import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
 import { useMercuryGovernorAuthorities } from '@/lib/mercury-queries';
@@ -209,23 +209,21 @@ export default function GovernanceAdminPage() {
     return (
       <DaoShell>
         <PageSection eyebrow="Admin" title="Governance Admin" description="Governance settings and authority management.">
-          <Card p="5">
-            <Stack gap="2">
-              <div><Badge>Access restricted</Badge></div>
-              <Heading style={{ fontSize: '1.2rem' }}>Connect a governance authority wallet to continue</Heading>
-              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                You can still view the current governor values, but only a governance authority can update them.
-              </Text>
-              {settings ? (
-                <Stack gap="1">
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Voting delay: {settings.votingDelay}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Voting period: {settings.votingPeriod}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Proposal threshold: {settings.proposalThreshold.toString()}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Quorum: {settings.quorumBps} bps</Text>
-                </Stack>
-              ) : null}
-            </Stack>
-          </Card>
+          <Callout
+            variant="warning"
+            badge="Access restricted"
+            title="Connect a governance authority wallet to continue"
+            description="You can still view the current governor values, but only a governance authority can update them."
+          >
+            {settings ? (
+              <Stack gap="1">
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Voting delay: {settings.votingDelay}</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Voting period: {settings.votingPeriod}</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Proposal threshold: {settings.proposalThreshold.toString()}</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Quorum: {settings.quorumBps} bps</Text>
+              </Stack>
+            ) : null}
+          </Callout>
         </PageSection>
       </DaoShell>
     );
@@ -253,8 +251,8 @@ export default function GovernanceAdminPage() {
                 </Button>
               </div>
 
-              {settingsError ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{settingsError.message}</Text> : null}
-              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
+              {settingsError ? <Callout variant="error" title={settingsError.message} /> : null}
+              {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
             </Stack>
           </Card>
 

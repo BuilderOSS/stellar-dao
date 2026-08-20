@@ -8,7 +8,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
-import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
+import { Badge, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
@@ -61,16 +61,14 @@ export default function OwnerPage() {
     return (
       <DaoShell>
         <PageSection eyebrow="Admin" title="Owner" description="Owner-only authority management.">
-          <Card p="5">
-            <Stack gap="2">
-              <div><Badge>Access restricted</Badge></div>
-              <Heading style={{ fontSize: '1.2rem' }}>Connect the owner wallet to continue</Heading>
-              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                Only the configured bootstrap owner can add or remove mint and governance authorities.
-              </Text>
-              <ShortId value={config.adminAddress} label="Owner address" />
-            </Stack>
-          </Card>
+          <Callout
+            variant="warning"
+            badge="Access restricted"
+            title="Connect the owner wallet to continue"
+            description="Only the configured bootstrap owner can add or remove mint and governance authorities."
+          >
+            <ShortId value={config.adminAddress} label="Owner address" />
+          </Callout>
         </PageSection>
       </DaoShell>
     );
@@ -126,7 +124,7 @@ export default function OwnerPage() {
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                 The owner can add or remove both token and governance authorities. Those authorities can then use the matching admin pages.
               </Text>
-              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
+              {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
             </Stack>
           </Card>
 

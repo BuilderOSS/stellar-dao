@@ -1,5 +1,4 @@
-import { Card, Text } from '@/components/ui';
-import { Stack } from 'styled-system/jsx';
+import { Callout } from '@/components/ui';
 
 type ProposalOutcomeCalloutProps = {
   stateLabel: string;
@@ -25,12 +24,5 @@ function getOutcomeCopy(stateLabel: string) {
 }
 
 export function ProposalOutcomeCallout({ stateLabel }: ProposalOutcomeCalloutProps) {
-  return (
-    <Card p="5">
-      <Stack gap="2">
-        <Text className="label">Status</Text>
-        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{getOutcomeCopy(stateLabel)}</Text>
-      </Stack>
-    </Card>
-  );
+  return <Callout variant="info" badge="Status" title={getOutcomeCopy(stateLabel)} />;
 }

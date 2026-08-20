@@ -7,7 +7,7 @@ import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Button, Text } from '@/components/ui';
+import { Button, Callout, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
@@ -274,7 +274,7 @@ export default function ProposalDetailPage() {
       >
         <Stack gap="4">
           {detail ? <ProposalOverview detail={detail} now={now} network={config.name} /> : null}
-          {errorMessage ? <Text className="lede" style={{ margin: 0 }}>{errorMessage}</Text> : null}
+          {errorMessage ? <Callout variant="error" title={errorMessage} /> : null}
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
@@ -313,7 +313,7 @@ export default function ProposalDetailPage() {
           ) : null}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            {formMessage ? <Text className="lede" style={{ margin: 0 }}>{formMessage}</Text> : null}
+            {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
             <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
               {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>

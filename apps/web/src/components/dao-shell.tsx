@@ -7,7 +7,7 @@ import { useEffect, type ReactNode } from 'react';
 import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { KitEventType } from '@creit.tech/stellar-wallets-kit/types';
-import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -200,17 +200,14 @@ export function DaoShell({ children }: { children: ReactNode }) {
               zIndex: 20
             }}
           >
-            <Card p="4" style={{ maxWidth: '760px', width: '100%', borderColor: 'rgba(239, 68, 68, 0.55)', background: 'rgba(127, 29, 29, 0.24)' }}>
-              <Stack gap="2">
-                <div><Badge>Network mismatch</Badge></div>
-                <Text className="lede" style={{ margin: 0, fontWeight: 700 }}>
-                  {session.walletNetworkIssue}
-                </Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                  Switch the connected wallet to {currentNetwork.label} to continue using the app.
-                </Text>
-              </Stack>
-            </Card>
+            <div style={{ maxWidth: '760px', width: '100%' }}>
+              <Callout
+                variant="error"
+                badge="Network mismatch"
+                title={session.walletNetworkIssue}
+                description={`Switch the connected wallet to ${currentNetwork.label} to continue using the app.`}
+              />
+            </div>
           </div>
         ) : null}
       </div>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Badge, Button, Card, Heading, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, Heading, Text } from '@/components/ui';
 import { ProposalStateBadge } from '@/components/proposal/proposal-state-badge';
 import { Grid, Stack } from 'styled-system/jsx';
 import type { ProposalListResponse } from '@/components/proposal/types';
@@ -87,8 +87,8 @@ export default function ProposalsPage() {
             </div>
           </div>
 
-          {createDisabledMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{createDisabledMessage}</Text> : null}
-          {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
+          {createDisabledMessage ? <Callout variant="warning" title={createDisabledMessage} /> : null}
+          {error ? <Callout variant="error" title={error.message} /> : null}
           {!items.length ? (
             <Text className="lede" style={{ margin: 0 }}>No proposal rows indexed yet.</Text>
           ) : (

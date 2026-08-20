@@ -7,7 +7,7 @@ import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
-import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { ProposalActionEditor } from '@/components/proposal/proposal-action-editor';
 import { ProposalActionQueue } from '@/components/proposal/proposal-action-queue';
 import type { GovernorSettings } from '@/lib/admin-queries';
@@ -113,7 +113,7 @@ export default function ProposalCreatePage() {
   );
   const mintAuthorityMissing = Boolean(mintAuthorities && config.treasuryContractId && !treasuryHasMintAuthority);
   const mintAuthorityError = mintAuthorityMissing
-    ? 'The treasury does not have mint authority. Grant mint authority to the treasury before creating mint proposals.'
+    ? 'Grant mint authority to the treasury before creating mint proposals.'
     : '';
   const actionMintAuthorityError = requiresTreasuryMintAuthority(actionType) ? mintAuthorityError : '';
   const queuedActionsNeedMintAuthority = queuedActions.some((action) => requiresTreasuryMintAuthority(action.type));
@@ -521,7 +521,7 @@ export default function ProposalCreatePage() {
                 </Text>
               ) : null}
 
-              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
+              {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
               <ShortId value={config.governorContractId} label="Governor" />
               <ShortId value={config.treasuryContractId} label="Treasury" />
               <ShortId value={config.tokenContractId} label="Token" />

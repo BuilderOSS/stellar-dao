@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Button, Card, FieldHelperText, FieldLabel, Input, Select, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, FieldHelperText, FieldLabel, Input, Select, Text } from '@/components/ui';
 import { getProposalActionLabel, type ProposalActionType } from '@/lib/proposal-call';
 import { Stack } from 'styled-system/jsx';
 
@@ -40,7 +40,7 @@ export function ProposalActionEditor({
   const formDisabled = busy || Boolean(disabledReason);
 
   return (
-    <Card p="5" style={disabledReason ? { opacity: 0.72 } : undefined}>
+    <Card p="5">
       <Stack gap="3">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <Stack gap="1">
@@ -60,50 +60,61 @@ export function ProposalActionEditor({
             id="proposal-action-type"
             value={actionType}
             onChange={(event) => onActionTypeChange(event.target.value as ProposalActionType)}
-            disabled={formDisabled}
+            disabled={busy}
           >
             <option value="mint-governance-token">{getProposalActionLabel('mint-governance-token')}</option>
             <option value="batch-mint-governance-token">{getProposalActionLabel('batch-mint-governance-token')}</option>
           </Select>
           <FieldHelperText>Each queued action becomes a separate governor call in the final proposal.</FieldHelperText>
-          {disabledReason ? <FieldHelperText style={{ color: '#b91c1c' }}>{disabledReason}</FieldHelperText> : null}
         </Stack>
 
-        <Stack gap="2">
-          <FieldLabel htmlFor="proposal-action-recipient">Recipient</FieldLabel>
-          <Input
-            id="proposal-action-recipient"
-            value={recipient}
-            onChange={(event) => onRecipientChange(event.target.value)}
-            placeholder="Recipient address"
-            disabled={formDisabled}
+        {disabledReason ? (
+          <Callout
+            variant="error"
+            title="Treasury mint authority required"
+            description={disabledReason}
           />
-        </Stack>
-
-        {batchMint ? (
-          <Stack gap="2">
-            <FieldLabel htmlFor="proposal-action-amount">Amount</FieldLabel>
-            <Input
-              id="proposal-action-amount"
-              value={amount}
-              onChange={(event) => onAmountChange(event.target.value)}
-              placeholder="Amount to mint"
-              type="number"
-              min="1"
-              step="1"
-              disabled={formDisabled}
-            />
-            <FieldHelperText>Use a positive whole number of tokens.</FieldHelperText>
-          </Stack>
         ) : null}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-          <Button type="button" variant="outline" onClick={onClear} disabled={formDisabled}>
-            Clear draft
-          </Button>
-          <Button type="button" onClick={onSave} disabled={formDisabled || !canSave}>
-            {editingActionId ? 'Save action' : 'Add action'}
-          </Button>
+        <div style={disabledReason ? { opacity: 0.62 } : undefined}>
+          <Stack gap="3">
+            <Stack gap="2">
+              <FieldLabel htmlFor="proposal-action-recipient">Recipient</FieldLabel>
+              <Input
+                id="proposal-action-recipient"
+                value={recipient}
+                onChange={(event) => onRecipientChange(event.target.value)}
+                placeholder="Recipient address"
+                disabled={formDisabled}
+              />
+            </Stack>
+
+            {batchMint ? (
+              <Stack gap="2">
+                <FieldLabel htmlFor="proposal-action-amount">Amount</FieldLabel>
+                <Input
+                  id="proposal-action-amount"
+                  value={amount}
+                  onChange={(event) => onAmountChange(event.target.value)}
+                  placeholder="Amount to mint"
+                  type="number"
+                  min="1"
+                  step="1"
+                  disabled={formDisabled}
+                />
+                <FieldHelperText>Use a positive whole number of tokens.</FieldHelperText>
+              </Stack>
+            ) : null}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+              <Button type="button" variant="outline" onClick={onClear} disabled={formDisabled}>
+                Clear draft
+              </Button>
+              <Button type="button" onClick={onSave} disabled={formDisabled || !canSave}>
+                {editingActionId ? 'Save action' : 'Add action'}
+              </Button>
+            </div>
+          </Stack>
         </div>
       </Stack>
     </Card>

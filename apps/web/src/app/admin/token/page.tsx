@@ -7,7 +7,7 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
-import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
@@ -106,8 +106,8 @@ export default function TokenAdminPage() {
                   {isLoading ? 'Refreshing...' : 'Refresh authorities'}
                 </Button>
               </div>
-              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
-              {error ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{error.message}</Text> : null}
+              {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
+              {error ? <Callout variant="error" title={error.message} /> : null}
             </Stack>
           </Card>
 
