@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { CopyIconButton, Text } from '@/components/ui';
+import { ArrowUpRight } from 'lucide-react';
+import { CopyIconButton, IconLinkButton, Text } from '@/components/ui';
+import { getDefaultDaoNetwork } from '@/lib/dao-config';
+import { getExplorerAccountUrl, getExplorerContractUrl } from '@/lib/explorer-links';
 import { HStack } from 'styled-system/jsx';
 
 function shorten(value: string) {
@@ -9,9 +12,24 @@ function shorten(value: string) {
   return `${value.slice(0, 6)}…${value.slice(-6)}`;
 }
 
-export function ShortId({ value, label }: { value: string; label?: string }) {
+function getExplorerUrl(value: string) {
+  const network = getDefaultDaoNetwork();
+
+  if (value.startsWith('C')) {
+    return getExplorerContractUrl(network, value);
+  }
+
+  if (value.startsWith('G')) {
+    return getExplorerAccountUrl(network, value);
+  }
+
+  return '';
+}
+
+export function ShortId({ value, label, explorerUrl }: { value: string; label?: string; explorerUrl?: string }) {
   const [copied, setCopied] = useState(false);
   const displayValue = shorten(value);
+  const resolvedExplorerUrl = explorerUrl ?? getExplorerUrl(value);
 
   async function copyValue() {
     try {
@@ -32,6 +50,11 @@ export function ShortId({ value, label }: { value: string; label?: string }) {
         </Text>
       </div>
       <HStack gap="1">
+        {resolvedExplorerUrl ? (
+          <IconLinkButton href={resolvedExplorerUrl} label="Open in Stellar Expert">
+            <ArrowUpRight size={12} />
+          </IconLinkButton>
+        ) : null}
         <CopyIconButton copied={copied} onClick={copyValue} label="Copy address" />
       </HStack>
     </HStack>

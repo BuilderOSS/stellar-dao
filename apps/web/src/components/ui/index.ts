@@ -5,6 +5,7 @@ export { CopyIconButton } from './copy-icon-button';
 export { Card } from './card';
 export { Field, FieldHelperText, FieldLabel } from './field';
 export { Heading, Text } from './text';
+export { IconLinkButton } from './icon-link-button';
 export { Input } from './input';
 export { Select } from './select';
 export { ShortId } from './short-id';

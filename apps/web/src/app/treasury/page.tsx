@@ -5,7 +5,6 @@ import { PageSection } from '@/components/page-section';
 import { Badge, Button, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { findAsset } from '@/lib/assets-config';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { getExplorerContractUrl } from '@/lib/explorer-links';
 import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { useTreasuryBalances } from '@/lib/treasury-queries';
 import Image from 'next/image';
@@ -94,22 +93,10 @@ export default function TreasuryPage() {
               </div>
 
               <Card p="4" style={{ border: '1px solid rgba(96, 165, 250, 0.24)', background: 'rgba(30, 64, 175, 0.1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Stack gap="2" style={{ minWidth: 0 }}>
-                    <Text className="label">Treasury contract</Text>
-                    {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
-                  </Stack>
-                  {config.treasuryContractId ? (
-                    <a
-                      href={getExplorerContractUrl(config.name, config.treasuryContractId)}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: 'inherit', textDecoration: 'none' }}
-                    >
-                      <Badge>View on Stellar Expert</Badge>
-                    </a>
-                  ) : null}
-                </div>
+                <Stack gap="2" style={{ minWidth: 0 }}>
+                  <Text className="label">Treasury contract</Text>
+                  {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
+                </Stack>
               </Card>
 
               {balanceError ? <Callout variant="error" title={balanceError.message} /> : null}
