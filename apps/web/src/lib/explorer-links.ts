@@ -15,3 +15,7 @@ export function getExplorerTxUrl(network: DaoNetworkName, txHash: string) {
 export function getExplorerAccountUrl(network: DaoNetworkName, account: string) {
   return `${getExplorerBaseUrl(network)}/account/${account}`;
 }
+
+export function getExplorerContractUrl(network: DaoNetworkName, contractId: string) {
+  return `${getExplorerBaseUrl(network)}/contract/${contractId}`;
+}

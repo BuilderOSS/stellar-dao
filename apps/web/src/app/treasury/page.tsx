@@ -2,11 +2,54 @@
 
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
+import { Badge, Button, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
+import { findAsset } from '@/lib/assets-config';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { getExplorerContractUrl } from '@/lib/explorer-links';
 import { useMercuryActivityFeed } from '@/lib/mercury-queries';
 import { useTreasuryBalances } from '@/lib/treasury-queries';
+import Image from 'next/image';
 import { Grid, Stack } from 'styled-system/jsx';
+
+function parseBalance(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatAssetBalance(value: string) {
+  const [whole = '0', decimal = ''] = value.split('.');
+  const formattedWhole = Number(whole).toLocaleString();
+  const trimmedDecimal = decimal.slice(0, 7).replace(/0+$/, '');
+  return trimmedDecimal ? `${formattedWhole}.${trimmedDecimal}` : formattedWhole;
+}
+
+function AssetMark({ code, imageSrc }: { code: string; imageSrc?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: '46px',
+        height: '46px',
+        borderRadius: '999px',
+        border: '1px solid rgba(148, 163, 184, 0.22)',
+        background: 'rgba(15, 23, 42, 0.72)',
+        boxShadow: '0 14px 30px rgba(15, 23, 42, 0.22)',
+        color: '#bfdbfe',
+        display: 'grid',
+        fontWeight: 800,
+        letterSpacing: '-0.04em',
+        overflow: 'hidden',
+        placeItems: 'center'
+      }}
+    >
+      {imageSrc ? (
+        <Image src={imageSrc} alt="" width={46} height={46} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        code.slice(0, 2)
+      )}
+    </div>
+  );
+}
 
 export default function TreasuryPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
@@ -25,74 +68,92 @@ export default function TreasuryPage() {
         title="Execution boundary"
         description="The treasury is where approved governance actions become real contract calls."
       >
-        <Grid columns={{ base: 1, xl: 2 }} gap="4">
+        <Grid columns={{ base: 1 }} gap="4">
           <Card p="5">
-            <Stack gap="2">
-              <Text className="label">Treasury address</Text>
-              {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
-            </Stack>
-          </Card>
-          <Card p="5">
-            <Stack gap="3">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <Text className="label">Asset Balances</Text>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void mutateBalances()}
-                  disabled={balanceLoading}
-                >
-                  {balanceLoading ? 'Refreshing...' : 'Refresh'}
-                </Button>
+            <Stack gap="4">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <div>
+                  <Text className="label">Treasury overview</Text>
+                  <Heading style={{ fontSize: '1.35rem', marginTop: '6px' }}>Assets under governance control</Heading>
+                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                    Contract-held assets governed by proposals.
+                  </Text>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Badge>{balanceLoading ? 'Syncing' : `${balances?.length ?? 0} tracked`}</Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void mutateBalances()}
+                    disabled={balanceLoading}
+                  >
+                    {balanceLoading ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                </div>
               </div>
 
-              {balanceError ? (
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                  {balanceError.message}
-                </Text>
-              ) : null}
+              <Card p="4" style={{ border: '1px solid rgba(96, 165, 250, 0.24)', background: 'rgba(30, 64, 175, 0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Stack gap="2" style={{ minWidth: 0 }}>
+                    <Text className="label">Treasury contract</Text>
+                    {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
+                  </Stack>
+                  {config.treasuryContractId ? (
+                    <a
+                      href={getExplorerContractUrl(config.name, config.treasuryContractId)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      <Badge>View on Stellar Expert</Badge>
+                    </a>
+                  ) : null}
+                </div>
+              </Card>
 
-              {balanceLoading && !balances ? (
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                  Loading balances...
-                </Text>
-              ) : null}
+              {balanceError ? <Callout variant="error" title={balanceError.message} /> : null}
+
+              {balanceLoading && !balances ? <Callout variant="info" title="Loading treasury balances..." /> : null}
 
               {balances && balances.length > 0 ? (
-                <Stack gap="2">
-                  {balances.map((asset) => (
-                    <div
-                      key={asset.isNative ? 'XLM' : `${asset.assetCode}-${asset.assetIssuer}`}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 0',
-                        borderBottom: '1px solid var(--gray-6)'
-                      }}
-                    >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <Text style={{ margin: 0, fontWeight: 600 }}>{asset.assetCode}</Text>
-                        {!asset.isNative && asset.assetIssuer ? (
-                          <Text className="lede" style={{ margin: 0, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {asset.assetIssuer.slice(0, 8)}...{asset.assetIssuer.slice(-4)}
-                          </Text>
-                        ) : null}
-                      </div>
-                      <Badge>{parseFloat(asset.balance).toLocaleString()}</Badge>
-                    </div>
-                  ))}
-                </Stack>
+                <Grid columns={{ base: 1, md: 2, xl: 3 }} gap="3">
+                  {balances.map((asset) => {
+                    const hasBalance = parseBalance(asset.balance) > 0;
+                    const assetConfig = findAsset(config.name, asset.assetCode);
+                    return (
+                      <Card
+                        key={asset.isNative ? 'XLM' : `${asset.assetCode}-${asset.assetIssuer}`}
+                        p="4"
+                        style={{
+                          border: asset.isNative ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(160, 194, 225, 0.16)',
+                          background: asset.isNative ? 'rgba(30, 64, 175, 0.1)' : 'rgba(157, 179, 203, 0.05)',
+                          opacity: hasBalance ? 1 : 0.74
+                        }}
+                      >
+                        <Stack gap="4">
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
+                            <AssetMark code={asset.assetCode} imageSrc={assetConfig?.imageSrc} />
+                            <Stack gap="1" style={{ minWidth: 0 }}>
+                              <Text style={{ margin: 0, fontWeight: 800 }}>{asset.assetCode}</Text>
+                              <Text className="lede" style={{ margin: 0, fontSize: '0.78rem' }}>{assetConfig?.name ?? asset.assetCode}</Text>
+                            </Stack>
+                          </div>
+                          <div>
+                            <Text style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>{formatAssetBalance(asset.balance)}</Text>
+                            <Text className="lede" style={{ margin: 0, fontSize: '0.78rem' }}>{asset.assetCode}</Text>
+                          </div>
+                        </Stack>
+                      </Card>
+                    );
+                  })}
+                </Grid>
               ) : balances && balances.length === 0 ? (
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                  No balances found
-                </Text>
+                <Callout variant="info" title="No configured treasury balances found." />
               ) : null}
             </Stack>
           </Card>
-          <Card p="5" style={{ gridColumn: '1 / -1' }}>
+          <Card p="5">
             <Stack gap="2">
               <Heading style={{ fontSize: '1.2rem' }}>Recent executions</Heading>
               <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>

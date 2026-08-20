@@ -1,5 +1,7 @@
 export type TreasuryAsset = {
   code: string;
+  name: string;
+  imageSrc: string;
   issuer?: string;
   isNative?: boolean;
   contractId?: string; // SAC contract address
@@ -16,18 +18,24 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
   testnet: [
     {
       code: 'XLM',
+      name: 'Lumens',
+      imageSrc: '/assets/XLM.png',
       isNative: true,
       // Native XLM SAC address (deterministic across all networks)
       contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
     },
     {
       code: 'USDC',
+      name: 'USD Coin',
+      imageSrc: '/assets/USDC.png',
       issuer: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
       // Circle's USDC SAC on testnet
       contractId: 'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
     },
     {
       code: 'EURC',
+      name: 'Euro Coin',
+      imageSrc: '/assets/EURC.png',
       issuer: 'GB3Q6QDZYTHWT7E5PVS3W7FUT5GVAFC5KSZFFLPU25GO7VTC3NM2ZTVO',
       // You'll need to deploy the SAC for this asset or calculate its address
       contractId: undefined
@@ -36,12 +44,16 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
   mainnet: [
     {
       code: 'XLM',
+      name: 'Lumens',
+      imageSrc: '/assets/XLM.png',
       isNative: true,
       // Native XLM SAC address (deterministic across all networks)
       contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
     },
     {
       code: 'USDC',
+      name: 'USD Coin',
+      imageSrc: '/assets/USDC.png',
       issuer: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
       // Circle's USDC SAC on mainnet
       contractId: 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75'
@@ -50,6 +62,8 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
   local: [
     {
       code: 'XLM',
+      name: 'Lumens',
+      imageSrc: '/assets/XLM.png',
       isNative: true,
       // Native XLM SAC address (deterministic across all networks)
       contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
