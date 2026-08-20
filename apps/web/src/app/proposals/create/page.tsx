@@ -11,13 +11,17 @@ import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { ProposalActionEditor } from '@/components/proposal/proposal-action-editor';
 import { ProposalActionQueue } from '@/components/proposal/proposal-action-queue';
+import type { GovernorSettings } from '@/lib/admin-queries';
+import { useGovernorSettings } from '@/lib/admin-queries';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import {
   buildProposalCallVectors,
   type ProposalActionType,
   type ProposalQueuedAction
 } from '@/lib/proposal-call';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
+import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
@@ -52,9 +56,36 @@ function isPositiveWholeNumber(value: string) {
   return Number.isSafeInteger(Number(trimmed)) && Number(trimmed) > 0;
 }
 
+function requiresTreasuryMintAuthority(type: ProposalActionType) {
+  return type === 'mint-governance-token' || type === 'batch-mint-governance-token';
+}
+
+function formatProposalCreationDisabledMessage(votingPower: VotingPowerSnapshot | undefined, settings: GovernorSettings | undefined, errorMessage?: string) {
+  if (errorMessage) {
+    return errorMessage;
+  }
+
+  if (!votingPower || !settings) {
+    return 'Connect a wallet with enough voting power to create proposals.';
+  }
+
+  return `You need at least ${settings.proposalThreshold.toString()} votes to create a proposal. Current voting power: ${votingPower.votes.toString()}.`;
+}
+
 export default function ProposalCreatePage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
+  const { data: mintAuthorities, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
+  const {
+    data: votingPower,
+    error: votingPowerError,
+    isLoading: votingPowerLoading
+  } = useVotingPower(config, session.address);
+  const {
+    data: governorSettings,
+    error: governorSettingsError,
+    isLoading: governorSettingsLoading
+  } = useGovernorSettings(config, session.address || config.adminAddress);
   const [step, setStep] = useState<ProposalStep>(1);
   const [metadata, setMetadata] = useState<ProposalMetadataDraft>(EMPTY_METADATA);
   const [actionType, setActionType] = useState<ProposalActionType>(EMPTY_ACTION_STATE.type);
@@ -68,11 +99,29 @@ export default function ProposalCreatePage() {
   const [txHash, setTxHash] = useState('');
 
   const proposalDescription = useMemo(() => encodeProposalMetadata(metadata), [metadata]);
+  const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
+  const proposalEligibilityError = votingPowerError ?? governorSettingsError;
+  const hasProposalVotes = Boolean(votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold);
+  const proposalCreationLocked = !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
+  const proposalCreationLockMessage = proposalEligibilityLoading
+    ? 'Checking proposal eligibility...'
+    : proposalCreationLocked
+      ? formatProposalCreationDisabledMessage(votingPower, governorSettings, proposalEligibilityError?.message)
+      : '';
+  const treasuryHasMintAuthority = Boolean(
+    config.treasuryContractId && mintAuthorities?.items.some((item) => item.authority === config.treasuryContractId)
+  );
+  const mintAuthorityMissing = Boolean(mintAuthorities && config.treasuryContractId && !treasuryHasMintAuthority);
+  const mintAuthorityError = mintAuthorityMissing
+    ? 'The treasury does not have mint authority. Grant mint authority to the treasury before creating mint proposals.'
+    : '';
+  const actionMintAuthorityError = requiresTreasuryMintAuthority(actionType) ? mintAuthorityError : '';
+  const queuedActionsNeedMintAuthority = queuedActions.some((action) => requiresTreasuryMintAuthority(action.type));
   const metadataIsValid = metadata.title.trim().length > 0 && metadata.description.trim().length > 0;
   const recipientIsValid = recipient.trim().length > 0;
   const amountIsValid = actionType === 'batch-mint-governance-token' ? isPositiveWholeNumber(amount) : true;
-  const actionIsValid = recipientIsValid && amountIsValid;
-  const canReview = metadataIsValid && queuedActions.length > 0 && !editingAction;
+  const actionIsValid = recipientIsValid && amountIsValid && !actionMintAuthorityError && !proposalCreationLocked;
+  const canReview = metadataIsValid && queuedActions.length > 0 && !editingAction && !(queuedActionsNeedMintAuthority && mintAuthorityMissing) && !proposalCreationLocked;
 
   function resetActionDraft(nextType?: ProposalActionType) {
     if (typeof nextType !== 'undefined') {
@@ -97,6 +146,16 @@ export default function ProposalCreatePage() {
   }
 
   function queueAction() {
+    if (proposalCreationLocked) {
+      setStatus(proposalCreationLockMessage);
+      return;
+    }
+
+    if (requiresTreasuryMintAuthority(actionType) && mintAuthorityMissing) {
+      setStatus(mintAuthorityError);
+      return;
+    }
+
     if (!recipientIsValid) {
       setStatus('Recipient is required.');
       return;
@@ -193,6 +252,11 @@ export default function ProposalCreatePage() {
       return;
     }
 
+    if (proposalCreationLocked) {
+      setStatus(proposalCreationLockMessage);
+      return;
+    }
+
     if (!config.governorContractId || !config.treasuryContractId || !config.tokenContractId) {
       setStatus('Missing DAO contract ids in the active network config.');
       return;
@@ -210,6 +274,11 @@ export default function ProposalCreatePage() {
 
     if (!queuedActions.length) {
       setStatus('Add at least one action.');
+      return;
+    }
+
+    if (queuedActionsNeedMintAuthority && mintAuthorityMissing) {
+      setStatus(mintAuthorityError);
       return;
     }
 
@@ -252,6 +321,11 @@ export default function ProposalCreatePage() {
   }
 
   function advanceFromMetadata() {
+    if (proposalCreationLocked) {
+      setStatus(proposalCreationLockMessage);
+      return;
+    }
+
     if (!metadataIsValid) {
       setStatus('Title and description are required.');
       return;
@@ -262,8 +336,18 @@ export default function ProposalCreatePage() {
   }
 
   function advanceFromActions() {
+    if (proposalCreationLocked) {
+      setStatus(proposalCreationLockMessage);
+      return;
+    }
+
     if (!queuedActions.length) {
       setStatus('Add at least one action.');
+      return;
+    }
+
+    if (queuedActionsNeedMintAuthority && mintAuthorityMissing) {
+      setStatus(mintAuthorityError);
       return;
     }
 
@@ -285,6 +369,7 @@ export default function ProposalCreatePage() {
       >
         <Stack gap="4">
           <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
+          {proposalCreationLockMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{proposalCreationLockMessage}</Text> : null}
 
           <Card p="5">
             <Stack gap="3">
@@ -306,12 +391,14 @@ export default function ProposalCreatePage() {
                     value={metadata.title}
                     onChange={(event) => setMetadata((current) => ({ ...current, title: event.target.value }))}
                     placeholder="Proposal title"
+                    disabled={proposalCreationLocked}
                   />
                   <textarea
                     value={metadata.description}
                     onChange={(event) => setMetadata((current) => ({ ...current, description: event.target.value }))}
                     placeholder="Proposal description"
                     rows={6}
+                    disabled={proposalCreationLocked}
                     style={{
                       width: '100%',
                       borderRadius: '12px',
@@ -327,9 +414,10 @@ export default function ProposalCreatePage() {
                     value={metadata.url ?? ''}
                     onChange={(event) => setMetadata((current) => ({ ...current, url: event.target.value }))}
                     placeholder="Optional URL"
+                    disabled={proposalCreationLocked}
                   />
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button type="button" onClick={advanceFromMetadata} disabled={!metadataIsValid}>
+                    <Button type="button" onClick={advanceFromMetadata} disabled={!metadataIsValid || proposalCreationLocked}>
                       Next
                     </Button>
                   </div>
@@ -350,6 +438,7 @@ export default function ProposalCreatePage() {
                       editingActionId={editingAction?.id ?? null}
                       busy={busy}
                       canSave={actionIsValid}
+                      disabledReason={proposalCreationLockMessage || (mintAuthoritiesLoading ? undefined : actionMintAuthorityError)}
                       onActionTypeChange={(nextType) => {
                         setActionType(nextType);
                         if (nextType === 'batch-mint-governance-token' && amount.trim() === '') {

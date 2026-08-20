@@ -9,6 +9,11 @@ import { Badge, Button, Card, Heading, Text } from '@/components/ui';
 import { ProposalStateBadge } from '@/components/proposal/proposal-state-badge';
 import { Grid, Stack } from 'styled-system/jsx';
 import type { ProposalListResponse } from '@/components/proposal/types';
+import type { GovernorSettings } from '@/lib/admin-queries';
+import { useGovernorSettings } from '@/lib/admin-queries';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
+import { useDaoSessionStore } from '@/stores/dao-session-store';
 
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
@@ -19,8 +24,32 @@ function formatTimestamp(timestamp: number) {
   }
 }
 
+function formatProposalCreationDisabledMessage(votingPower: VotingPowerSnapshot | undefined, settings: GovernorSettings | undefined, errorMessage?: string) {
+  if (errorMessage) {
+    return errorMessage;
+  }
+
+  if (!votingPower || !settings) {
+    return 'Connect a wallet with enough voting power to create proposals.';
+  }
+
+  return `You need at least ${settings.proposalThreshold.toString()} votes to create a proposal. Current voting power: ${votingPower.votes.toString()}.`;
+}
+
 export default function ProposalsPage() {
   const router = useRouter();
+  const session = useDaoSessionStore();
+  const config = getDaoNetworkConfig(getDefaultDaoNetwork());
+  const {
+    data: votingPower,
+    error: votingPowerError,
+    isLoading: votingPowerLoading
+  } = useVotingPower(config, session.address);
+  const {
+    data: governorSettings,
+    error: governorSettingsError,
+    isLoading: governorSettingsLoading
+  } = useGovernorSettings(config, session.address || config.adminAddress);
   const { data, error, isLoading, mutate } = useSWR<ProposalListResponse>('/api/proposals?limit=24', async (url: string) => {
     const response = await fetch(url, { cache: 'no-store' });
     const json = (await response.json()) as ProposalListResponse;
@@ -30,6 +59,13 @@ export default function ProposalsPage() {
     return json;
   }, { keepPreviousData: true });
   const items = data?.items ?? [];
+  const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
+  const proposalEligibilityError = votingPowerError ?? governorSettingsError;
+  const hasProposalVotes = Boolean(votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold);
+  const createDisabled = !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
+  const createDisabledMessage = createDisabled
+    ? formatProposalCreationDisabledMessage(votingPower, governorSettings, proposalEligibilityError?.message)
+    : '';
 
   return (
     <DaoShell>
@@ -45,12 +81,13 @@ export default function ProposalsPage() {
               <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
                 {isLoading ? 'Refreshing...' : 'Refresh'}
               </Button>
-              <Button type="button" size="sm" onClick={() => router.push('/proposals/create')}>
-                Create proposal
+              <Button type="button" size="sm" onClick={() => router.push('/proposals/create')} disabled={createDisabled}>
+                {proposalEligibilityLoading ? 'Checking eligibility...' : 'Create proposal'}
               </Button>
             </div>
           </div>
 
+          {createDisabledMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{createDisabledMessage}</Text> : null}
           {error ? <Text className="lede" style={{ margin: 0 }}>{error.message}</Text> : null}
           {!items.length ? (
             <Text className="lede" style={{ margin: 0 }}>No proposal rows indexed yet.</Text>

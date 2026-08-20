@@ -11,6 +11,7 @@ type ProposalActionEditorProps = {
   editingActionId: string | null;
   busy: boolean;
   canSave: boolean;
+  disabledReason?: string;
   onActionTypeChange: (value: ProposalActionType) => void;
   onRecipientChange: (value: string) => void;
   onAmountChange: (value: string) => void;
@@ -26,6 +27,7 @@ export function ProposalActionEditor({
   editingActionId,
   busy,
   canSave,
+  disabledReason,
   onActionTypeChange,
   onRecipientChange,
   onAmountChange,
@@ -35,9 +37,10 @@ export function ProposalActionEditor({
 }: ProposalActionEditorProps) {
   const batchMint = actionType === 'batch-mint-governance-token';
   const title = editingActionId ? 'Edit queued action' : 'Add action';
+  const formDisabled = busy || Boolean(disabledReason);
 
   return (
-    <Card p="5">
+    <Card p="5" style={disabledReason ? { opacity: 0.72 } : undefined}>
       <Stack gap="3">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <Stack gap="1">
@@ -57,12 +60,13 @@ export function ProposalActionEditor({
             id="proposal-action-type"
             value={actionType}
             onChange={(event) => onActionTypeChange(event.target.value as ProposalActionType)}
-            disabled={busy}
+            disabled={formDisabled}
           >
             <option value="mint-governance-token">{getProposalActionLabel('mint-governance-token')}</option>
             <option value="batch-mint-governance-token">{getProposalActionLabel('batch-mint-governance-token')}</option>
           </Select>
           <FieldHelperText>Each queued action becomes a separate governor call in the final proposal.</FieldHelperText>
+          {disabledReason ? <FieldHelperText style={{ color: '#b91c1c' }}>{disabledReason}</FieldHelperText> : null}
         </Stack>
 
         <Stack gap="2">
@@ -72,7 +76,7 @@ export function ProposalActionEditor({
             value={recipient}
             onChange={(event) => onRecipientChange(event.target.value)}
             placeholder="Recipient address"
-            disabled={busy}
+            disabled={formDisabled}
           />
         </Stack>
 
@@ -87,17 +91,17 @@ export function ProposalActionEditor({
               type="number"
               min="1"
               step="1"
-              disabled={busy}
+              disabled={formDisabled}
             />
             <FieldHelperText>Use a positive whole number of tokens.</FieldHelperText>
           </Stack>
         ) : null}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-          <Button type="button" variant="outline" onClick={onClear} disabled={busy}>
+          <Button type="button" variant="outline" onClick={onClear} disabled={formDisabled}>
             Clear draft
           </Button>
-          <Button type="button" onClick={onSave} disabled={busy || !canSave}>
+          <Button type="button" onClick={onSave} disabled={formDisabled || !canSave}>
             {editingActionId ? 'Save action' : 'Add action'}
           </Button>
         </div>

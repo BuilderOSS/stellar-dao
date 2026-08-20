@@ -10,12 +10,15 @@ type ProposalVotePanelProps = {
   canVote: boolean;
   busy: boolean;
   voteReason: string;
+  votingPower: string | null;
+  votingPowerLoading: boolean;
+  votingPowerError: string;
   onVoteReasonChange: (value: string) => void;
   onVote: (voteType: number) => void;
   currentVote: CurrentVote | null;
 };
 
-export function ProposalVotePanel({ canVote, busy, voteReason, onVoteReasonChange, onVote, currentVote }: ProposalVotePanelProps) {
+export function ProposalVotePanel({ canVote, busy, voteReason, votingPower, votingPowerLoading, votingPowerError, onVoteReasonChange, onVote, currentVote }: ProposalVotePanelProps) {
   if (!canVote && !currentVote) {
     return null;
   }
@@ -24,6 +27,13 @@ export function ProposalVotePanel({ canVote, busy, voteReason, onVoteReasonChang
     <Card p="5">
       <Stack gap="3">
         <Text className="label">Your vote</Text>
+        {canVote ? (
+          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {votingPowerLoading
+              ? 'Checking your voting power at this proposal snapshot...'
+              : votingPowerError || `Voting power at snapshot: ${votingPower ?? '0'}`}
+          </Text>
+        ) : null}
         {currentVote ? (
           <Card p="4">
             <Stack gap="2">

@@ -14,6 +14,7 @@ import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { proposalActionMode } from '@/lib/proposal-state';
 import { normalizeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
+import { useVotingPower } from '@/lib/voting-power';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
@@ -92,6 +93,11 @@ export default function ProposalDetailPage() {
 
   const detail = data?.detail ?? null;
   const votes = data?.votes ?? [];
+  const {
+    data: votingPower,
+    error: votingPowerError,
+    isLoading: votingPowerLoading
+  } = useVotingPower(config, detail ? session.address : '', detail?.vote_snapshot);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -244,6 +250,9 @@ export default function ProposalDetailPage() {
                 canVote={true}
                 busy={busy}
                 voteReason={voteReason}
+                votingPower={votingPower?.votes.toString() ?? null}
+                votingPowerLoading={votingPowerLoading}
+                votingPowerError={votingPowerError?.message ?? ''}
                 onVoteReasonChange={setVoteReason}
                 onVote={(voteType) => void submitVote(voteType)}
                 currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
