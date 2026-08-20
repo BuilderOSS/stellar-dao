@@ -4,7 +4,7 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getMercuryProposalDetail } from '@/lib/mercury';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { parseProposalMetadata } from '@/lib/proposal-metadata';
-import { ProposalState, proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
+import { ProposalState, proposalStateFromLabel, proposalStateLabel } from '@/lib/proposal-state';
 
 export async function GET(_request: Request, context: { params: Promise<{ proposalId: string }> }) {
   const { proposalId } = await context.params;
@@ -59,7 +59,7 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         {
           ...detail,
           metadata: parseProposalMetadata(detail.description),
-          state: ProposalState.Pending,
+          state: proposalStateFromLabel(detail.label) ?? ProposalState.Pending,
           label: detail.label || 'Pending',
           quorumVotes: null
         },

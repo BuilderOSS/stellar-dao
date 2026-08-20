@@ -17,6 +17,16 @@ export function proposalStateLabel(state: ProposalState | null | undefined) {
   return Object.entries(ProposalState).find(([, value]) => value === state)?.[0] ?? 'Unknown';
 }
 
+export function proposalStateFromLabel(label: string | null | undefined): ProposalState | null {
+  if (!label) {
+    return null;
+  }
+
+  const normalized = label.trim().toLowerCase();
+  const entry = Object.entries(ProposalState).find(([key]) => key.toLowerCase() === normalized);
+  return entry?.[1] ?? null;
+}
+
 export function proposalActionMode(state: ProposalState | null | undefined): ProposalActionMode {
   switch (state) {
     case ProposalState.Active:

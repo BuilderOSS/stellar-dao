@@ -13,6 +13,7 @@ import type {
   MercuryProposalVotesResponse
 } from '@/lib/mercury-types';
 import type { TokenInventoryItem, TokenInventoryResponse } from '@/lib/token-types';
+import { proposalStateFromLabel, proposalStateLabel, ProposalState } from '@/lib/proposal-state';
 
 type MercuryTable = {
   table_name: string;
@@ -637,18 +638,19 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
     const row = data.find((item) => (asString(item.proposal_id) || asString(item.proposalId)) === proposalId);
     if (!row) continue;
 
-    let eta = 0;
+    let latestLifecycleRow: MercuryTableRow | null = null;
     for (const lifecycleTable of lifecycleTables) {
       const lifecycleData = await queryTable(config.baseUrl, config.jwt, lifecycleTable.table_name, 100);
       const lifecycleRow = lifecycleData
         .filter((item) => (asString(item.proposal_id) || asString(item.proposalId)) === proposalId)
-        .sort((a, b) => asNumber(b.timestamp) - asNumber(a.timestamp))[0];
+        .sort((a, b) => asNumber(b.timestamp) - asNumber(a.timestamp) || asNumber(b.ledger) - asNumber(a.ledger))[0];
 
-      if (lifecycleRow) {
-        eta = asNumber(lifecycleRow.eta);
-        if (eta > 0) break;
+      if (lifecycleRow && (!latestLifecycleRow || asNumber(lifecycleRow.timestamp) > asNumber(latestLifecycleRow.timestamp))) {
+        latestLifecycleRow = lifecycleRow;
       }
     }
+    const lifecycleState = proposalStateFromLabel(asString(latestLifecycleRow?.state)) ?? ProposalState.Pending;
+    const eta = asNumber(latestLifecycleRow?.eta);
 
     return {
       proposalId,
@@ -662,8 +664,8 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
       eta,
       vote_snapshot: asNumber(row.snapshot),
       vote_end: asNumber(row.deadline),
-      vote_start: asNumber(row.snapshot) + 1,
-      label: 'Pending',
+      vote_start: asNumber(row.vote_start) || asNumber(row.snapshot) + 1,
+      label: proposalStateLabel(lifecycleState),
       ledger: asNumber(row.ledger),
       timestamp: asNumber(row.timestamp),
       txHash: asString(row.transaction),
