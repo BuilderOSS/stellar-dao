@@ -4,6 +4,11 @@ export function proposalIdFromBuffer(proposalId: Buffer | Uint8Array) {
   return Buffer.from(proposalId).toString('hex');
 }
 
+export function proposalIdToRouteId(proposalId: Buffer | Uint8Array) {
+  const hexString = Buffer.from(proposalId).toString('hex');
+  return Buffer.from(hexString, 'utf8').toString('hex');
+}
+
 export function proposalIdToBuffer(proposalId: string) {
   const normalized = proposalId.startsWith('0x') ? proposalId.slice(2) : proposalId;
   const decoded = /^[0-9a-fA-F]+$/.test(normalized) && normalized.length % 2 === 0

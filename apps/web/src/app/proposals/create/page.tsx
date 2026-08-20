@@ -22,7 +22,7 @@ import {
   type ProposalActionType,
   type ProposalQueuedAction
 } from '@/lib/proposal-call';
-import { proposalIdFromBuffer } from '@/lib/proposal-id';
+import { proposalIdToRouteId } from '@/lib/proposal-id';
 import { encodeProposalMetadata, type ProposalMetadataDraft, validateProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
@@ -149,8 +149,8 @@ export default function ProposalCreatePage() {
   const amountIsValid = actionType === 'batch-mint-governance-token'
     ? isPositiveWholeNumber(amount) && Number(amount) <= MAX_BATCH_MINT_AMOUNT
     : actionType === 'transfer-sac-token'
-    ? isPositiveDecimal(amount)
-    : true;
+      ? isPositiveDecimal(amount)
+      : true;
   const actionIsValid = recipientIsValid && amountIsValid && assetIsValid && !actionMintAuthorityError && !proposalCreationLocked;
   const canReview = metadataIsValid && queuedActions.length > 0 && !editingAction && !(queuedActionsNeedMintAuthority && mintAuthorityMissing) && !proposalCreationLocked;
 
@@ -371,7 +371,7 @@ export default function ProposalCreatePage() {
         proposer: session.address
       });
 
-      const proposalId = assembled.result ? proposalIdFromBuffer(assembled.result) : '';
+      const proposalId = assembled.result ? proposalIdToRouteId(assembled.result) : '';
       const sent = await assembled.signAndSend();
       const hash = sent.sendTransactionResponse?.hash ?? '';
       tx.submitted('Proposal submitted', hash);
