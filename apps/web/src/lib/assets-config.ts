@@ -37,8 +37,7 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
       name: 'Euro Coin',
       imageSrc: '/assets/EURC.png',
       issuer: 'GB3Q6QDZYTHWT7E5PVS3W7FUT5GVAFC5KSZFFLPU25GO7VTC3NM2ZTVO',
-      // You'll need to deploy the SAC for this asset or calculate its address
-      contractId: undefined
+      contractId: 'CCUUDM434BMZMYWYDITHFXHDMIVTGGD6T2I5UKNX5BSLXLW7HVR4MCGZ'
     }
   ],
   mainnet: [
