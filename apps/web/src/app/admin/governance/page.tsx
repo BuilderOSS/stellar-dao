@@ -13,6 +13,7 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
 import { useMercuryGovernorAuthorities } from '@/lib/mercury-queries';
 import { formatDuration } from '@/lib/format-duration';
+import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { type SignTransaction } from '@stellar/stellar-sdk/contract';
@@ -114,9 +115,11 @@ export default function GovernanceAdminPage() {
     try {
       const governor = await getGovernor();
       const hash = await run(governor);
-      tx.success(`${label} updated`, hash);
+      tx.submitted(`${label} submitted`, hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       setFormMessage('');
       await Promise.all([refreshSettings(), refreshAuthorities()]);
+      tx.success(`${label} updated`, hash);
     } catch (error) {
       tx.fail(error, `${label} update failed`);
     } finally {

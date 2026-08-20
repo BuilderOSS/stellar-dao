@@ -10,6 +10,7 @@ import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Stack } from 'styled-system/jsx';
@@ -66,12 +67,15 @@ export default function TokenAdminPage() {
 
       const assembled = await client.batch_mint({ minter: session.address, to: recipient, amount: mintAmount });
       const sent = await assembled.signAndSend();
+      const hash = sent.sendTransactionResponse?.hash ?? '';
       const countLabel = mintAmount === 1 ? 'token' : 'tokens';
-      tx.success(`Minted ${mintAmount} ${countLabel}`, sent.sendTransactionResponse?.hash ?? '');
+      tx.submitted(`Minting ${mintAmount} ${countLabel}`, hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       setFormMessage('');
       setRecipient('');
       setAmount('1');
       void mutate();
+      tx.success(`Minted ${mintAmount} ${countLabel}`, hash);
     } catch (error) {
       tx.fail(error, 'Mint failed');
     } finally {

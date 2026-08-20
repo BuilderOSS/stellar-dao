@@ -23,6 +23,7 @@ import {
 } from '@/lib/proposal-call';
 import { proposalIdFromBuffer } from '@/lib/proposal-id';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
+import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { validateStellarAddress } from '@/lib/validate-address';
 import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
@@ -363,9 +364,12 @@ export default function ProposalCreatePage() {
 
       const proposalId = assembled.result ? proposalIdFromBuffer(assembled.result) : '';
       const sent = await assembled.signAndSend();
+      const hash = sent.sendTransactionResponse?.hash ?? '';
+      tx.submitted('Proposal submitted', hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       resetComposer();
       setFormMessage('');
-      tx.success('Proposal submitted', sent.sendTransactionResponse?.hash ?? '');
+      tx.success('Proposal created', hash);
       router.push(proposalId ? `/proposals/${proposalId}` : '/proposals');
     } catch (error) {
       tx.fail(error, 'Proposal failed');

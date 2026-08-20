@@ -13,6 +13,7 @@ import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { proposalActionMode } from '@/lib/proposal-state';
 import { normalizeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
+import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useVotingPower } from '@/lib/voting-power';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
@@ -146,10 +147,13 @@ export default function ProposalDetailPage() {
         voter: session.address
       });
       const sent = await assembled.signAndSend();
-      tx.success('Vote submitted', sent.sendTransactionResponse?.hash ?? '');
+      const hash = sent.sendTransactionResponse?.hash ?? '';
+      tx.submitted('Vote submitted', hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       setVoteReason('');
       setSelectedVoteType(null);
       void mutate();
+      tx.success('Vote cast', hash);
     } catch (err) {
       tx.fail(err, 'Vote failed');
     } finally {
@@ -191,8 +195,11 @@ export default function ProposalDetailPage() {
 
       const assembled = await governor.queue(payload);
       const sent = await assembled.signAndSend();
-      tx.success('Proposal queued', sent.sendTransactionResponse?.hash ?? '');
+      const hash = sent.sendTransactionResponse?.hash ?? '';
+      tx.submitted('Proposal queued', hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       void mutate();
+      tx.success('Proposal queued', hash);
     } catch (err) {
       tx.fail(err, 'Queue failed');
     } finally {
@@ -233,8 +240,11 @@ export default function ProposalDetailPage() {
         executor: session.address
       });
       const sent = await assembled.signAndSend();
-      tx.success('Proposal executed', sent.sendTransactionResponse?.hash ?? '');
+      const hash = sent.sendTransactionResponse?.hash ?? '';
+      tx.submitted('Proposal executing', hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       void mutate();
+      tx.success('Proposal executed', hash);
     } catch (err) {
       tx.fail(err, 'Execute failed');
     } finally {

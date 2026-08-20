@@ -11,6 +11,7 @@ import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { Badge, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -93,7 +94,9 @@ export default function OwnerPage() {
 
     try {
       const sent = await submitAuthorityUpdate(config, session.address, method, authority, enabled);
-      tx.success(`${enabled ? 'Updated' : 'Revoked'} authority`, sent.sendTransactionResponse?.hash ?? '');
+      const hash = sent.sendTransactionResponse?.hash ?? '';
+      tx.submitted(`${actionType} ${authorityType} Authority`, hash);
+      await waitForConfirmation(hash, config.rpcUrl);
       setFormMessage('');
       if (method === 'set_mint_authority') {
         setMintAuthority('');
@@ -102,6 +105,7 @@ export default function OwnerPage() {
         setGovernorAuthority('');
         void refreshGovernorAuthorities();
       }
+      tx.success(`${enabled ? 'Updated' : 'Revoked'} authority`, hash);
     } catch (error) {
       tx.fail(error, 'Authority update failed');
     } finally {

@@ -45,6 +45,29 @@ export function useTransactionFeedback(network: DaoNetworkName) {
     toaster.success(payload);
   }
 
+  function submitted(message: string, hash: string) {
+    const payload = {
+      title: message,
+      description: hash
+        ? `Transaction ${shortenHash(hash)} submitted. Waiting for confirmation...`
+        : 'Transaction submitted. Waiting for confirmation...',
+      type: 'loading' as const,
+      duration: Infinity,
+      action: hash
+        ? {
+            label: 'View pending',
+            onClick: () => window.open(getExplorerTxUrl(network, hash), '_blank', 'noreferrer')
+          }
+        : undefined
+    };
+
+    if (toastIdRef.current) {
+      toaster.update(toastIdRef.current, payload);
+    } else {
+      toastIdRef.current = toaster.create(payload);
+    }
+  }
+
   function fail(error: unknown, fallback: string) {
     const payload = {
       title: fallback,
@@ -62,5 +85,5 @@ export function useTransactionFeedback(network: DaoNetworkName) {
     toaster.error(payload);
   }
 
-  return { start, success, fail };
+  return { start, submitted, success, fail };
 }
