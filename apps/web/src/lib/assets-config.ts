@@ -1,0 +1,76 @@
+export type TreasuryAsset = {
+  code: string;
+  issuer?: string;
+  isNative?: boolean;
+  contractId?: string; // SAC contract address
+};
+
+export type AssetsByNetwork = {
+  testnet: TreasuryAsset[];
+  mainnet: TreasuryAsset[];
+  local: TreasuryAsset[];
+};
+
+// Stellar Asset Contract (SAC) addresses for different networks
+export const TREASURY_ASSETS: AssetsByNetwork = {
+  testnet: [
+    {
+      code: 'XLM',
+      isNative: true,
+      // Native XLM SAC address (deterministic across all networks)
+      contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
+    },
+    {
+      code: 'USDC',
+      issuer: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+      // Circle's USDC SAC on testnet
+      contractId: 'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
+    },
+    {
+      code: 'EURC',
+      issuer: 'GB3Q6QDZYTHWT7E5PVS3W7FUT5GVAFC5KSZFFLPU25GO7VTC3NM2ZTVO',
+      // You'll need to deploy the SAC for this asset or calculate its address
+      contractId: undefined
+    }
+  ],
+  mainnet: [
+    {
+      code: 'XLM',
+      isNative: true,
+      // Native XLM SAC address (deterministic across all networks)
+      contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
+    },
+    {
+      code: 'USDC',
+      issuer: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+      // Circle's USDC SAC on mainnet
+      contractId: 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75'
+    }
+  ],
+  local: [
+    {
+      code: 'XLM',
+      isNative: true,
+      // Native XLM SAC address (deterministic across all networks)
+      contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
+    }
+  ]
+};
+
+/**
+ * Get the list of treasury assets for a specific network
+ */
+export function getTreasuryAssets(network: keyof AssetsByNetwork): TreasuryAsset[] {
+  return TREASURY_ASSETS[network] || TREASURY_ASSETS.local;
+}
+
+/**
+ * Find a specific asset by code and network
+ */
+export function findAsset(
+  network: keyof AssetsByNetwork,
+  assetCode: string
+): TreasuryAsset | undefined {
+  const assets = getTreasuryAssets(network);
+  return assets.find(asset => asset.code === assetCode);
+}
