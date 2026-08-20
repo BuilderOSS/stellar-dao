@@ -45,6 +45,10 @@ type TokenEventRow = MercuryTableRow & {
   to?: unknown;
 };
 
+type ActivityItemWithTieBreak = MercuryActivityItem & {
+  activityTieBreak: number;
+};
+
 const TABLE_SUFFIXES: Record<string, { title: string; summarize: (row: MercuryTableRow) => string; addresses: (row: MercuryTableRow) => string[] }> = {
   token_mint_indexed: {
     title: 'Mint',
@@ -305,11 +309,28 @@ function toTokenItemFromRow(row: TokenEventRow): TokenInventoryItem | null {
   };
 }
 
+function getActivityTieBreak(suffix: string, row: MercuryTableRow) {
+  if (suffix === 'token_mint_indexed' || suffix === 'token_transfer_indexed') {
+    return asNumber(row.token_id);
+  }
+
+  return 0;
+}
+
+function compareActivityItems(a: ActivityItemWithTieBreak, b: ActivityItemWithTieBreak) {
+  const ledgerDelta = b.ledger - a.ledger;
+  if (a.ledger > 0 && b.ledger > 0 && ledgerDelta) {
+    return ledgerDelta;
+  }
+
+  return b.timestamp - a.timestamp || ledgerDelta || b.activityTieBreak - a.activityTieBreak;
+}
+
 function isProgramTable(table: MercuryTable, program: MercuryProgramConfig) {
   return table.table_name.startsWith(`program_${program.programId}_`) && table.project_name_plain === program.projectName;
 }
 
-function toActivityItem(program: MercuryProgramConfig, tableName: string, row: MercuryTableRow): MercuryActivityItem | null {
+function toActivityItem(program: MercuryProgramConfig, tableName: string, row: MercuryTableRow): ActivityItemWithTieBreak | null {
   const suffix = tableName.replace(`program_${program.programId}_`, '');
   const meta = TABLE_SUFFIXES[suffix];
   if (!meta) return null;
@@ -331,7 +352,8 @@ function toActivityItem(program: MercuryProgramConfig, tableName: string, row: M
     timestamp: asNumber(row.timestamp),
     txHash: asString(row.transaction),
     contractId: asString(row.contract_id),
-    addresses: meta.addresses(row)
+    addresses: meta.addresses(row),
+    activityTieBreak: getActivityTieBreak(suffix, row)
   };
 }
 
@@ -350,7 +372,7 @@ export async function getMercuryActivityFeed(limit = 25) {
   const rows = await Promise.all(relevantTables.map(async ({ program, table }) => {
     try {
       const data = await queryTable(config.baseUrl, config.jwt, table.table_name, limit);
-      return data.map((row) => toActivityItem(program, table.table_name, row)).filter((item): item is MercuryActivityItem => Boolean(item));
+      return data.map((row) => toActivityItem(program, table.table_name, row)).filter((item): item is ActivityItemWithTieBreak => Boolean(item));
     } catch (error) {
       failedTables.push(table.table_name);
       console.warn(`Mercury activity table unavailable: ${table.table_name}`, error);
@@ -358,7 +380,11 @@ export async function getMercuryActivityFeed(limit = 25) {
     }
   }));
 
-  const items = rows.flat().sort((a, b) => b.timestamp - a.timestamp || b.ledger - a.ledger).slice(0, limit * 2);
+  const items = rows
+    .flat()
+    .sort(compareActivityItems)
+    .slice(0, limit * 2)
+    .map(({ activityTieBreak: _activityTieBreak, ...item }) => item);
   return {
     items,
     generatedAt: new Date().toISOString(),
