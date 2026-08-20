@@ -16,6 +16,7 @@ import { normalizeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useVotingPower } from '@/lib/voting-power';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
+import { ProposalActionPreview } from '@/components/proposal/proposal-action-preview';
 import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
 import { ProposalQueuePanel } from '@/components/proposal/proposal-queue-panel';
@@ -288,6 +289,7 @@ export default function ProposalDetailPage() {
         <Stack gap="4">
           {detail ? <ProposalOverview detail={detail} now={now} network={config.name} /> : null}
           {errorMessage ? <Callout variant="error" title={errorMessage} /> : null}
+          {detail ? <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} /> : null}
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
