@@ -31,7 +31,7 @@ export function ProposalQuorumProgress({ forVotes, againstVotes, abstainVotes, q
   const remaining = quorumMet ? 0n : quorumVotes - participationVotes;
   const fillPct = quorumMet ? 100 : Math.max(0, Math.min(Number((participationVotes * 100n) / quorumVotes), 100));
   const pct = formatPercent(participationVotes, quorumVotes);
-  const footer = `${formatBigInt(participationVotes)} of ${formatBigInt(quorumVotes)} For + Abstain ${quorumVotes === 1n ? 'vote' : 'votes'}`;
+  const footer = `${formatBigInt(participationVotes)} of ${formatBigInt(quorumVotes)} participating voting power (For + Abstain)`;
 
   return (
     <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>

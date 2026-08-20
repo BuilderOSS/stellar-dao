@@ -43,7 +43,7 @@ function getOutcomeTitle(stateLabel: string) {
 export function ProposalOutcomeCallout({ stateLabel }: ProposalOutcomeCalloutProps) {
   return (
     <ProposalLifecyclePanel
-      badge="Lifecycle status"
+      badge="Status"
       title={getOutcomeTitle(stateLabel)}
       description={getOutcomeCopy(stateLabel)}
     />

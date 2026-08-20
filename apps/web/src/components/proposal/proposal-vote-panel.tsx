@@ -28,7 +28,6 @@ type ProposalVotePanelProps = {
 };
 
 export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType, votingPower, votingPowerLoading, votingPowerError, unavailableReason, onVoteReasonChange, onSelectedVoteTypeChange, onVote, currentVote }: ProposalVotePanelProps) {
-
   return (
     <Card p="5">
       <Stack gap="3">
@@ -49,9 +48,9 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
 
         {unavailableReason && !currentVote ? <Callout variant="warning" title={unavailableReason} /> : null}
 
-        {!currentVote ? (
+        {!currentVote && canVote ? (
           <>
-            <Input value={voteReason} onChange={(event) => onVoteReasonChange(event.target.value)} placeholder="Vote reason" disabled={!canVote || busy} />
+            <Input value={voteReason} onChange={(event) => onVoteReasonChange(event.target.value)} placeholder="Vote reason" disabled={busy} />
             <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
               <legend style={{ color: 'rgba(176,201,229,0.88)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>Select your vote</legend>
               <div role="radiogroup" aria-label="Vote type" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -65,13 +64,13 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
                         border: selected ? '1px solid rgba(147, 197, 253, 0.95)' : '1px solid rgba(160, 194, 225, 0.28)',
                         background: selected ? 'rgba(37, 99, 235, 0.92)' : 'transparent',
                         color: selected ? '#eff6ff' : 'inherit',
-                        cursor: !canVote || busy ? 'not-allowed' : 'pointer',
+                        cursor: busy ? 'not-allowed' : 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         minHeight: '36px',
                         padding: '0 12px',
-                        opacity: !canVote || busy ? 0.7 : 1
+                        opacity: busy ? 0.7 : 1
                       }}
                     >
                       <input
@@ -80,7 +79,7 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
                         value={option.value}
                         checked={selected}
                         onChange={() => onSelectedVoteTypeChange(option.value)}
-                        disabled={!canVote || busy}
+                        disabled={busy}
                         style={{ inlineSize: 1, blockSize: 1, opacity: 0, margin: 0, pointerEvents: 'none' }}
                       />
                       {option.label}
@@ -90,7 +89,7 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
               </div>
             </fieldset>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button type="button" onClick={() => selectedVoteType !== null ? onVote(selectedVoteType) : undefined} disabled={!canVote || busy || selectedVoteType === null}>
+              <Button type="button" onClick={() => selectedVoteType !== null ? onVote(selectedVoteType) : undefined} disabled={busy || selectedVoteType === null}>
                 {busy ? 'Submitting...' : 'Submit vote'}
               </Button>
             </div>

@@ -184,23 +184,10 @@ export default function ProposalDetailPage() {
         functions: detail.functions,
         args,
         description_hash: descriptionHash(detail.description),
-        eta: Math.floor(Date.now() / 1000) + 60,
+        // The governor derives ETA from queue delay; this binding argument is ignored.
+        eta: 0,
         operator: session.address
       };
-
-      console.log('[proposal queue] calling governor.queue', {
-        proposalId,
-        caller: session.address,
-        governorContractId: config.governorContractId,
-        treasuryContractId: config.treasuryContractId,
-        state: detail.state,
-        label: detail.label,
-        args,
-        payload: {
-          ...payload,
-          description_hash: `0x${payload.description_hash.toString('hex')}`
-        }
-      });
 
       const assembled = await governor.queue(payload);
       const sent = await assembled.signAndSend();
@@ -258,7 +245,9 @@ export default function ProposalDetailPage() {
   const currentVote = session.address ? votes.find((vote) => vote.voter === session.address) ?? null : null;
   const actionMode = proposalActionMode(detail?.state);
   const errorMessage = error instanceof Error ? error.message : '';
-  const voteUnavailableReason = !session.address
+  const voteUnavailableReason = actionMode !== 'vote'
+    ? ''
+    : !session.address
     ? 'Connect a wallet to vote.'
     : votingPowerLoading
       ? 'Voting power is still loading.'
@@ -267,7 +256,7 @@ export default function ProposalDetailPage() {
         : votingPower && votingPower.votes > 0n
           ? ''
           : 'No voting power at the proposal snapshot.';
-  const canVote = Boolean(!currentVote && !voteUnavailableReason);
+  const canVote = Boolean(actionMode === 'vote' && !currentVote && !voteUnavailableReason);
 
   function voteLabelForSupport(support: number) {
     if (support === VOTE_FOR) return 'For';
@@ -289,7 +278,7 @@ export default function ProposalDetailPage() {
         <Stack gap="4">
           {detail ? <ProposalOverview detail={detail} now={now} network={config.name} /> : null}
           {errorMessage ? <Callout variant="error" title={errorMessage} /> : null}
-          {detail ? <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} /> : null}
+          {detail ? <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} tokenContractId={config.tokenContractId} /> : null}
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />

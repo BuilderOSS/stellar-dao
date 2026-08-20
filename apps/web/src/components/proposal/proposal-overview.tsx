@@ -74,13 +74,28 @@ function getTimeline(detail: ProposalDetail, now: number) {
         subline: detail.eta ? `ETA was ${formatDateTime(detail.eta)}` : 'The queued proposal can now be executed.'
       };
     case ProposalState.Defeated:
+      return {
+        eyebrow: 'Finalized',
+        headline: 'Proposal defeated',
+        subline: hasValidTimestamp(detail.vote_end) ? `Voting ended ${formatDateTime(detail.vote_end)}` : 'No further action is available.'
+      };
     case ProposalState.Canceled:
+      return {
+        eyebrow: 'Finalized',
+        headline: 'Proposal canceled',
+        subline: 'This proposal was canceled and is no longer actionable.'
+      };
     case ProposalState.Expired:
+      return {
+        eyebrow: 'Finalized',
+        headline: 'Proposal expired',
+        subline: 'This proposal expired before it could be completed.'
+      };
     case ProposalState.Executed:
       return {
         eyebrow: 'Finalized',
-        headline: `${detail.label} at ${formatDateTime(detail.deadline || detail.vote_end)}`,
-        subline: 'No further action is available.'
+        headline: 'Proposal executed',
+        subline: 'Execution has completed. No further action is available.'
       };
     default:
       return {
