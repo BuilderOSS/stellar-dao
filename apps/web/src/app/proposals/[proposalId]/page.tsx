@@ -148,6 +148,7 @@ export default function ProposalDetailPage() {
       tx.success('Vote submitted', sent.sendTransactionResponse?.hash ?? '');
       setVoteReason('');
       setSelectedVoteType(null);
+      void mutate();
     } catch (err) {
       tx.fail(err, 'Vote failed');
     } finally {
@@ -203,6 +204,7 @@ export default function ProposalDetailPage() {
       const assembled = await governor.queue(payload);
       const sent = await assembled.signAndSend();
       tx.success('Proposal queued', sent.sendTransactionResponse?.hash ?? '');
+      void mutate();
     } catch (err) {
       tx.fail(err, 'Queue failed');
     } finally {
@@ -244,6 +246,7 @@ export default function ProposalDetailPage() {
       });
       const sent = await assembled.signAndSend();
       tx.success('Proposal executed', sent.sendTransactionResponse?.hash ?? '');
+      void mutate();
     } catch (err) {
       tx.fail(err, 'Execute failed');
     } finally {
