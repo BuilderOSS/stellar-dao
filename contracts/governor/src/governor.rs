@@ -23,6 +23,7 @@ mod retroshade {
     #[derive(Retroshade)]
     #[contracttype]
     pub struct ProposalCreatedIndexed {
+        pub proposal_number: u32,
         pub proposal_id: BytesN<32>,
         pub proposer: Address,
         pub description: String,
@@ -155,6 +156,7 @@ const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14 * 2
 enum GovernorKey {
     Treasury,
     QueueDelay,
+    ProposalNumber,
     Proposal(BytesN<32>),
     GovernorAuthority(Address),
 }
@@ -648,6 +650,22 @@ impl Governor for DaoGovernorContract {
             panic_with_error!(e, GovernorError::ProposalAlreadyExists);
         }
 
+        #[cfg(feature = "mercury")]
+        let proposal_number = {
+            let current = e
+                .storage()
+                .instance()
+                .get(&GovernorKey::ProposalNumber)
+                .unwrap_or(0_u32);
+            let next = current
+                .checked_add(1)
+                .unwrap_or_else(|| panic_with_error!(e, GovernorError::MathOverflow));
+            e.storage()
+                .instance()
+                .set(&GovernorKey::ProposalNumber, &next);
+            next
+        };
+
         let now = e.ledger().timestamp();
         let vote_start = now
             .checked_add(Self::voting_delay(e) as u64)
@@ -681,6 +699,7 @@ impl Governor for DaoGovernorContract {
 
         #[cfg(feature = "mercury")]
         retroshade::ProposalCreatedIndexed {
+            proposal_number,
             proposal_id: proposal_id.clone(),
             proposer: proposer.clone(),
             description: description.clone(),
