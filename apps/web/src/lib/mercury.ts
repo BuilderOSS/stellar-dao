@@ -273,11 +273,20 @@ async function listTables(baseUrl: string, jwt: string) {
 
 async function queryTable(baseUrl: string, jwt: string, tableName: string, limit: number) {
   const query = `SELECT * FROM retroshade.${tableName} ORDER BY ledger DESC LIMIT ${limit}`;
-  return mercuryFetchJson<MercuryTableRow[]>(baseUrl, jwt, '/retroshade/query', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query })
-  });
+  try {
+    return await mercuryFetchJson<MercuryTableRow[]>(baseUrl, jwt, '/retroshade/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+  } catch {
+    const timestampQuery = `SELECT * FROM retroshade.${tableName} ORDER BY timestamp DESC LIMIT ${limit}`;
+    return mercuryFetchJson<MercuryTableRow[]>(baseUrl, jwt, '/retroshade/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: timestampQuery })
+    });
+  }
 }
 
 function toTokenItemFromRow(row: TokenEventRow): TokenInventoryItem | null {
@@ -337,13 +346,24 @@ export async function getMercuryActivityFeed(limit = 25) {
     tables.filter((table) => isProgramTable(table, program)).map((table) => ({ program, table }))
   );
 
+  const failedTables: string[] = [];
   const rows = await Promise.all(relevantTables.map(async ({ program, table }) => {
-    const data = await queryTable(config.baseUrl, config.jwt, table.table_name, limit);
-    return data.map((row) => toActivityItem(program, table.table_name, row)).filter((item): item is MercuryActivityItem => Boolean(item));
+    try {
+      const data = await queryTable(config.baseUrl, config.jwt, table.table_name, limit);
+      return data.map((row) => toActivityItem(program, table.table_name, row)).filter((item): item is MercuryActivityItem => Boolean(item));
+    } catch (error) {
+      failedTables.push(table.table_name);
+      console.warn(`Mercury activity table unavailable: ${table.table_name}`, error);
+      return [];
+    }
   }));
 
   const items = rows.flat().sort((a, b) => b.timestamp - a.timestamp || b.ledger - a.ledger).slice(0, limit * 2);
-  return { items, generatedAt: new Date().toISOString() };
+  return {
+    items,
+    generatedAt: new Date().toISOString(),
+    ...(failedTables.length ? { message: `Partial Mercury data. Skipped ${failedTables.length} unavailable table${failedTables.length === 1 ? '' : 's'}.` } : {})
+  };
 }
 
 export async function getMercuryProgramStatuses() {

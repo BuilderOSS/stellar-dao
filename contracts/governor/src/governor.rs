@@ -49,6 +49,7 @@ mod retroshade {
         pub args: Vec<Vec<Val>>,
         pub action_index: u32,
         pub action_count: u32,
+        pub ledger: u32,
         pub timestamp: u64,
     }
 
@@ -891,6 +892,7 @@ impl Governor for DaoGovernorContract {
                 args: vec![e, call_args.clone()],
                 action_index,
                 action_count,
+                ledger: e.ledger().sequence(),
                 timestamp: e.ledger().timestamp(),
             }
             .emit(e);
