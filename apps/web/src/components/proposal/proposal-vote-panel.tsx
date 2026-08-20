@@ -1,6 +1,12 @@
 import { Button, Card, Input, Text } from '@/components/ui';
 import { Stack } from 'styled-system/jsx';
 
+const VOTE_OPTIONS = [
+  { label: 'For', value: 1 },
+  { label: 'Against', value: 0 },
+  { label: 'Abstain', value: 2 }
+];
+
 type CurrentVote = {
   label: string;
   reason: string;
@@ -10,15 +16,17 @@ type ProposalVotePanelProps = {
   canVote: boolean;
   busy: boolean;
   voteReason: string;
+  selectedVoteType: number | null;
   votingPower: string | null;
   votingPowerLoading: boolean;
   votingPowerError: string;
   onVoteReasonChange: (value: string) => void;
+  onSelectedVoteTypeChange: (voteType: number) => void;
   onVote: (voteType: number) => void;
   currentVote: CurrentVote | null;
 };
 
-export function ProposalVotePanel({ canVote, busy, voteReason, votingPower, votingPowerLoading, votingPowerError, onVoteReasonChange, onVote, currentVote }: ProposalVotePanelProps) {
+export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType, votingPower, votingPowerLoading, votingPowerError, onVoteReasonChange, onSelectedVoteTypeChange, onVote, currentVote }: ProposalVotePanelProps) {
   if (!canVote && !currentVote) {
     return null;
   }
@@ -46,10 +54,47 @@ export function ProposalVotePanel({ canVote, busy, voteReason, votingPower, voti
         {canVote && !currentVote ? (
           <>
             <Input value={voteReason} onChange={(event) => onVoteReasonChange(event.target.value)} placeholder="Vote reason" />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              <Button type="button" onClick={() => onVote(1)} disabled={busy}>For</Button>
-              <Button type="button" variant="outline" onClick={() => onVote(0)} disabled={busy}>Against</Button>
-              <Button type="button" variant="outline" onClick={() => onVote(2)} disabled={busy}>Abstain</Button>
+            <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+              <legend style={{ color: 'rgba(176,201,229,0.88)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>Select your vote</legend>
+              <div role="radiogroup" aria-label="Vote type" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {VOTE_OPTIONS.map((option) => {
+                  const selected = selectedVoteType === option.value;
+                  return (
+                    <label
+                      key={option.value}
+                      style={{
+                        borderRadius: '8px',
+                        border: selected ? '1px solid rgba(147, 197, 253, 0.95)' : '1px solid rgba(160, 194, 225, 0.28)',
+                        background: selected ? 'rgba(37, 99, 235, 0.92)' : 'transparent',
+                        color: selected ? '#eff6ff' : 'inherit',
+                        cursor: busy ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '36px',
+                        padding: '0 12px',
+                        opacity: busy ? 0.7 : 1
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="proposal-vote-type"
+                        value={option.value}
+                        checked={selected}
+                        onChange={() => onSelectedVoteTypeChange(option.value)}
+                        disabled={busy}
+                        style={{ inlineSize: 1, blockSize: 1, opacity: 0, margin: 0, pointerEvents: 'none' }}
+                      />
+                      {option.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => selectedVoteType !== null ? onVote(selectedVoteType) : undefined} disabled={busy || selectedVoteType === null}>
+                {busy ? 'Submitting...' : 'Submit vote'}
+              </Button>
             </div>
           </>
         ) : null}

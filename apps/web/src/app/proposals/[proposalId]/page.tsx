@@ -80,6 +80,7 @@ export default function ProposalDetailPage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [voteReason, setVoteReason] = useState('');
+  const [selectedVoteType, setSelectedVoteType] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [txHash, setTxHash] = useState('');
@@ -138,6 +139,7 @@ export default function ProposalDetailPage() {
       setStatus('Vote submitted');
       setTxHash(sent.sendTransactionResponse?.hash ?? '');
       setVoteReason('');
+      setSelectedVoteType(null);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Vote failed');
     } finally {
@@ -250,10 +252,12 @@ export default function ProposalDetailPage() {
                 canVote={true}
                 busy={busy}
                 voteReason={voteReason}
+                selectedVoteType={selectedVoteType}
                 votingPower={votingPower?.votes.toString() ?? null}
                 votingPowerLoading={votingPowerLoading}
                 votingPowerError={votingPowerError?.message ?? ''}
                 onVoteReasonChange={setVoteReason}
+                onSelectedVoteTypeChange={setSelectedVoteType}
                 onVote={(voteType) => void submitVote(voteType)}
                 currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
               />
