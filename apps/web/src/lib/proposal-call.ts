@@ -2,13 +2,15 @@ export type ProposalCallArg = string | number | boolean | null | ProposalCallArg
 
 export type ProposalCallArgs = ProposalCallArg[][];
 
-export type ProposalActionType = 'mint-governance-token' | 'batch-mint-governance-token';
+export type ProposalActionType = 'mint-governance-token' | 'batch-mint-governance-token' | 'transfer-sac-token';
 
 export type ProposalQueuedAction = {
   id: string;
   type: ProposalActionType;
   recipient: string;
   amount: string;
+  assetCode?: string;
+  assetContractId?: string;
 };
 
 export type ProposalCallVectors = {
@@ -92,14 +94,51 @@ function parsePositiveInteger(value: string) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+/**
+ * Convert decimal amount to stroops (multiply by 10^7)
+ * @param amount - Decimal amount as string (e.g., "100.5")
+ * @returns Amount in stroops as bigint, or null if invalid
+ */
+function parseDecimalToStroops(amount: string): bigint | null {
+  const trimmed = amount.trim();
+
+  // Validate format: optional negative, digits, optional decimal point and digits
+  if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return null;
+  }
+
+  const value = parseFloat(trimmed);
+
+  // Check for negative or zero
+  if (value <= 0 || !isFinite(value)) {
+    return null;
+  }
+
+  // Convert to stroops (7 decimal places)
+  // Multiply by 10^7 and round to avoid floating point errors
+  const stroops = Math.round(value * 10_000_000);
+
+  return BigInt(stroops);
+}
+
 export function getProposalActionLabel(type: ProposalActionType) {
-  return type === 'batch-mint-governance-token' ? 'Batch Mint Governance Token' : 'Mint Governance Token';
+  if (type === 'batch-mint-governance-token') {
+    return 'Batch Mint Governance Token';
+  }
+  if (type === 'transfer-sac-token') {
+    return 'Transfer SAC Token';
+  }
+  return 'Mint Governance Token';
 }
 
 export function getProposalActionSummary(action: ProposalQueuedAction) {
-  return action.type === 'batch-mint-governance-token'
-    ? `${getProposalActionLabel(action.type)} to ${action.recipient} for ${action.amount} tokens`
-    : `${getProposalActionLabel(action.type)} to ${action.recipient}`;
+  if (action.type === 'batch-mint-governance-token') {
+    return `${getProposalActionLabel(action.type)} to ${action.recipient} for ${action.amount} tokens`;
+  }
+  if (action.type === 'transfer-sac-token') {
+    return `Transfer ${action.amount} ${action.assetCode || 'tokens'} to ${action.recipient}`;
+  }
+  return `${getProposalActionLabel(action.type)} to ${action.recipient}`;
 }
 
 export function buildProposalCallVectors(actions: ProposalQueuedAction[], tokenContractId: string, treasuryContractId: string): ProposalCallVectors {
@@ -117,6 +156,23 @@ export function buildProposalCallVectors(actions: ProposalQueuedAction[], tokenC
       targets.push(tokenContractId);
       functions.push('batch_mint');
       args.push([treasuryContractId, action.recipient, amount]);
+      continue;
+    }
+
+    if (action.type === 'transfer-sac-token') {
+      if (!action.assetContractId) {
+        throw new Error('Asset contract ID is required for SAC token transfer.');
+      }
+
+      const amountStroops = parseDecimalToStroops(action.amount);
+      if (amountStroops === null) {
+        throw new Error('Transfer amount must be a positive decimal number.');
+      }
+
+      targets.push(action.assetContractId);
+      functions.push('transfer');
+      // SAC transfer: (from: Address, to: Address, amount: i128)
+      args.push([treasuryContractId, action.recipient, amountStroops.toString()]);
       continue;
     }
 

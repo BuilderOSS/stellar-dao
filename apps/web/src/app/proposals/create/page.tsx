@@ -12,6 +12,7 @@ import { ProposalActionEditor } from '@/components/proposal/proposal-action-edit
 import { ProposalActionQueue } from '@/components/proposal/proposal-action-queue';
 import type { GovernorSettings } from '@/lib/admin-queries';
 import { useGovernorSettings } from '@/lib/admin-queries';
+import { getTreasuryAssets } from '@/lib/assets-config';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/lib/proposal-call';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
+import { validateStellarAddress } from '@/lib/validate-address';
 import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -36,7 +38,8 @@ const EMPTY_METADATA: ProposalMetadataDraft = {
 const EMPTY_ACTION_STATE = {
   type: 'mint-governance-token' as ProposalActionType,
   recipient: '',
-  amount: '1'
+  amount: '1',
+  assetCode: ''
 };
 
 function makeActionId() {
@@ -54,6 +57,16 @@ function isPositiveWholeNumber(value: string) {
   }
 
   return Number.isSafeInteger(Number(trimmed)) && Number(trimmed) > 0;
+}
+
+function isPositiveDecimal(value: string) {
+  const trimmed = value.trim();
+  if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return false;
+  }
+
+  const num = parseFloat(trimmed);
+  return num > 0 && isFinite(num);
 }
 
 function requiresTreasuryMintAuthority(type: ProposalActionType) {
@@ -91,12 +104,15 @@ export default function ProposalCreatePage() {
   const [actionType, setActionType] = useState<ProposalActionType>(EMPTY_ACTION_STATE.type);
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('1');
+  const [assetCode, setAssetCode] = useState('');
   const [queuedActions, setQueuedActions] = useState<ProposalQueuedAction[]>([]);
   const [editingAction, setEditingAction] = useState<{ id: string; index: number } | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<{ kind: 'edit' | 'remove'; actionId: string } | null>(null);
   const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const tx = useTransactionFeedback(config.name);
+
+  const treasuryAssets = useMemo(() => getTreasuryAssets(config.name as 'testnet' | 'mainnet' | 'local'), [config.name]);
 
   const proposalDescription = useMemo(() => encodeProposalMetadata(metadata), [metadata]);
   const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
@@ -118,9 +134,16 @@ export default function ProposalCreatePage() {
   const actionMintAuthorityError = requiresTreasuryMintAuthority(actionType) ? mintAuthorityError : '';
   const queuedActionsNeedMintAuthority = queuedActions.some((action) => requiresTreasuryMintAuthority(action.type));
   const metadataIsValid = metadata.title.trim().length > 0 && metadata.description.trim().length > 0;
-  const recipientIsValid = recipient.trim().length > 0;
-  const amountIsValid = actionType === 'batch-mint-governance-token' ? isPositiveWholeNumber(amount) : true;
-  const actionIsValid = recipientIsValid && amountIsValid && !actionMintAuthorityError && !proposalCreationLocked;
+  const recipientValidation = validateStellarAddress(recipient);
+  const recipientIsValid = recipientValidation.isValid;
+  const recipientError = recipient.trim().length > 0 && !recipientValidation.isValid ? recipientValidation.error : undefined;
+  const assetIsValid = actionType === 'transfer-sac-token' ? assetCode.trim().length > 0 : true;
+  const amountIsValid = actionType === 'batch-mint-governance-token'
+    ? isPositiveWholeNumber(amount)
+    : actionType === 'transfer-sac-token'
+    ? isPositiveDecimal(amount)
+    : true;
+  const actionIsValid = recipientIsValid && amountIsValid && assetIsValid && !actionMintAuthorityError && !proposalCreationLocked;
   const canReview = metadataIsValid && queuedActions.length > 0 && !editingAction && !(queuedActionsNeedMintAuthority && mintAuthorityMissing) && !proposalCreationLocked;
 
   function resetActionDraft(nextType?: ProposalActionType) {
@@ -130,6 +153,7 @@ export default function ProposalCreatePage() {
 
     setRecipient('');
     setAmount('1');
+    setAssetCode('');
     setEditingAction(null);
   }
 
@@ -156,8 +180,14 @@ export default function ProposalCreatePage() {
       return;
     }
 
-    if (!recipientIsValid) {
-      setFormMessage('Recipient is required.');
+    const recipientValidation = validateStellarAddress(recipient);
+    if (!recipientValidation.isValid) {
+      setFormMessage(recipientValidation.error || 'Recipient is required.');
+      return;
+    }
+
+    if (actionType === 'transfer-sac-token' && !assetCode.trim()) {
+      setFormMessage('Please select an asset to transfer.');
       return;
     }
 
@@ -166,11 +196,28 @@ export default function ProposalCreatePage() {
       return;
     }
 
+    if (actionType === 'transfer-sac-token' && !isPositiveDecimal(amount)) {
+      setFormMessage('Transfer amount must be a positive decimal number.');
+      return;
+    }
+
+    // Find asset contract ID for SAC transfers
+    const assetContractId = actionType === 'transfer-sac-token'
+      ? treasuryAssets.find(a => a.code === assetCode)?.contractId
+      : undefined;
+
+    if (actionType === 'transfer-sac-token' && !assetContractId) {
+      setFormMessage(`SAC contract address not configured for ${assetCode}.`);
+      return;
+    }
+
     const action: ProposalQueuedAction = {
       id: editingAction?.id ?? makeActionId(),
       type: actionType,
       recipient: recipient.trim(),
-      amount: actionType === 'batch-mint-governance-token' ? amount.trim() : '1'
+      amount: (actionType === 'batch-mint-governance-token' || actionType === 'transfer-sac-token') ? amount.trim() : '1',
+      assetCode: actionType === 'transfer-sac-token' ? assetCode : undefined,
+      assetContractId: actionType === 'transfer-sac-token' ? assetContractId : undefined
     };
 
     setQueuedActions((current) => {
@@ -187,6 +234,7 @@ export default function ProposalCreatePage() {
     setEditingAction(null);
     setRecipient('');
     setAmount('1');
+    setAssetCode('');
     setFormMessage(editingAction ? 'Action updated.' : 'Action queued.');
   }
 
@@ -196,6 +244,7 @@ export default function ProposalCreatePage() {
     setActionType(action.type);
     setRecipient(action.recipient);
     setAmount(action.amount);
+    setAssetCode(action.assetCode || '');
     setStep(2);
     setFormMessage('Editing queued action.');
   }
@@ -435,18 +484,25 @@ export default function ProposalCreatePage() {
                       actionType={actionType}
                       recipient={recipient}
                       amount={amount}
+                      assetCode={assetCode}
                       editingActionId={editingAction?.id ?? null}
                       busy={busy}
                       canSave={actionIsValid}
                       disabledReason={proposalCreationLockMessage || (mintAuthoritiesLoading ? undefined : actionMintAuthorityError)}
+                      recipientError={recipientError}
                       onActionTypeChange={(nextType) => {
                         setActionType(nextType);
                         if (nextType === 'batch-mint-governance-token' && amount.trim() === '') {
                           setAmount('1');
                         }
+                        if (nextType === 'transfer-sac-token') {
+                          setAmount('');
+                          setAssetCode('');
+                        }
                       }}
                       onRecipientChange={setRecipient}
                       onAmountChange={setAmount}
+                      onAssetCodeChange={setAssetCode}
                       onSave={queueAction}
                       onClear={editingAction ? cancelEdit : clearActionDraft}
                       onCancelEdit={cancelEdit}

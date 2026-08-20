@@ -2,19 +2,23 @@
 
 import { Badge, Button, Callout, Card, FieldHelperText, FieldLabel, Input, Select, Text } from '@/components/ui';
 import { getProposalActionLabel, type ProposalActionType } from '@/lib/proposal-call';
+import { validateStellarAddress } from '@/lib/validate-address';
 import { Stack } from 'styled-system/jsx';
 
 type ProposalActionEditorProps = {
   actionType: ProposalActionType;
   recipient: string;
   amount: string;
+  assetCode?: string;
   editingActionId: string | null;
   busy: boolean;
   canSave: boolean;
   disabledReason?: string;
+  recipientError?: string;
   onActionTypeChange: (value: ProposalActionType) => void;
   onRecipientChange: (value: string) => void;
   onAmountChange: (value: string) => void;
+  onAssetCodeChange?: (value: string) => void;
   onSave: () => void;
   onClear: () => void;
   onCancelEdit: () => void;
@@ -24,18 +28,23 @@ export function ProposalActionEditor({
   actionType,
   recipient,
   amount,
+  assetCode,
   editingActionId,
   busy,
   canSave,
   disabledReason,
+  recipientError,
   onActionTypeChange,
   onRecipientChange,
   onAmountChange,
+  onAssetCodeChange,
   onSave,
   onClear,
   onCancelEdit
 }: ProposalActionEditorProps) {
   const batchMint = actionType === 'batch-mint-governance-token';
+  const sacTransfer = actionType === 'transfer-sac-token';
+  const needsAmount = batchMint || sacTransfer;
   const title = editingActionId ? 'Edit queued action' : 'Add action';
   const formDisabled = busy || Boolean(disabledReason);
 
@@ -64,6 +73,7 @@ export function ProposalActionEditor({
           >
             <option value="mint-governance-token">{getProposalActionLabel('mint-governance-token')}</option>
             <option value="batch-mint-governance-token">{getProposalActionLabel('batch-mint-governance-token')}</option>
+            <option value="transfer-sac-token">{getProposalActionLabel('transfer-sac-token')}</option>
           </Select>
           <FieldHelperText>Each queued action becomes a separate governor call in the final proposal.</FieldHelperText>
         </Stack>
@@ -78,31 +88,58 @@ export function ProposalActionEditor({
 
         <div style={disabledReason ? { opacity: 0.62 } : undefined}>
           <Stack gap="3">
+            {sacTransfer ? (
+              <Stack gap="2">
+                <FieldLabel htmlFor="proposal-action-asset">Asset</FieldLabel>
+                <Select
+                  id="proposal-action-asset"
+                  value={assetCode || ''}
+                  onChange={(event) => onAssetCodeChange?.(event.target.value)}
+                  disabled={formDisabled}
+                >
+                  <option value="">Select asset...</option>
+                  <option value="XLM">XLM (Native)</option>
+                  <option value="USDC">USDC</option>
+                  <option value="EURC">EURC</option>
+                </Select>
+                <FieldHelperText>Choose which SAC token to transfer from the treasury.</FieldHelperText>
+              </Stack>
+            ) : null}
+
             <Stack gap="2">
               <FieldLabel htmlFor="proposal-action-recipient">Recipient</FieldLabel>
               <Input
                 id="proposal-action-recipient"
                 value={recipient}
                 onChange={(event) => onRecipientChange(event.target.value)}
-                placeholder="Recipient address"
+                placeholder="Recipient address (G... or C...)"
                 disabled={formDisabled}
               />
+              {recipientError ? (
+                <FieldHelperText style={{ color: 'var(--error-9)' }}>{recipientError}</FieldHelperText>
+              ) : (
+                <FieldHelperText>Enter a valid Stellar address (account or contract).</FieldHelperText>
+              )}
             </Stack>
 
-            {batchMint ? (
+            {needsAmount ? (
               <Stack gap="2">
                 <FieldLabel htmlFor="proposal-action-amount">Amount</FieldLabel>
                 <Input
                   id="proposal-action-amount"
                   value={amount}
                   onChange={(event) => onAmountChange(event.target.value)}
-                  placeholder="Amount to mint"
+                  placeholder={sacTransfer ? "Amount to transfer (e.g., 100.5)" : "Amount to mint"}
                   type="number"
-                  min="1"
-                  step="1"
+                  min="0.0000001"
+                  step={sacTransfer ? "0.0000001" : "1"}
                   disabled={formDisabled}
                 />
-                <FieldHelperText>Use a positive whole number of tokens.</FieldHelperText>
+                <FieldHelperText>
+                  {sacTransfer
+                    ? 'Use a positive decimal number (supports up to 7 decimal places).'
+                    : 'Use a positive whole number of tokens.'}
+                </FieldHelperText>
               </Stack>
             ) : null}
 
