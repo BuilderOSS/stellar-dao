@@ -254,6 +254,16 @@ export default function ProposalDetailPage() {
   const currentVote = session.address ? votes.find((vote) => vote.voter === session.address) ?? null : null;
   const actionMode = proposalActionMode(detail?.state);
   const errorMessage = error instanceof Error ? error.message : '';
+  const voteUnavailableReason = !session.address
+    ? 'Connect a wallet to vote.'
+    : votingPowerLoading
+      ? 'Voting power is still loading.'
+      : votingPowerError
+        ? `Voting power could not be loaded: ${votingPowerError.message}`
+        : votingPower && votingPower.votes > 0n
+          ? ''
+          : 'No voting power at the proposal snapshot.';
+  const canVote = Boolean(!currentVote && !voteUnavailableReason);
 
   function voteLabelForSupport(support: number) {
     if (support === VOTE_FOR) return 'For';
@@ -280,13 +290,14 @@ export default function ProposalDetailPage() {
             <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
             {detail && actionMode === 'vote' ? (
               <ProposalVotePanel
-                canVote={true}
+                canVote={canVote}
                 busy={busy}
                 voteReason={voteReason}
                 selectedVoteType={selectedVoteType}
                 votingPower={votingPower?.votes.toString() ?? null}
                 votingPowerLoading={votingPowerLoading}
                 votingPowerError={votingPowerError?.message ?? ''}
+                unavailableReason={voteUnavailableReason}
                 onVoteReasonChange={setVoteReason}
                 onSelectedVoteTypeChange={setSelectedVoteType}
                 onVote={(voteType) => void submitVote(voteType)}
