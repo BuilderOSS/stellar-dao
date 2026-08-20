@@ -46,6 +46,8 @@ const EMPTY_ACTION_STATE = {
   assetCode: ''
 };
 
+const MAX_BATCH_MINT_AMOUNT = 20;
+
 function makeActionId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -144,7 +146,7 @@ export default function ProposalCreatePage() {
   const recipientError = recipient.trim().length > 0 && !recipientValidation.isValid ? recipientValidation.error : undefined;
   const assetIsValid = actionType === 'transfer-sac-token' ? assetCode.trim().length > 0 : true;
   const amountIsValid = actionType === 'batch-mint-governance-token'
-    ? isPositiveWholeNumber(amount)
+    ? isPositiveWholeNumber(amount) && Number(amount) <= MAX_BATCH_MINT_AMOUNT
     : actionType === 'transfer-sac-token'
     ? isPositiveDecimal(amount)
     : true;
@@ -198,6 +200,11 @@ export default function ProposalCreatePage() {
 
     if (actionType === 'batch-mint-governance-token' && !isPositiveWholeNumber(amount)) {
       setFormMessage('Amount must be a positive whole number.');
+      return;
+    }
+
+    if (actionType === 'batch-mint-governance-token' && Number(amount) > MAX_BATCH_MINT_AMOUNT) {
+      setFormMessage(`Batch mint amount must be ${MAX_BATCH_MINT_AMOUNT} tokens or fewer.`);
       return;
     }
 
