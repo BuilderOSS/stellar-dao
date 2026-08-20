@@ -21,7 +21,7 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
       name: 'Lumens',
       imageSrc: '/assets/XLM.png',
       isNative: true,
-      // Native XLM SAC address (deterministic across all networks)
+      // Native XLM SAC address for testnet
       contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
     },
     {
@@ -46,8 +46,8 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
       name: 'Lumens',
       imageSrc: '/assets/XLM.png',
       isNative: true,
-      // Native XLM SAC address (deterministic across all networks)
-      contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
+      // Native XLM SAC address for mainnet
+      contractId: 'CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA'
     },
     {
       code: 'USDC',
@@ -64,7 +64,7 @@ export const TREASURY_ASSETS: AssetsByNetwork = {
       name: 'Lumens',
       imageSrc: '/assets/XLM.png',
       isNative: true,
-      // Native XLM SAC address (deterministic across all networks)
+      // Native XLM SAC address for local network (using testnet address)
       contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
     }
   ]
