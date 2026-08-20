@@ -1,6 +1,7 @@
-import { Card, Heading, ShortId, Text } from '@/components/ui';
+import { ArrowUpRight } from 'lucide-react';
+import { Card, Heading, IconLinkButton, ShortId, Text } from '@/components/ui';
 import type { ReactNode } from 'react';
-import { Grid, Stack } from 'styled-system/jsx';
+import { Grid, HStack, Stack } from 'styled-system/jsx';
 import type { ProposalDetail } from './types';
 import { ProposalStateBadge } from './proposal-state-badge';
 import { ProposalState } from '@/lib/proposal-state';
@@ -150,13 +151,15 @@ export function ProposalOverview({ detail, now, network, actionSlot }: ProposalO
 
       <Grid columns={{ base: 1, lg: 3 }} gap="3">
         <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
-          <Stack gap="1">
-            <Text className="label">Snapshot</Text>
-            <a href={getExplorerLedgerUrl(network, detail.vote_snapshot)} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+          <HStack gap="2" justify="space-between">
+            <div style={{ minWidth: 0 }}>
+              <Text className="label">Snapshot</Text>
               <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>Ledger #{detail.vote_snapshot}</Text>
-              <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Open in Stellar Expert</Text>
-            </a>
-          </Stack>
+            </div>
+            <IconLinkButton href={getExplorerLedgerUrl(network, detail.vote_snapshot)} label="Open in Stellar Expert">
+              <ArrowUpRight size={12} />
+            </IconLinkButton>
+          </HStack>
         </Card>
         <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
           <Stack gap="1">
