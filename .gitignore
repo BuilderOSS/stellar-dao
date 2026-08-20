@@ -7,7 +7,7 @@ target
 # JavaScript / frontend artifacts
 node_modules
 .next
-apps/web/.env.local
+apps/web/.env*.local
 apps/web/styled-system
 apps/web/tsconfig.tsbuildinfo
 packages/contracts/counter/src/generated/dist
@@ -16,3 +16,5 @@ packages/contracts/counter/src/generated/dist
 .soroban
 .stellar
 opencode.json
+.vercel
+.env*.local
