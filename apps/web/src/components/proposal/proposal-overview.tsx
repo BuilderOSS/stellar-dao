@@ -40,7 +40,7 @@ function hasValidTimestamp(value: number) {
   return Number.isFinite(value) && value > 0;
 }
 
-function getTimeline(detail: ProposalDetail, now: number) {
+function getLifecycleSummary(detail: ProposalDetail, now: number) {
   switch (detail.state) {
     case ProposalState.Pending:
       const startTime = hasValidTimestamp(detail.vote_start) ? detail.vote_start : detail.vote_end;
@@ -109,24 +109,44 @@ function getTimeline(detail: ProposalDetail, now: number) {
 }
 
 export function ProposalOverview({ detail, now, network, actionSlot }: ProposalOverviewProps) {
-  const timeline = getTimeline(detail, now);
+  const lifecycle = getLifecycleSummary(detail, now);
 
   return (
     <Stack gap="3">
       <Card p="4" style={{ background: 'rgba(157, 179, 203, 0.08)', border: '1px solid rgba(157, 179, 203, 0.18)' }}>
-        <Stack gap="3">
-          <div>
-            <ProposalStateBadge label={detail.label} />
-          </div>
-          <Stack gap="1">
-            <Text className="label">{timeline.eyebrow}</Text>
-            <Heading style={{ fontSize: '1.5rem' }}>{timeline.headline}</Heading>
-            <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{timeline.subline}</Text>
+        <Grid columns={{ base: 1, lg: actionSlot ? 2 : 1 }} gap="4" alignItems="start">
+          <Stack gap="3">
+            <div>
+              <ProposalStateBadge label={detail.label} />
+            </div>
+            <Stack gap="1">
+              <Text className="label">{lifecycle.eyebrow}</Text>
+              <Heading style={{ fontSize: '1.5rem' }}>{lifecycle.headline}</Heading>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{lifecycle.subline}</Text>
+            </Stack>
           </Stack>
-        </Stack>
-      </Card>
+          {actionSlot ? (
+            <div className="proposal-overview-action">
+              {actionSlot}
+            </div>
+          ) : null}
+        </Grid>
+        <style jsx>{`
+          .proposal-overview-action {
+            border-top: 1px solid rgba(160, 194, 225, 0.18);
+            padding-top: 16px;
+          }
 
-      {actionSlot}
+          @media (min-width: 1024px) {
+            .proposal-overview-action {
+              border-inline-start: 1px solid rgba(160, 194, 225, 0.18);
+              border-top: 0;
+              padding-inline-start: 16px;
+              padding-top: 0;
+            }
+          }
+        `}</style>
+      </Card>
 
       <Grid columns={{ base: 1, lg: 3 }} gap="3">
         <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
@@ -142,7 +162,6 @@ export function ProposalOverview({ detail, now, network, actionSlot }: ProposalO
           <Stack gap="1">
             <Text className="label">Proposer</Text>
             <ShortId value={detail.proposer} />
-            <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Snapshot ledger #{detail.vote_snapshot}</Text>
           </Stack>
         </Card>
         <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>

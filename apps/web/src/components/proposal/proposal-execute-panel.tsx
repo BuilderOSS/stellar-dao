@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui';
-import { ProposalLifecyclePanel } from './proposal-lifecycle-panel';
 
 type ProposalExecutePanelProps = {
   busy: boolean;
@@ -12,17 +11,10 @@ export function ProposalExecutePanel({ busy, now, eta, onExecute }: ProposalExec
   const ready = now >= eta * 1000;
 
   return (
-    <ProposalLifecyclePanel
-      title="Execute proposal"
-      description={ready ? 'This proposal is queued and ready to execute on-chain.' : 'This proposal is queued and will become executable when the ETA in the overview is reached.'}
-    >
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        {ready ? (
-          <Button type="button" onClick={onExecute} disabled={busy}>
-            {busy ? 'Executing...' : 'Execute proposal'}
-          </Button>
-        ) : null}
-      </div>
-    </ProposalLifecyclePanel>
+    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Button type="button" onClick={onExecute} disabled={busy || !ready}>
+        {busy ? 'Executing...' : 'Execute proposal'}
+      </Button>
+    </div>
   );
 }

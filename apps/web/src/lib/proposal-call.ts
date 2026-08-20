@@ -1,6 +1,9 @@
+import { nativeToScVal } from '@stellar/stellar-sdk';
+
 export type ProposalCallArg = string | number | boolean | null | ProposalCallArg[] | { [key: string]: ProposalCallArg };
 
 export type ProposalCallArgs = ProposalCallArg[][];
+export type EncodedProposalCallArgs = unknown[][];
 
 export type ProposalActionType = 'mint-governance-token' | 'batch-mint-governance-token' | 'transfer-sac-token';
 
@@ -69,6 +72,53 @@ export function normalizeProposalCallArgs(value: ProposalCallArgs | unknown): Pr
     })() : item;
 
     return Array.isArray(decoded) ? (unwrapScValLike(decoded) as ProposalCallArg[]) : [unwrapScValLike(decoded) as ProposalCallArg];
+  });
+}
+
+function encodeAddress(value: ProposalCallArg) {
+  return nativeToScVal(String(value), { type: 'address' });
+}
+
+function encodeU32(value: ProposalCallArg) {
+  return nativeToScVal(Number(value), { type: 'u32' });
+}
+
+function encodeI128(value: ProposalCallArg) {
+  return nativeToScVal(String(value), { type: 'i128' });
+}
+
+function encodeGeneric(value: ProposalCallArg) {
+  return nativeToScVal(value);
+}
+
+function encodeProposalCallArg(functionName: string, index: number, value: ProposalCallArg) {
+  if (functionName === 'mint') {
+    return index === 0 || index === 1 ? encodeAddress(value) : encodeGeneric(value);
+  }
+
+  if (functionName === 'batch_mint') {
+    if (index === 0 || index === 1) {
+      return encodeAddress(value);
+    }
+
+    return index === 2 ? encodeU32(value) : encodeGeneric(value);
+  }
+
+  if (functionName === 'transfer') {
+    if (index === 0 || index === 1) {
+      return encodeAddress(value);
+    }
+
+    return index === 2 ? encodeI128(value) : encodeGeneric(value);
+  }
+
+  return encodeGeneric(value);
+}
+
+export function encodeProposalCallArgs(functions: string[], args: ProposalCallArgs | unknown): EncodedProposalCallArgs {
+  return normalizeProposalCallArgs(args).map((callArgs, actionIndex) => {
+    const functionName = functions[actionIndex] ?? '';
+    return callArgs.map((arg, argIndex) => encodeProposalCallArg(functionName, argIndex, arg));
   });
 }
 

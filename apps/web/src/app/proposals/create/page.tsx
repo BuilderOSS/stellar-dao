@@ -18,6 +18,7 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import {
   buildProposalCallVectors,
+  encodeProposalCallArgs,
   type ProposalActionType,
   type ProposalQueuedAction
 } from '@/lib/proposal-call';
@@ -357,7 +358,7 @@ export default function ProposalCreatePage() {
       const assembled = await governor.propose({
         targets,
         functions,
-        args,
+        args: encodeProposalCallArgs(functions, args),
         description: proposalDescription,
         proposer: session.address
       });

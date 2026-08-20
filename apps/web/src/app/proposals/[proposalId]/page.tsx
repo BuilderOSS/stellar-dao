@@ -12,13 +12,12 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { proposalActionMode } from '@/lib/proposal-state';
-import { normalizeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
+import { encodeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useVotingPower } from '@/lib/voting-power';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalActionPreview } from '@/components/proposal/proposal-action-preview';
-import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
 import { ProposalQueuePanel } from '@/components/proposal/proposal-queue-panel';
 import { ProposalVoteHistory } from '@/components/proposal/proposal-vote-history';
@@ -182,7 +181,7 @@ export default function ProposalDetailPage() {
 
     try {
       const governor = await getGovernor();
-      const args = normalizeProposalCallArgs(detail.args);
+      const args = encodeProposalCallArgs(detail.functions, detail.args);
       const payload = {
         targets: detail.targets,
         functions: detail.functions,
@@ -225,24 +224,38 @@ export default function ProposalDetailPage() {
       setFormMessage('Queued proposal is not ready to execute yet.');
       return;
     }
+
     setBusy(true);
     setFormMessage('');
     tx.start('Executing proposal...');
 
     try {
       const governor = await getGovernor();
-      const args = normalizeProposalCallArgs(detail.args);
-      const assembled = await governor.execute({
+
+      const args = encodeProposalCallArgs(detail.functions, detail.args);
+
+      const executeParams = {
         targets: detail.targets,
         functions: detail.functions,
         args,
         description_hash: descriptionHash(detail.description),
         executor: session.address
-      });
+      };
+
+      const assembled = await governor.execute(executeParams);
+
       const sent = await assembled.signAndSend();
+
       const hash = sent.sendTransactionResponse?.hash ?? '';
+
+      if (!hash) {
+        throw new Error('No transaction hash received from response');
+      }
+
       tx.submitted('Proposal executing', hash);
+
       await waitForConfirmation(hash, config.rpcUrl);
+
       void mutate();
       tx.success('Proposal executed', hash);
     } catch (err) {
@@ -272,10 +285,6 @@ export default function ProposalDetailPage() {
     if (support === VOTE_FOR) return 'For';
     if (support === VOTE_AGAINST) return 'Against';
     return 'Abstain';
-  }
-
-  function outcomeStateLabel() {
-    return detail?.label ?? 'Loading';
   }
 
   return (
@@ -311,8 +320,6 @@ export default function ProposalDetailPage() {
                   <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
                 ) : actionMode === 'execute' ? (
                   <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
-                ) : actionMode === 'outcome' ? (
-                  <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />
                 ) : null
               }
             />

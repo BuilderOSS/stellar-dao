@@ -694,3 +694,91 @@ fn reentrancy_attack_is_prevented() {
     // If we get here without panic, the test will fail
     // The should_panic annotation ensures the test passes only if reentrancy is blocked
 }
+
+#[test]
+fn treasury_batch_mint_with_explicit_auth() {
+    use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
+
+    let e = Env::default();
+    e.ledger().set_sequence_number(100);
+    e.ledger().set_timestamp(1_000);
+
+    let owner = Address::generate(&e);
+    let token_id = e.register(
+        DaoTokenContract,
+        (
+            owner.clone(),
+            String::from_str(&e, "https://example.com/"),
+            String::from_str(&e, "DAO Vote NFT"),
+            String::from_str(&e, "vDAO"),
+        ),
+    );
+    let token = DaoTokenContractClient::new(&e, &token_id);
+
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
+    let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
+
+    let governor_id = e.register(
+        DaoGovernorContract,
+        (
+            owner.clone(),
+            token_id.clone(),
+            treasury_id.clone(),
+            10_u32,
+            100_u32,
+            300_u32,
+            1_u128,
+            1_000_u32,
+        ),
+    );
+    let governor = DaoGovernorContractClient::new(&e, &governor_id);
+
+    let recipient = Address::generate(&e);
+
+    // Setup - grant treasury mint authority
+    e.mock_all_auths();
+    treasury.set_governor(&governor_id);
+    token.set_mint_authority(&treasury.address, &true);
+
+    let batch_mint_args: Vec<Val> = vec![
+        &e,
+        treasury.address.clone().into_val(&e),
+        recipient.clone().into_val(&e),
+        3u32.into_val(&e),
+    ];
+
+    // Now test treasury calling batch_mint with explicit authorization
+    e.mock_auths(&[MockAuth {
+        address: &governor_id,
+        invoke: &MockAuthInvoke {
+            contract: &treasury_id,
+            fn_name: "execute",
+            args: (
+                &token_id,
+                &Symbol::new(&e, "batch_mint"),
+                &batch_mint_args,
+            ).into_val(&e),
+            sub_invokes: &[
+                // Treasury itself needs to authorize the batch_mint call where it's the minter
+                MockAuthInvoke {
+                    contract: &token_id,
+                    fn_name: "batch_mint",
+                    args: (&treasury.address, &recipient, &3u32).into_val(&e),
+                    sub_invokes: &[],
+                },
+            ],
+        },
+    }]);
+
+    // Call treasury.execute which should call token.batch_mint
+    treasury.execute(
+        &token_id,
+        &Symbol::new(&e, "batch_mint"),
+        &batch_mint_args,
+    );
+
+    // Verify the tokens were minted
+    assert_eq!(token.balance(&recipient), 3);
+    assert_eq!(token.get_votes(&recipient), 3);
+    assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
+}
