@@ -7,10 +7,10 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
-import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Stack } from 'styled-system/jsx';
 
@@ -19,38 +19,38 @@ export default function TokenAdminPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('1');
+  const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const tx = useTransactionFeedback(config.name);
   const { data: mintAuthorities, error, isLoading, mutate } = useMercuryMintAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
   const hasMintAccess = Boolean(isOwner || mintAuthorities?.items.some((item) => item.authority === session.address));
 
   async function handleMint() {
     if (!session.address || !hasMintAccess) {
-      setStatus('Connect a mint authority wallet first.');
+      setFormMessage('Connect a mint authority wallet first.');
       return;
     }
 
     if (!config.tokenContractId) {
-      setStatus('Missing token contract id in the active network config.');
+      setFormMessage('Missing token contract id in the active network config.');
       return;
     }
 
     if (!recipient) {
-      setStatus('Recipient is required.');
+      setFormMessage('Recipient is required.');
       return;
     }
 
     const mintAmount = Number(amount);
     if (!Number.isInteger(mintAmount) || mintAmount < 1 || mintAmount > 20) {
-      setStatus('Mint amount must be between 1 and 20.');
+      setFormMessage('Mint amount must be between 1 and 20.');
       return;
     }
 
     setBusy(true);
-    setStatus('Preparing batch mint transaction...');
-    setTxHash('');
+    setFormMessage('');
+    tx.start('Preparing batch mint transaction...');
 
     try {
       const client = new TokenClient({
@@ -67,13 +67,13 @@ export default function TokenAdminPage() {
       const assembled = await client.batch_mint({ minter: session.address, to: recipient, amount: mintAmount });
       const sent = await assembled.signAndSend();
       const countLabel = mintAmount === 1 ? 'token' : 'tokens';
-      setStatus(`Minted ${mintAmount} ${countLabel}`);
-      setTxHash(sent.sendTransactionResponse?.hash ?? '');
+      tx.success(`Minted ${mintAmount} ${countLabel}`, sent.sendTransactionResponse?.hash ?? '');
+      setFormMessage('');
       setRecipient('');
       setAmount('1');
       void mutate();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Mint failed');
+      tx.fail(error, 'Mint failed');
     } finally {
       setBusy(false);
     }
@@ -106,8 +106,7 @@ export default function TokenAdminPage() {
                   {isLoading ? 'Refreshing...' : 'Refresh authorities'}
                 </Button>
               </div>
-              {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
-              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
+              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
               {error ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{error.message}</Text> : null}
             </Stack>
           </Card>

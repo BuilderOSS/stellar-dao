@@ -8,10 +8,10 @@ import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
-import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
 
@@ -50,9 +50,9 @@ export default function OwnerPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [mintAuthority, setMintAuthority] = useState('');
   const [governorAuthority, setGovernorAuthority] = useState('');
+  const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const tx = useTransactionFeedback(config.name);
   const { data: mintAuthorities, mutate: refreshMintAuthorities, error: mintAuthorityError, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
   const { data: governorAuthorities, mutate: refreshGovernorAuthorities, error: governorAuthorityError, isLoading: governorAuthoritiesLoading } = useMercuryGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
@@ -78,23 +78,23 @@ export default function OwnerPage() {
 
   async function updateAuthority(method: 'set_mint_authority' | 'set_governor_authority', authority: string, enabled: boolean) {
     if (!session.address || !authority) {
-      setStatus('Authority address is required.');
+      setFormMessage('Authority address is required.');
       return;
     }
 
     if ((method === 'set_mint_authority' && !config.tokenContractId) || (method === 'set_governor_authority' && !config.governorContractId)) {
-      setStatus('Missing contract id in the active network config.');
+      setFormMessage('Missing contract id in the active network config.');
       return;
     }
 
     setBusy(true);
-    setStatus(enabled ? 'Saving authority grant...' : 'Saving authority revoke...');
-    setTxHash('');
+    setFormMessage('');
+    tx.start(enabled ? 'Saving authority grant...' : 'Saving authority revoke...');
 
     try {
       const sent = await submitAuthorityUpdate(config, session.address, method, authority, enabled);
-      setStatus(`${enabled ? 'Updated' : 'Revoked'} authority`);
-      setTxHash(sent.sendTransactionResponse?.hash ?? '');
+      tx.success(`${enabled ? 'Updated' : 'Revoked'} authority`, sent.sendTransactionResponse?.hash ?? '');
+      setFormMessage('');
       if (method === 'set_mint_authority') {
         setMintAuthority('');
         void refreshMintAuthorities();
@@ -103,7 +103,7 @@ export default function OwnerPage() {
         void refreshGovernorAuthorities();
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Authority update failed');
+      tx.fail(error, 'Authority update failed');
     } finally {
       setBusy(false);
     }
@@ -126,8 +126,7 @@ export default function OwnerPage() {
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                 The owner can add or remove both token and governance authorities. Those authorities can then use the matching admin pages.
               </Text>
-              {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
-              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
+              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
             </Stack>
           </Card>
 

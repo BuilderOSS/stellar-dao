@@ -7,7 +7,6 @@ import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
-import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { ProposalActionEditor } from '@/components/proposal/proposal-action-editor';
 import { ProposalActionQueue } from '@/components/proposal/proposal-action-queue';
@@ -21,6 +20,7 @@ import {
   type ProposalQueuedAction
 } from '@/lib/proposal-call';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
+import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -94,9 +94,9 @@ export default function ProposalCreatePage() {
   const [queuedActions, setQueuedActions] = useState<ProposalQueuedAction[]>([]);
   const [editingAction, setEditingAction] = useState<{ id: string; index: number } | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<{ kind: 'edit' | 'remove'; actionId: string } | null>(null);
+  const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const tx = useTransactionFeedback(config.name);
 
   const proposalDescription = useMemo(() => encodeProposalMetadata(metadata), [metadata]);
   const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
@@ -142,27 +142,27 @@ export default function ProposalCreatePage() {
 
   function clearActionDraft() {
     resetActionDraft();
-    setStatus('Action draft cleared.');
+    setFormMessage('Action draft cleared.');
   }
 
   function queueAction() {
     if (proposalCreationLocked) {
-      setStatus(proposalCreationLockMessage);
+      setFormMessage(proposalCreationLockMessage);
       return;
     }
 
     if (requiresTreasuryMintAuthority(actionType) && mintAuthorityMissing) {
-      setStatus(mintAuthorityError);
+      setFormMessage(mintAuthorityError);
       return;
     }
 
     if (!recipientIsValid) {
-      setStatus('Recipient is required.');
+      setFormMessage('Recipient is required.');
       return;
     }
 
     if (actionType === 'batch-mint-governance-token' && !isPositiveWholeNumber(amount)) {
-      setStatus('Amount must be a positive whole number.');
+      setFormMessage('Amount must be a positive whole number.');
       return;
     }
 
@@ -187,7 +187,7 @@ export default function ProposalCreatePage() {
     setEditingAction(null);
     setRecipient('');
     setAmount('1');
-    setStatus(editingAction ? 'Action updated.' : 'Action queued.');
+    setFormMessage(editingAction ? 'Action updated.' : 'Action queued.');
   }
 
   function beginEditAction(action: ProposalQueuedAction, index: number) {
@@ -197,12 +197,12 @@ export default function ProposalCreatePage() {
     setRecipient(action.recipient);
     setAmount(action.amount);
     setStep(2);
-    setStatus('Editing queued action.');
+    setFormMessage('Editing queued action.');
   }
 
   function beginRemoveAction(actionId: string) {
     setQueuedActions((current) => current.filter((action) => action.id !== actionId));
-    setStatus('Action removed.');
+    setFormMessage('Action removed.');
   }
 
   function requestEditAction(actionId: string) {
@@ -225,66 +225,66 @@ export default function ProposalCreatePage() {
     setPendingConfirm(null);
 
     if (!action) {
-      setStatus('That queued action is no longer available.');
+      setFormMessage('That queued action is no longer available.');
       return;
     }
 
     if (pendingConfirm.kind === 'edit') {
       beginEditAction(action, actionIndex);
-      setStatus('Action moved back into the form for editing.');
+      setFormMessage('Action moved back into the form for editing.');
       return;
     }
 
     beginRemoveAction(action.id);
-    setStatus('Action removed from the queue.');
+    setFormMessage('Action removed from the queue.');
   }
 
   function cancelEdit() {
     setEditingAction(null);
     setRecipient('');
     setAmount('1');
-    setStatus('Edit cancelled.');
+    setFormMessage('Edit cancelled.');
   }
 
   async function submitProposal() {
     if (!session.address) {
-      setStatus('Connect a wallet first.');
+      setFormMessage('Connect a wallet first.');
       return;
     }
 
     if (proposalCreationLocked) {
-      setStatus(proposalCreationLockMessage);
+      setFormMessage(proposalCreationLockMessage);
       return;
     }
 
     if (!config.governorContractId || !config.treasuryContractId || !config.tokenContractId) {
-      setStatus('Missing DAO contract ids in the active network config.');
+      setFormMessage('Missing DAO contract ids in the active network config.');
       return;
     }
 
     if (!metadataIsValid) {
-      setStatus('Title and description are required.');
+      setFormMessage('Title and description are required.');
       return;
     }
 
     if (editingAction) {
-      setStatus('Save or cancel the action you are editing before submitting.');
+      setFormMessage('Save or cancel the action you are editing before submitting.');
       return;
     }
 
     if (!queuedActions.length) {
-      setStatus('Add at least one action.');
+      setFormMessage('Add at least one action.');
       return;
     }
 
     if (queuedActionsNeedMintAuthority && mintAuthorityMissing) {
-      setStatus(mintAuthorityError);
+      setFormMessage(mintAuthorityError);
       return;
     }
 
     setBusy(true);
-    setStatus('Preparing proposal...');
-    setTxHash('');
+    setFormMessage('');
+    tx.start('Preparing proposal...');
 
     try {
       const governor = new GovernorClient({
@@ -311,10 +311,10 @@ export default function ProposalCreatePage() {
 
       const sent = await assembled.signAndSend();
       resetComposer();
-      setStatus('Proposal submitted');
-      setTxHash(sent.sendTransactionResponse?.hash ?? '');
+      setFormMessage('');
+      tx.success('Proposal submitted', sent.sendTransactionResponse?.hash ?? '');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Proposal failed');
+      tx.fail(error, 'Proposal failed');
     } finally {
       setBusy(false);
     }
@@ -322,41 +322,41 @@ export default function ProposalCreatePage() {
 
   function advanceFromMetadata() {
     if (proposalCreationLocked) {
-      setStatus(proposalCreationLockMessage);
+      setFormMessage(proposalCreationLockMessage);
       return;
     }
 
     if (!metadataIsValid) {
-      setStatus('Title and description are required.');
+      setFormMessage('Title and description are required.');
       return;
     }
 
-    setStatus('');
+    setFormMessage('');
     setStep(2);
   }
 
   function advanceFromActions() {
     if (proposalCreationLocked) {
-      setStatus(proposalCreationLockMessage);
+      setFormMessage(proposalCreationLockMessage);
       return;
     }
 
     if (!queuedActions.length) {
-      setStatus('Add at least one action.');
+      setFormMessage('Add at least one action.');
       return;
     }
 
     if (queuedActionsNeedMintAuthority && mintAuthorityMissing) {
-      setStatus(mintAuthorityError);
+      setFormMessage(mintAuthorityError);
       return;
     }
 
     if (editingAction) {
-      setStatus('Save or cancel the action you are editing first.');
+      setFormMessage('Save or cancel the action you are editing first.');
       return;
     }
 
-    setStatus('');
+    setFormMessage('');
     setStep(3);
   }
 
@@ -521,8 +521,7 @@ export default function ProposalCreatePage() {
                 </Text>
               ) : null}
 
-              {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
-              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
+              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
               <ShortId value={config.governorContractId} label="Governor" />
               <ShortId value={config.treasuryContractId} label="Treasury" />
               <ShortId value={config.tokenContractId} label="Token" />

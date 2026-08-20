@@ -103,6 +103,12 @@ textarea {
   font: inherit;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .stack {
   display: grid;
   gap: 16px;

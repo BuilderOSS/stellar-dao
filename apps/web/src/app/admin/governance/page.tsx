@@ -8,12 +8,12 @@ import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { DurationInput } from '@/components/admin/duration-input';
-import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Badge, Button, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
 import { useMercuryGovernorAuthorities } from '@/lib/mercury-queries';
 import { formatDuration } from '@/lib/format-duration';
+import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 import { type SignTransaction } from '@stellar/stellar-sdk/contract';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -59,10 +59,10 @@ export default function GovernanceAdminPage() {
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [drafts, setDrafts] = useState<Drafts>(EMPTY_DRAFTS);
+  const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [activeAction, setActiveAction] = useState<GovernorSettingKey | ''>('');
-  const [status, setStatus] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const tx = useTransactionFeedback(config.name);
   const { data: settings, mutate: refreshSettings, error: settingsError, isLoading: settingsLoading } = useGovernorSettings(config, session.address || config.adminAddress);
   const { data: governorAuthorities, error: authorityError, isLoading: authorityLoading, mutate: refreshAuthorities } = useMercuryGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
@@ -92,23 +92,33 @@ export default function GovernanceAdminPage() {
 
   async function submitGovernorUpdate(action: GovernorSettingKey, label: string, run: (governor: GovernorClient) => Promise<string>) {
     if (!hasGovernanceAccess) {
-      setStatus('Connect a governance authority wallet first.');
+      setFormMessage('Connect a governance authority wallet first.');
+      return;
+    }
+
+    if (!session.address) {
+      setFormMessage('Connect a governance authority wallet first.');
+      return;
+    }
+
+    if (!config.governorContractId) {
+      setFormMessage('Missing governor contract id in the active network config.');
       return;
     }
 
     setBusy(true);
     setActiveAction(action);
-    setStatus(`Applying ${label.toLowerCase()}...`);
-    setTxHash('');
+    setFormMessage('');
+    tx.start(`Applying ${label.toLowerCase()}...`);
 
     try {
       const governor = await getGovernor();
       const hash = await run(governor);
-      setStatus(`${label} updated`);
-      setTxHash(hash);
+      tx.success(`${label} updated`, hash);
+      setFormMessage('');
       await Promise.all([refreshSettings(), refreshAuthorities()]);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : `${label} update failed`);
+      tx.fail(error, `${label} update failed`);
     } finally {
       setBusy(false);
       setActiveAction('');
@@ -119,12 +129,12 @@ export default function GovernanceAdminPage() {
     if (!settings) return;
     const value = parseWholeNumber(drafts.votingDelay ?? String(settings.votingDelay));
     if (value === null) {
-      setStatus('Voting delay must be a whole number.');
+      setFormMessage('Voting delay must be a whole number.');
       return;
     }
 
     if (value === settings.votingDelay) {
-      setStatus('Voting delay is unchanged.');
+      setFormMessage('Voting delay is unchanged.');
       return;
     }
 
@@ -139,12 +149,12 @@ export default function GovernanceAdminPage() {
     if (!settings) return;
     const value = parseWholeNumber(drafts.votingPeriod ?? String(settings.votingPeriod));
     if (value === null) {
-      setStatus('Voting period must be a whole number.');
+      setFormMessage('Voting period must be a whole number.');
       return;
     }
 
     if (value === settings.votingPeriod) {
-      setStatus('Voting period is unchanged.');
+      setFormMessage('Voting period is unchanged.');
       return;
     }
 
@@ -159,12 +169,12 @@ export default function GovernanceAdminPage() {
     if (!settings) return;
     const value = parseBigIntValue(drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold));
     if (value === null) {
-      setStatus('Proposal threshold must be a whole number.');
+      setFormMessage('Proposal threshold must be a whole number.');
       return;
     }
 
     if (value === settings.proposalThreshold) {
-      setStatus('Proposal threshold is unchanged.');
+      setFormMessage('Proposal threshold is unchanged.');
       return;
     }
 
@@ -179,12 +189,12 @@ export default function GovernanceAdminPage() {
     if (!settings) return;
     const value = parseWholeNumber(drafts.quorumBps ?? String(settings.quorumBps));
     if (value === null) {
-      setStatus('Quorum must be a whole number.');
+      setFormMessage('Quorum must be a whole number.');
       return;
     }
 
     if (value === settings.quorumBps) {
-      setStatus('Quorum is unchanged.');
+      setFormMessage('Quorum is unchanged.');
       return;
     }
 
@@ -244,8 +254,7 @@ export default function GovernanceAdminPage() {
               </div>
 
               {settingsError ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{settingsError.message}</Text> : null}
-              {status ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{status}</Text> : null}
-              {txHash ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
+              {formMessage ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{formMessage}</Text> : null}
             </Stack>
           </Card>
 

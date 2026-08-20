@@ -7,13 +7,13 @@ import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { TxExplorerLink } from '@/components/tx-explorer-link';
 import { Button, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { keccak256Bytes } from '@/lib/keccak';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { proposalActionMode } from '@/lib/proposal-state';
 import { normalizeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
+import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useVotingPower } from '@/lib/voting-power';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalOutcomeCallout } from '@/components/proposal/proposal-outcome-callout';
@@ -81,9 +81,9 @@ export default function ProposalDetailPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const [voteReason, setVoteReason] = useState('');
   const [selectedVoteType, setSelectedVoteType] = useState<number | null>(null);
+  const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const tx = useTransactionFeedback(config.name);
   const [now, setNow] = useState(() => Date.now());
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -123,9 +123,18 @@ export default function ProposalDetailPage() {
 
   async function submitVote(voteType: number) {
     if (!detail) return;
+    if (!session.address) {
+      setFormMessage('Connect a wallet first.');
+      return;
+    }
+    if (!config.governorContractId) {
+      setFormMessage('Missing governor contract id.');
+      return;
+    }
+
     setBusy(true);
-    setStatus('Submitting vote...');
-    setTxHash('');
+    setFormMessage('');
+    tx.start('Submitting vote...');
 
     try {
       const governor = await getGovernor();
@@ -136,22 +145,34 @@ export default function ProposalDetailPage() {
         voter: session.address
       });
       const sent = await assembled.signAndSend();
-      setStatus('Vote submitted');
-      setTxHash(sent.sendTransactionResponse?.hash ?? '');
+      tx.success('Vote submitted', sent.sendTransactionResponse?.hash ?? '');
       setVoteReason('');
       setSelectedVoteType(null);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Vote failed');
+      tx.fail(err, 'Vote failed');
     } finally {
       setBusy(false);
     }
   }
 
   async function queueProposal() {
-    if (!detail || !config.treasuryContractId) return;
+    if (!detail) return;
+    if (!session.address) {
+      setFormMessage('Connect a wallet first.');
+      return;
+    }
+    if (!config.governorContractId) {
+      setFormMessage('Missing governor contract id.');
+      return;
+    }
+    if (!config.treasuryContractId) {
+      setFormMessage('Missing treasury contract id.');
+      return;
+    }
+
     setBusy(true);
-    setStatus('Queueing proposal...');
-    setTxHash('');
+    setFormMessage('');
+    tx.start('Queueing proposal...');
 
     try {
       const governor = await getGovernor();
@@ -181,24 +202,35 @@ export default function ProposalDetailPage() {
 
       const assembled = await governor.queue(payload);
       const sent = await assembled.signAndSend();
-      setStatus('Proposal queued');
-      setTxHash(sent.sendTransactionResponse?.hash ?? '');
+      tx.success('Proposal queued', sent.sendTransactionResponse?.hash ?? '');
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Queue failed');
+      tx.fail(err, 'Queue failed');
     } finally {
       setBusy(false);
     }
   }
 
   async function executeProposal() {
-    if (!detail || !config.treasuryContractId || !config.tokenContractId) return;
+    if (!detail) return;
+    if (!session.address) {
+      setFormMessage('Connect a wallet first.');
+      return;
+    }
+    if (!config.governorContractId) {
+      setFormMessage('Missing governor contract id.');
+      return;
+    }
+    if (!config.treasuryContractId || !config.tokenContractId) {
+      setFormMessage('Missing DAO contract ids in the active network config.');
+      return;
+    }
     if (detail.eta && Date.now() < detail.eta * 1000) {
-      setStatus('Queued proposal is not ready to execute yet.');
+      setFormMessage('Queued proposal is not ready to execute yet.');
       return;
     }
     setBusy(true);
-    setStatus('Executing proposal...');
-    setTxHash('');
+    setFormMessage('');
+    tx.start('Executing proposal...');
 
     try {
       const governor = await getGovernor();
@@ -211,10 +243,9 @@ export default function ProposalDetailPage() {
         executor: session.address
       });
       const sent = await assembled.signAndSend();
-      setStatus('Proposal executed');
-      setTxHash(sent.sendTransactionResponse?.hash ?? '');
+      tx.success('Proposal executed', sent.sendTransactionResponse?.hash ?? '');
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Execute failed');
+      tx.fail(err, 'Execute failed');
     } finally {
       setBusy(false);
     }
@@ -282,8 +313,7 @@ export default function ProposalDetailPage() {
           ) : null}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <Text className="lede" style={{ margin: 0 }}>{status}</Text>
-            {txHash ? <Text className="lede" style={{ margin: 0 }}><TxExplorerLink network={config.name} txHash={txHash} /></Text> : null}
+            {formMessage ? <Text className="lede" style={{ margin: 0 }}>{formMessage}</Text> : null}
             <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
               {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
