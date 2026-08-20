@@ -87,7 +87,9 @@ export default function OwnerPage() {
 
     setBusy(true);
     setFormMessage('');
-    tx.start(enabled ? 'Saving authority grant...' : 'Saving authority revoke...');
+    const authorityType = method == "set_mint_authority" ? "Mint" : "Governor";
+    const actionType = enabled ? "Granting" : "Revoking";
+    tx.start(`${actionType} ${authorityType} Authority...`);
 
     try {
       const sent = await submitAuthorityUpdate(config, session.address, method, authority, enabled);
