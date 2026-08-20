@@ -20,14 +20,18 @@ function formatTimestamp(timestamp: number) {
 }
 
 const ACTIVITY_PAGE_SIZE = 12;
+const TOKEN_PAGE_SIZE = 8;
 
 export default function Page() {
   const network = getDefaultDaoNetwork();
   const config = getDaoNetworkConfig(network);
   const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
+  const [tokenLimit, setTokenLimit] = useState(TOKEN_PAGE_SIZE);
   const { data: mercuryStatuses, error: mercuryStatusError, isLoading: mercuryStatusLoading, mutate: refreshStatuses } = useMercuryProgramStatuses();
   const { data: mercuryFeed, error: mercuryFeedError, isLoading: mercuryFeedLoading, mutate: refreshFeed } = useMercuryActivityFeed(activityLimit);
   const { data: tokens, error: tokenError, isLoading: tokenLoading, mutate: refreshTokens } = useTokenInventory();
+  const tokenItems = tokens?.items.slice(0, tokenLimit) ?? [];
+  const canLoadMoreTokens = Boolean(tokens && tokens.items.length > tokenLimit);
   const activityItems = mercuryFeed?.items.slice(0, activityLimit) ?? [];
   const canLoadMoreActivity = Boolean(mercuryFeed && mercuryFeed.items.length >= activityLimit);
 
@@ -84,11 +88,20 @@ export default function Page() {
             {!tokenLoading && !tokens?.items.length ? (
               <Text className="lede" style={{ margin: 0 }}>No tokens indexed yet.</Text>
             ) : (
-              <div className="token-inventory-grid">
-                {tokens?.items.map((token) => (
-                  <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
-                ))}
-              </div>
+              <>
+                <div className="token-inventory-grid">
+                  {tokenItems.map((token) => (
+                    <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
+                  ))}
+                </div>
+                {canLoadMoreTokens ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setTokenLimit((current) => current + TOKEN_PAGE_SIZE)} disabled={tokenLoading}>
+                      {tokenLoading ? 'Loading...' : 'Show more tokens'}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             )}
           </Stack>
           <style jsx>{`
