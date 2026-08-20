@@ -4,6 +4,8 @@ import { proposalStateBadgeStyle } from '@/lib/proposal-state';
 
 type ProposalQuorumProgressProps = {
   forVotes: bigint;
+  againstVotes: bigint;
+  abstainVotes: bigint;
   quorumVotes: bigint;
   totalVotes: bigint;
 };
@@ -18,29 +20,31 @@ function formatPercent(value: bigint, quorumVotes: bigint) {
   return Number.isFinite(pct) ? pct : null;
 }
 
-export function ProposalQuorumProgress({ forVotes, quorumVotes, totalVotes }: ProposalQuorumProgressProps) {
+export function ProposalQuorumProgress({ forVotes, againstVotes, abstainVotes, quorumVotes, totalVotes }: ProposalQuorumProgressProps) {
   if (totalVotes <= 0n || quorumVotes <= 0n) {
     return null;
   }
 
-  const met = forVotes >= quorumVotes;
-  const remaining = met ? 0n : quorumVotes - forVotes;
-  const fillPct = met ? 100 : Math.max(0, Math.min(Number((forVotes * 100n) / quorumVotes), 100));
-  const pct = formatPercent(forVotes, quorumVotes);
-  const footer = `${formatBigInt(forVotes)} of ${formatBigInt(quorumVotes)} For ${quorumVotes === 1n ? 'vote' : 'votes'}`;
+  const participationVotes = forVotes + abstainVotes;
+  const quorumMet = participationVotes >= quorumVotes;
+  const approvalMet = forVotes > againstVotes;
+  const remaining = quorumMet ? 0n : quorumVotes - participationVotes;
+  const fillPct = quorumMet ? 100 : Math.max(0, Math.min(Number((participationVotes * 100n) / quorumVotes), 100));
+  const pct = formatPercent(participationVotes, quorumVotes);
+  const footer = `${formatBigInt(participationVotes)} of ${formatBigInt(quorumVotes)} For + Abstain ${quorumVotes === 1n ? 'vote' : 'votes'}`;
 
   return (
     <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
       <Stack gap="3">
         <Box display="flex" justifyContent="space-between" alignItems="center" gap="3">
-          <Text className="label">Quorum</Text>
-          <Badge style={proposalStateBadgeStyle(met ? 'Succeeded' : 'Pending')}>
-            {met ? 'Reached' : `${formatBigInt(remaining)} to go`}
+          <Text className="label">Participation quorum</Text>
+          <Badge style={proposalStateBadgeStyle(quorumMet ? 'Succeeded' : 'Pending')}>
+            {quorumMet ? 'Reached' : `${formatBigInt(remaining)} to go`}
           </Badge>
         </Box>
 
         <Box display="flex" alignItems="baseline" gap="2">
-          <Text style={{ fontSize: '1.75rem', lineHeight: 1, margin: 0, fontWeight: 700 }}>{formatBigInt(forVotes)}</Text>
+          <Text style={{ fontSize: '1.75rem', lineHeight: 1, margin: 0, fontWeight: 700 }}>{formatBigInt(participationVotes)}</Text>
           <Text className="lede" style={{ margin: 0, fontSize: '0.95rem' }}>/ {formatBigInt(quorumVotes)} needed</Text>
         </Box>
 
@@ -58,11 +62,11 @@ export function ProposalQuorumProgress({ forVotes, quorumVotes, totalVotes }: Pr
           <Box
             h="100%"
             w={`${fillPct}%`}
-            minW={forVotes > 0n ? '4px' : '0'}
+            minW={participationVotes > 0n ? '4px' : '0'}
             borderRadius="999px"
             style={{ background: 'linear-gradient(90deg, rgba(11, 105, 57, 1) 0%, rgba(22, 163, 74, 1) 100%)' }}
           />
-          {!met ? (
+          {!quorumMet ? (
             <Box
               aria-hidden="true"
               position="absolute"
@@ -76,7 +80,7 @@ export function ProposalQuorumProgress({ forVotes, quorumVotes, totalVotes }: Pr
           ) : null}
         </Box>
 
-        {!met ? (
+        {!quorumMet ? (
           <Box position="relative" h="4">
             <Text className="lede" style={{ margin: 0, fontSize: '0.8rem', position: 'absolute', right: 0, whiteSpace: 'nowrap' }}>
               Quorum {formatBigInt(quorumVotes)}
@@ -85,6 +89,14 @@ export function ProposalQuorumProgress({ forVotes, quorumVotes, totalVotes }: Pr
         ) : null}
 
         <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>{footer}</Text>
+        <Box display="flex" justifyContent="space-between" alignItems="center" gap="3" flexWrap="wrap">
+          <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+            Approval requires For votes to exceed Against votes.
+          </Text>
+          <Badge style={proposalStateBadgeStyle(approvalMet ? 'Succeeded' : 'Defeated')}>
+            {approvalMet ? 'Approval met' : 'Approval not met'}
+          </Badge>
+        </Box>
       </Stack>
     </Card>
   );

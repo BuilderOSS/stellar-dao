@@ -95,7 +95,13 @@ export function ProposalVoteSummary({ votes, quorumVotes }: ProposalVoteSummaryP
             {grouped.totalCount} {grouped.totalCount === 1 ? 'vote' : 'votes'} cast • {formatWeight(grouped.totalVotes)} total voting power
           </Text>
         ) : null}
-        <ProposalQuorumProgress forVotes={grouped.forWeight} quorumVotes={quorumValue} totalVotes={grouped.totalVotes} />
+        <ProposalQuorumProgress
+          forVotes={grouped.forWeight}
+          againstVotes={grouped.againstWeight}
+          abstainVotes={grouped.abstainWeight}
+          quorumVotes={quorumValue}
+          totalVotes={grouped.totalVotes}
+        />
       </Stack>
     </Card>
   );
