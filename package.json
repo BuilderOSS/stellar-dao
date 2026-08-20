@@ -13,6 +13,8 @@
     "dao:test:e2e": "cargo test -p dao-e2e",
     "dao:deploy:local": "node scripts/deploy-dao.mjs configs/local.json",
     "dao:deploy:testnet": "node scripts/deploy-dao.mjs configs/testnet.json",
+    "mercury:deploy:local": "node scripts/deploy-dao-mercury.mjs configs/local.json",
+    "mercury:deploy:testnet": "node scripts/deploy-dao-mercury.mjs configs/testnet.json",
     "dao:local:up": "node scripts/dao-local-up.mjs",
     "dao:local:down": "node scripts/dao-local-down.mjs",
     "dao:setup:local": "node scripts/dao-setup-local.mjs"
