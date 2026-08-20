@@ -23,7 +23,7 @@ import {
   type ProposalQueuedAction
 } from '@/lib/proposal-call';
 import { proposalIdFromBuffer } from '@/lib/proposal-id';
-import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
+import { encodeProposalMetadata, type ProposalMetadataDraft, validateProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { validateStellarAddress } from '@/lib/validate-address';
@@ -122,6 +122,7 @@ export default function ProposalCreatePage() {
   const treasuryAssets = useMemo(() => getTreasuryAssets(config.name as 'testnet' | 'mainnet' | 'local'), [config.name]);
 
   const proposalDescription = useMemo(() => encodeProposalMetadata(metadata), [metadata]);
+  const metadataValidation = useMemo(() => validateProposalMetadataDraft(metadata), [metadata]);
   const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
   const proposalEligibilityError = votingPowerError ?? governorSettingsError;
   const hasProposalVotes = Boolean(votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold);
@@ -140,7 +141,7 @@ export default function ProposalCreatePage() {
     : '';
   const actionMintAuthorityError = requiresTreasuryMintAuthority(actionType) ? mintAuthorityError : '';
   const queuedActionsNeedMintAuthority = queuedActions.some((action) => requiresTreasuryMintAuthority(action.type));
-  const metadataIsValid = metadata.title.trim().length > 0 && metadata.description.trim().length > 0;
+  const metadataIsValid = metadataValidation.valid;
   const recipientValidation = validateStellarAddress(recipient);
   const recipientIsValid = recipientValidation.isValid;
   const recipientError = recipient.trim().length > 0 && !recipientValidation.isValid ? recipientValidation.error : undefined;
@@ -324,7 +325,7 @@ export default function ProposalCreatePage() {
     }
 
     if (!metadataIsValid) {
-      setFormMessage('Title and description are required.');
+      setFormMessage(metadataValidation.message);
       return;
     }
 
@@ -393,7 +394,7 @@ export default function ProposalCreatePage() {
     }
 
     if (!metadataIsValid) {
-      setFormMessage('Title and description are required.');
+      setFormMessage(metadataValidation.message);
       return;
     }
 
@@ -482,6 +483,7 @@ export default function ProposalCreatePage() {
                     placeholder="Optional URL"
                     disabled={proposalCreationLocked}
                   />
+                  {!metadataValidation.valid ? <Callout variant="warning" title={metadataValidation.message} /> : null}
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <Button type="button" onClick={advanceFromMetadata} disabled={!metadataIsValid || proposalCreationLocked}>
                       Next
