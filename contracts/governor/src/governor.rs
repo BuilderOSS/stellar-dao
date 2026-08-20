@@ -1,6 +1,7 @@
 use core::convert::TryInto;
 
 use soroban_sdk::{
+    auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
     contract, contractimpl, contracttype, panic_with_error, vec, Address, BytesN, Env, IntoVal,
     String, Symbol, Val, Vec,
 };
@@ -865,6 +866,26 @@ impl Governor for DaoGovernorContract {
             let target = targets.get(i).unwrap();
             let function = functions.get(i).unwrap();
             let call_args = args.get(i).unwrap();
+            let treasury_args = vec![
+                e,
+                target.clone().into_val(e),
+                function.clone().into_val(e),
+                call_args.clone().into_val(e),
+            ];
+
+            // Authorize this contract to call treasury.execute for the approved action.
+            // The treasury contract handles authorizing the final downstream call itself.
+            e.authorize_as_current_contract(vec![
+                e,
+                InvokerContractAuthEntry::Contract(SubContractInvocation {
+                    context: ContractContext {
+                        contract: treasury.clone(),
+                        fn_name: execute_symbol.clone(),
+                        args: treasury_args.clone(),
+                    },
+                    sub_invocations: vec![e],
+                }),
+            ]);
 
             #[cfg(feature = "mercury")]
             let action_index: u32 = i
@@ -872,13 +893,6 @@ impl Governor for DaoGovernorContract {
                 .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow));
 
             // Build args for treasury.execute(target, function, args)
-            let treasury_args = vec![
-                e,
-                target.into_val(e),
-                function.into_val(e),
-                call_args.into_val(e),
-            ];
-
             e.invoke_contract::<Val>(&treasury, &execute_symbol, treasury_args);
 
             // Emit event for each action

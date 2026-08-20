@@ -731,7 +731,7 @@ fn treasury_batch_mint_with_explicit_auth() {
             1_000_u32,
         ),
     );
-    let governor = DaoGovernorContractClient::new(&e, &governor_id);
+    let _governor = DaoGovernorContractClient::new(&e, &governor_id);
 
     let recipient = Address::generate(&e);
 
