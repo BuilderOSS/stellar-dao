@@ -33,7 +33,7 @@ export function buildTokenMetadata(tokenId: number, baseUrl: string) {
 }
 
 export function buildTokenImageSvg(tokenId: number) {
-  const rng = mulberry32(tokenId || 1);
+  const rng = mulberry32(tokenId ?? 1);
   const background = toColor(rng());
   const accent = toColor(rng());
   const accent2 = toColor(rng());
