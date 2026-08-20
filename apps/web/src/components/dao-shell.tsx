@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
@@ -132,14 +133,31 @@ export function DaoShell({ children }: { children: ReactNode }) {
       <Card p="6">
         <Stack gap="5">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Stack gap="1">
-              <Text className="eyebrow">DAO governance</Text>
-              <Heading style={{ fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1.02, margin: 0 }}>
-                {currentNetwork.tokenName}
-              </Heading>
-              <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
-                {currentNetwork.tokenDescription}
-              </Text>
+            <Stack gap="3" style={{ minWidth: 0 }}>
+              <Text className="eyebrow" style={{ margin: 0 }}>DAO governance</Text>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start', minWidth: 0 }}>
+                <Image
+                  src="/icon.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width="76"
+                  height="76"
+                  style={{
+                    border: '1px solid rgba(91, 181, 255, 0.28)',
+                    borderRadius: '24px',
+                    boxShadow: '0 22px 54px rgba(0, 133, 255, 0.22)',
+                    flex: '0 0 auto'
+                  }}
+                />
+                <Stack gap="1" style={{ minWidth: 0 }}>
+                  <Heading style={{ fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1.02, margin: 0 }}>
+                    {currentNetwork.tokenName}
+                  </Heading>
+                  <Text className="lede" style={{ margin: 0, maxWidth: '72ch' }}>
+                    {currentNetwork.tokenDescription}
+                  </Text>
+                </Stack>
+              </div>
             </Stack>
 
             <Grid columns={1} gap="3">
