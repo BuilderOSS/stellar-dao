@@ -5,11 +5,11 @@ members = [
 ]
 
 [workspace.dependencies]
-soroban-sdk = { version = "27.0.2", features = ["experimental_spec_shaking_v2"] }
-stellar-access = { path = "../../openzeppelin/stellar-contracts/packages/access", version = "0.7.1" }
-stellar-governance = { path = "../../openzeppelin/stellar-contracts/packages/governance", version = "0.7.1" }
-stellar-macros = { path = "../../openzeppelin/stellar-contracts/packages/macros", version = "0.7.1" }
-stellar-tokens = { path = "../../openzeppelin/stellar-contracts/packages/tokens", version = "0.7.1" }
+soroban-sdk = { version = "27.0.6", features = ["experimental_spec_shaking_v2"] }
+stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "fbfde38" }
+stellar-governance = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "fbfde38" }
+stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "fbfde38" }
+stellar-tokens = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "fbfde38" }
 
 [profile.release]
 opt-level = "z"
