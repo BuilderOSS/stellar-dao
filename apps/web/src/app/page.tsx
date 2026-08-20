@@ -78,13 +78,27 @@ export default function Page() {
             {!tokenLoading && !tokens?.items.length ? (
               <Text className="lede" style={{ margin: 0 }}>No tokens indexed yet.</Text>
             ) : (
-              <Grid columns={{ base: 1, md: 2, xl: 3 }} gap="4">
+              <div className="token-inventory-grid">
                 {tokens?.items.map((token) => (
                   <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
                 ))}
-              </Grid>
+              </div>
             )}
           </Stack>
+          <style jsx>{`
+            .token-inventory-grid {
+              display: grid;
+              gap: 18px;
+              grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+
+            @media (min-width: 768px) {
+              .token-inventory-grid {
+                gap: 20px;
+                grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+              }
+            }
+          `}</style>
         </Card>
 
         <Card p="5">
