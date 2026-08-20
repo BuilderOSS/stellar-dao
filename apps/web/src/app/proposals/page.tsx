@@ -15,6 +15,11 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 
+function shorten(value: string) {
+  if (value.length <= 16) return value;
+  return `${value.slice(0, 6)}…${value.slice(-6)}`;
+}
+
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
   try {
@@ -97,16 +102,14 @@ export default function ProposalsPage() {
                 <Card key={item.proposalId} p="4">
                   <Link href={`/proposals/${item.proposalId}`} style={{ textDecoration: 'none' }}>
                     <Stack gap="2">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <Text className="mono" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                          {shorten(item.proposalId)}
+                        </Text>
                         <ProposalStateBadge label={item.stateLabel} />
-                        <Badge>{item.metadata.title}</Badge>
                       </div>
-                      <Heading style={{ fontSize: '1.1rem' }}>{item.metadata.description}</Heading>
-                      {item.metadata.url ? (
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{item.metadata.url}</Text>
-                      ) : null}
+                      <Heading style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{item.metadata.title}</Heading>
                       <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{formatTimestamp(item.timestamp)}</Text>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Ledger {item.ledger}</Text>
                     </Stack>
                   </Link>
                 </Card>
