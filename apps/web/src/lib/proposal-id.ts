@@ -1,5 +1,9 @@
 import { Buffer } from 'buffer';
 
+export function proposalIdFromBuffer(proposalId: Buffer | Uint8Array) {
+  return Buffer.from(proposalId).toString('hex');
+}
+
 export function proposalIdToBuffer(proposalId: string) {
   const normalized = proposalId.startsWith('0x') ? proposalId.slice(2) : proposalId;
   const decoded = /^[0-9a-fA-F]+$/.test(normalized) && normalized.length % 2 === 0

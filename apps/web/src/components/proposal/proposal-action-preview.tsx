@@ -58,7 +58,7 @@ export function ProposalActionPreview({ targets, functions, args, tokenContractI
     <Card p="5">
       <Stack gap="3">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <Badge>Proposal actions</Badge>
+          <Text className="label">Proposal actions</Text>
           <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{functions.length} action{functions.length === 1 ? '' : 's'}</Text>
         </div>
 

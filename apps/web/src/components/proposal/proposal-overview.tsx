@@ -1,4 +1,5 @@
 import { Card, Heading, ShortId, Text } from '@/components/ui';
+import type { ReactNode } from 'react';
 import { Grid, Stack } from 'styled-system/jsx';
 import type { ProposalDetail } from './types';
 import { ProposalStateBadge } from './proposal-state-badge';
@@ -10,6 +11,7 @@ type ProposalOverviewProps = {
   detail: ProposalDetail;
   now: number;
   network: DaoNetworkName;
+  actionSlot?: ReactNode;
 };
 
 function formatCountdown(target: number, now: number) {
@@ -106,50 +108,80 @@ function getTimeline(detail: ProposalDetail, now: number) {
   }
 }
 
-export function ProposalOverview({ detail, now, network }: ProposalOverviewProps) {
+export function ProposalOverview({ detail, now, network, actionSlot }: ProposalOverviewProps) {
   const timeline = getTimeline(detail, now);
 
   return (
-    <Card p="5">
-      <Stack gap="3">
-        <div>
-          <ProposalStateBadge label={detail.label} />
-        </div>
-        <Card p="4" style={{ background: 'rgba(157, 179, 203, 0.08)', border: '1px solid rgba(157, 179, 203, 0.18)' }}>
+    <Stack gap="3">
+      <Card p="4" style={{ background: 'rgba(157, 179, 203, 0.08)', border: '1px solid rgba(157, 179, 203, 0.18)' }}>
+        <Stack gap="3">
+          <div>
+            <ProposalStateBadge label={detail.label} />
+          </div>
           <Stack gap="1">
             <Text className="label">{timeline.eyebrow}</Text>
             <Heading style={{ fontSize: '1.5rem' }}>{timeline.headline}</Heading>
             <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{timeline.subline}</Text>
           </Stack>
+        </Stack>
+      </Card>
+
+      {actionSlot}
+
+      <Grid columns={{ base: 1, lg: 3 }} gap="3">
+        <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
+          <Stack gap="1">
+            <Text className="label">Snapshot</Text>
+            <a href={getExplorerLedgerUrl(network, detail.vote_snapshot)} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>Ledger #{detail.vote_snapshot}</Text>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Open in Stellar Expert</Text>
+            </a>
+          </Stack>
         </Card>
-        <Heading style={{ fontSize: '1.35rem' }}>{detail.metadata.title}</Heading>
-        <Grid columns={{ base: 1, md: 2 }} gap="3">
-          <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
+        <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
+          <Stack gap="1">
+            <Text className="label">Proposer</Text>
+            <ShortId value={detail.proposer} />
+            <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Snapshot ledger #{detail.vote_snapshot}</Text>
+          </Stack>
+        </Card>
+        <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
+          <ShortId value={detail.proposalId} label="Proposal id" />
+        </Card>
+      </Grid>
+
+      <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)', background: 'rgba(157, 179, 203, 0.06)' }}>
+        <Stack gap="3">
+          <Text className="label">Proposal brief</Text>
+          <Stack gap="1">
+            <Text className="label">Description</Text>
+            <Text
+              className="lede"
+              style={{
+                lineHeight: 1.65,
+                margin: 0,
+                overflowWrap: 'anywhere',
+                whiteSpace: 'pre-wrap'
+              }}
+            >
+              {detail.metadata.description || 'No description provided.'}
+            </Text>
+          </Stack>
+          {detail.metadata.url ? (
             <Stack gap="1">
-              <Text className="label">Snapshot</Text>
-              <a href={getExplorerLedgerUrl(network, detail.vote_snapshot)} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>Ledger #{detail.vote_snapshot}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Open in Stellar Expert</Text>
+              <Text className="label">Reference link</Text>
+              <a
+                href={detail.metadata.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'inherit', overflowWrap: 'anywhere' }}
+              >
+                {detail.metadata.url}
               </a>
             </Stack>
-          </Card>
-          <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)' }}>
-            <Stack gap="1">
-              <Text className="label">Proposer</Text>
-              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>{detail.proposer}</Text>
-              <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>Snapshot ledger #{detail.vote_snapshot}</Text>
-            </Stack>
-          </Card>
-        </Grid>
-        <Stack gap="2">
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Description: {detail.metadata.description || '—'}</Text>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>URL: {detail.metadata.url || '—'}</Text>
-          {detail.metadata.url ? (
-            <a href={detail.metadata.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{detail.metadata.url}</a>
           ) : null}
         </Stack>
-        <ShortId value={detail.proposalId} label="Proposal id" />
-      </Stack>
-    </Card>
+      </Card>
+    </Stack>
   );
 }

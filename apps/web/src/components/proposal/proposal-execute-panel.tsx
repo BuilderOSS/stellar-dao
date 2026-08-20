@@ -13,7 +13,6 @@ export function ProposalExecutePanel({ busy, now, eta, onExecute }: ProposalExec
 
   return (
     <ProposalLifecyclePanel
-      badge="Execution"
       title="Execute proposal"
       description={ready ? 'This proposal is queued and ready to execute on-chain.' : 'This proposal is queued and will become executable when the ETA in the overview is reached.'}
     >

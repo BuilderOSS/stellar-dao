@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
@@ -20,6 +21,7 @@ import {
   type ProposalActionType,
   type ProposalQueuedAction
 } from '@/lib/proposal-call';
+import { proposalIdFromBuffer } from '@/lib/proposal-id';
 import { encodeProposalMetadata, type ProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { validateStellarAddress } from '@/lib/validate-address';
@@ -86,6 +88,7 @@ function formatProposalCreationDisabledMessage(votingPower: VotingPowerSnapshot 
 }
 
 export default function ProposalCreatePage() {
+  const router = useRouter();
   const session = useDaoSessionStore();
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
   const { data: mintAuthorities, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
@@ -358,10 +361,12 @@ export default function ProposalCreatePage() {
         proposer: session.address
       });
 
+      const proposalId = assembled.result ? proposalIdFromBuffer(assembled.result) : '';
       const sent = await assembled.signAndSend();
       resetComposer();
       setFormMessage('');
       tx.success('Proposal submitted', sent.sendTransactionResponse?.hash ?? '');
+      router.push(proposalId ? `/proposals/${proposalId}` : '/proposals');
     } catch (error) {
       tx.fail(error, 'Proposal failed');
     } finally {

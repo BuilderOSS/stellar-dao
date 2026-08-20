@@ -9,7 +9,6 @@ type ProposalQueuePanelProps = {
 export function ProposalQueuePanel({ busy, onQueue }: ProposalQueuePanelProps) {
   return (
     <ProposalLifecyclePanel
-      badge="Next step"
       title="Queue proposal"
       description="This proposal passed. Queue it to make it eligible for execution."
     >

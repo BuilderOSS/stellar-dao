@@ -276,46 +276,51 @@ export default function ProposalDetailPage() {
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">
-          {detail ? <ProposalOverview detail={detail} now={now} network={config.name} /> : null}
+          {detail ? (
+            <ProposalOverview
+              detail={detail}
+              now={now}
+              network={config.name}
+              actionSlot={
+                actionMode === 'vote' ? (
+                  <ProposalVotePanel
+                    canVote={canVote}
+                    busy={busy}
+                    voteReason={voteReason}
+                    selectedVoteType={selectedVoteType}
+                    votingPower={votingPower?.votes.toString() ?? null}
+                    votingPowerLoading={votingPowerLoading}
+                    votingPowerError={votingPowerError?.message ?? ''}
+                    unavailableReason={voteUnavailableReason}
+                    onVoteReasonChange={setVoteReason}
+                    onSelectedVoteTypeChange={setSelectedVoteType}
+                    onVote={(voteType) => void submitVote(voteType)}
+                    currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
+                  />
+                ) : actionMode === 'queue' ? (
+                  <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
+                ) : actionMode === 'execute' ? (
+                  <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
+                ) : actionMode === 'outcome' ? (
+                  <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />
+                ) : null
+              }
+            />
+          ) : null}
           {errorMessage ? <Callout variant="error" title={errorMessage} /> : null}
+
           {detail ? <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} tokenContractId={config.tokenContractId} /> : null}
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
-            {detail && actionMode === 'vote' ? (
-              <ProposalVotePanel
-                canVote={canVote}
-                busy={busy}
-                voteReason={voteReason}
-                selectedVoteType={selectedVoteType}
-                votingPower={votingPower?.votes.toString() ?? null}
-                votingPowerLoading={votingPowerLoading}
-                votingPowerError={votingPowerError?.message ?? ''}
-                unavailableReason={voteUnavailableReason}
-                onVoteReasonChange={setVoteReason}
-                onSelectedVoteTypeChange={setSelectedVoteType}
-                onVote={(voteType) => void submitVote(voteType)}
-                currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
+            {detail ? (
+              <ProposalVoteHistory
+                votes={votes}
+                voteLabelForSupport={voteLabelForSupport}
+                formatTimestamp={formatTimestamp}
               />
             ) : null}
-            {detail && actionMode === 'queue' ? (
-              <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
-            ) : null}
-            {detail && actionMode === 'execute' ? (
-              <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
-            ) : null}
-            {detail && actionMode === 'outcome' ? (
-              <ProposalOutcomeCallout stateLabel={outcomeStateLabel()} />
-            ) : null}
           </Grid>
-
-          {detail ? (
-            <ProposalVoteHistory
-              votes={votes}
-              voteLabelForSupport={voteLabelForSupport}
-              formatTimestamp={formatTimestamp}
-            />
-          ) : null}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
             {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
