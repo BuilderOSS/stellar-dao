@@ -284,7 +284,7 @@ function toTokenItemFromRow(row: TokenEventRow): TokenInventoryItem | null {
   const tokenId = asNumber(row.token_id);
   const owner = asString(row.to);
 
-  if (!tokenId || !owner) return null;
+  if (tokenId == null || tokenId < 0 || !owner) return null;
 
   return {
     tokenId,
