@@ -5,14 +5,14 @@ use soroban_sdk::{
     String, Symbol, Val, Vec,
 };
 use stellar_access::ownable::{set_owner, Ownable};
-use stellar_macros::only_owner;
 use stellar_governance::{
     governor::{
-        self as governor, emit_proposal_cancelled, emit_proposal_created,
-        emit_proposal_executed, emit_vote_cast, Governor, GovernorError, ProposalState,
+        self as governor, emit_proposal_cancelled, emit_proposal_created, emit_proposal_executed,
+        emit_vote_cast, Governor, GovernorError, ProposalState,
     },
     votes::VotesClient,
 };
+use stellar_macros::only_owner;
 
 #[cfg(feature = "mercury")]
 mod retroshade {
@@ -166,8 +166,8 @@ enum GovernorKey {
 struct ProposalCoreTime {
     proposer: Address,
     vote_snapshot: u32,
-    vote_start: u64,  // Changed to u64 to store timestamps without conversion
-    vote_end: u64,    // Changed to u64 to store timestamps without conversion
+    vote_start: u64, // Changed to u64 to store timestamps without conversion
+    vote_end: u64,   // Changed to u64 to store timestamps without conversion
     eta: u64,
     state: ProposalState,
 }
@@ -209,10 +209,14 @@ impl DaoGovernorContract {
         governor::set_token_contract(e, &token_contract);
         governor::set_voting_delay(e, voting_delay);
         governor::set_voting_period(e, voting_period);
-        e.storage().instance().set(&GovernorKey::QueueDelay, &queue_delay);
+        e.storage()
+            .instance()
+            .set(&GovernorKey::QueueDelay, &queue_delay);
         governor::set_proposal_threshold(e, proposal_threshold);
         governor::set_quorum(e, quorum_bps as u128);
-        e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
+        e.storage()
+            .instance()
+            .set(&GovernorKey::Treasury, &treasury_contract);
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorInitializedIndexed {
@@ -238,7 +242,9 @@ impl DaoGovernorContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_treasury = Self::treasury(e);
-        e.storage().instance().set(&GovernorKey::Treasury, &treasury_contract);
+        e.storage()
+            .instance()
+            .set(&GovernorKey::Treasury, &treasury_contract);
 
         #[cfg(feature = "mercury")]
         retroshade::TreasuryChangedIndexed {
@@ -258,7 +264,9 @@ impl DaoGovernorContract {
         #[cfg(feature = "mercury")]
         let old_value = Self::queue_delay(e);
 
-        e.storage().instance().set(&GovernorKey::QueueDelay, &queue_delay);
+        e.storage()
+            .instance()
+            .set(&GovernorKey::QueueDelay, &queue_delay);
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -386,11 +394,17 @@ impl DaoGovernorContract {
     }
 
     pub fn treasury(e: &Env) -> Address {
-        e.storage().instance().get(&GovernorKey::Treasury).expect("treasury not set")
+        e.storage()
+            .instance()
+            .get(&GovernorKey::Treasury)
+            .expect("treasury not set")
     }
 
     fn queue_delay(e: &Env) -> u32 {
-        e.storage().instance().get(&GovernorKey::QueueDelay).unwrap_or(0)
+        e.storage()
+            .instance()
+            .get(&GovernorKey::QueueDelay)
+            .unwrap_or(0)
     }
 
     pub fn quorum_bps(e: &Env) -> u32 {
@@ -403,7 +417,9 @@ impl DaoGovernorContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_enabled = Self::governor_authority(e, authority.clone());
-        e.storage().instance().set(&GovernorKey::GovernorAuthority(authority.clone()), &enabled);
+        e.storage()
+            .instance()
+            .set(&GovernorKey::GovernorAuthority(authority.clone()), &enabled);
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorAuthorityChangedIndexed {
@@ -464,18 +480,25 @@ impl DaoGovernorContract {
     }
 
     fn set_proposal(e: &Env, proposal_id: &BytesN<32>, proposal: &ProposalCoreTime) {
-        e.storage().persistent().set(&Self::proposal_key(proposal_id), proposal);
+        e.storage()
+            .persistent()
+            .set(&Self::proposal_key(proposal_id), proposal);
 
         // Extend TTL when proposal is updated
         Self::extend_proposal_ttl(e, proposal_id);
     }
 
-    fn proposal_state_internal(e: &Env, proposal_id: &BytesN<32>, proposal: &ProposalCoreTime) -> ProposalState {
+    fn proposal_state_internal(
+        e: &Env,
+        proposal_id: &BytesN<32>,
+        proposal: &ProposalCoreTime,
+    ) -> ProposalState {
         match proposal.state {
             ProposalState::Queued => {
                 // Check if queued proposal has expired (14 days after ETA)
                 let now = e.ledger().timestamp();
-                let Some(expiration_time) = proposal.eta.checked_add(PROPOSAL_EXPIRATION_PERIOD) else {
+                let Some(expiration_time) = proposal.eta.checked_add(PROPOSAL_EXPIRATION_PERIOD)
+                else {
                     panic_with_error!(e, GovernorError::MathOverflow);
                 };
                 if now >= expiration_time {
@@ -490,8 +513,8 @@ impl DaoGovernorContract {
         }
 
         let now = e.ledger().timestamp();
-        let start = proposal.vote_start;  // Already u64
-        let end = proposal.vote_end;      // Already u64
+        let start = proposal.vote_start; // Already u64
+        let end = proposal.vote_end; // Already u64
 
         if now <= start {
             return ProposalState::Pending;
@@ -563,7 +586,8 @@ impl Governor for DaoGovernorContract {
         _eta: u32,
         _operator: Address,
     ) -> BytesN<32> {
-        let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+        let proposal_id =
+            governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
         let mut proposal = Self::get_proposal(e, &proposal_id);
 
         match Self::proposal_state_internal(e, &proposal_id, &proposal) {
@@ -628,7 +652,8 @@ impl Governor for DaoGovernorContract {
         let current_ledger = e.ledger().sequence();
         let snapshot_ledger = current_ledger.saturating_sub(1);
         let token = governor::get_token_contract(e);
-        let proposer_votes = VotesClient::new(e, &token).get_votes_at_checkpoint(&proposer, &snapshot_ledger);
+        let proposer_votes =
+            VotesClient::new(e, &token).get_votes_at_checkpoint(&proposer, &snapshot_ledger);
         if proposer_votes < proposal_threshold {
             panic_with_error!(e, GovernorError::InsufficientProposerVotes);
         }
@@ -644,9 +669,13 @@ impl Governor for DaoGovernorContract {
         }
 
         let description_hash = e.crypto().keccak256(&description.to_bytes()).to_bytes();
-        let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+        let proposal_id =
+            governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
 
-        if e.storage().persistent().has(&Self::proposal_key(&proposal_id)) {
+        if e.storage()
+            .persistent()
+            .has(&Self::proposal_key(&proposal_id))
+        {
             panic_with_error!(e, GovernorError::ProposalAlreadyExists);
         }
 
@@ -677,8 +706,8 @@ impl Governor for DaoGovernorContract {
         let proposal = ProposalCoreTime {
             proposer: proposer.clone(),
             vote_snapshot: snapshot_ledger,
-            vote_start,  // No conversion needed - already u64
-            vote_end,    // No conversion needed - already u64
+            vote_start, // No conversion needed - already u64
+            vote_end,   // No conversion needed - already u64
             eta: 0,
             state: ProposalState::Pending,
         };
@@ -693,7 +722,10 @@ impl Governor for DaoGovernorContract {
             &functions,
             &args,
             proposal.vote_snapshot,
-            proposal.vote_end.try_into().unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
+            proposal
+                .vote_end
+                .try_into()
+                .unwrap_or_else(|_| panic_with_error!(e, GovernorError::MathOverflow)),
             &description,
         );
 
@@ -739,8 +771,8 @@ impl Governor for DaoGovernorContract {
         }
 
         let token = governor::get_token_contract(e);
-        let voter_weight = VotesClient::new(e, &token)
-            .get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
+        let voter_weight =
+            VotesClient::new(e, &token).get_votes_at_checkpoint(&voter, &proposal.vote_snapshot);
 
         // Prevent voting with zero weight (spam/griefing protection)
         if voter_weight == 0 {
@@ -781,7 +813,8 @@ impl Governor for DaoGovernorContract {
             panic_with_error!(e, GovernorError::InvalidProposalLength);
         }
 
-        let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+        let proposal_id =
+            governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
         let mut proposal = Self::get_proposal(e, &proposal_id);
 
         // CHECKS: Validate proposal state
@@ -874,7 +907,8 @@ impl Governor for DaoGovernorContract {
         description_hash: BytesN<32>,
         operator: Address,
     ) -> BytesN<32> {
-        let proposal_id = governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
+        let proposal_id =
+            governor::hash_proposal(e, &targets, &functions, &args, &description_hash);
         let mut proposal = Self::get_proposal(e, &proposal_id);
 
         if operator != proposal.proposer {

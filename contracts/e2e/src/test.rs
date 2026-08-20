@@ -1,7 +1,14 @@
 extern crate std;
 
 use governor::{DaoGovernorContract, DaoGovernorContractClient};
-use soroban_sdk::{contract, contractimpl, symbol_short, token::{StellarAssetClient, TokenClient}, xdr::AccountFlags, Symbol, testutils::{Address as _, Ledger}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
+use soroban_sdk::{
+    contract, contractimpl, symbol_short,
+    testutils::{Address as _, Ledger},
+    token::{StellarAssetClient, TokenClient},
+    vec,
+    xdr::AccountFlags,
+    Address, BytesN, Env, IntoVal, String, Symbol, Val, Vec,
+};
 use stellar_governance::governor::ProposalState;
 use token::{DaoTokenContract, DaoTokenContractClient};
 use treasury::{DaoTreasuryContract, DaoTreasuryContractClient};
@@ -17,7 +24,10 @@ impl TargetContract {
     }
 
     pub fn get_value(e: &Env) -> u32 {
-        e.storage().instance().get(&symbol_short!("value")).unwrap_or(0)
+        e.storage()
+            .instance()
+            .get(&symbol_short!("value"))
+            .unwrap_or(0)
     }
 }
 
@@ -50,11 +60,21 @@ impl MaliciousReentrantContract {
     }
 
     pub fn get_attack_count(e: &Env) -> u32 {
-        e.storage().instance().get(&symbol_short!("attack")).unwrap_or(0)
+        e.storage()
+            .instance()
+            .get(&symbol_short!("attack"))
+            .unwrap_or(0)
     }
 }
 
-fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'static>, DaoGovernorContractClient<'static>, TargetContractClient<'static>, Address) {
+fn setup() -> (
+    Env,
+    DaoTokenContractClient<'static>,
+    DaoTreasuryContractClient<'static>,
+    DaoGovernorContractClient<'static>,
+    TargetContractClient<'static>,
+    Address,
+) {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().set_sequence_number(100);
@@ -106,20 +126,66 @@ fn proposal_args(e: &Env) -> Vec<Vec<Val>> {
 
 fn mint_proposal_args(e: &Env, treasury: &Address, recipient: &Address) -> Vec<Vec<Val>> {
     // Args for calling token.mint(treasury, recipient)
-    vec![e, vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e)]]
+    vec![
+        e,
+        vec![
+            e,
+            treasury.clone().into_val(e),
+            recipient.clone().into_val(e),
+        ],
+    ]
 }
 
-fn batch_mint_proposal_args(e: &Env, treasury: &Address, recipient: &Address, amount: u32) -> Vec<Vec<Val>> {
+fn batch_mint_proposal_args(
+    e: &Env,
+    treasury: &Address,
+    recipient: &Address,
+    amount: u32,
+) -> Vec<Vec<Val>> {
     // Args for calling token.batch_mint(treasury, recipient, amount)
-    vec![e, vec![e, treasury.clone().into_val(e), recipient.clone().into_val(e), amount.into_val(e)]]
+    vec![
+        e,
+        vec![
+            e,
+            treasury.clone().into_val(e),
+            recipient.clone().into_val(e),
+            amount.into_val(e),
+        ],
+    ]
 }
 
-fn transfer_proposal_args_i128(e: &Env, from: &Address, to: &Address, amount: i128) -> Vec<Vec<Val>> {
-    vec![e, vec![e, from.clone().into_val(e), to.clone().into_val(e), amount.into_val(e)]]
+fn transfer_proposal_args_i128(
+    e: &Env,
+    from: &Address,
+    to: &Address,
+    amount: i128,
+) -> Vec<Vec<Val>> {
+    vec![
+        e,
+        vec![
+            e,
+            from.clone().into_val(e),
+            to.clone().into_val(e),
+            amount.into_val(e),
+        ],
+    ]
 }
 
-fn transfer_proposal_args_u32(e: &Env, from: &Address, to: &Address, token_id: u32) -> Vec<Vec<Val>> {
-    vec![e, vec![e, from.clone().into_val(e), to.clone().into_val(e), token_id.into_val(e)]]
+fn transfer_proposal_args_u32(
+    e: &Env,
+    from: &Address,
+    to: &Address,
+    token_id: u32,
+) -> Vec<Vec<Val>> {
+    vec![
+        e,
+        vec![
+            e,
+            from.clone().into_val(e),
+            to.clone().into_val(e),
+            token_id.into_val(e),
+        ],
+    ]
 }
 
 fn description_hash(e: &Env, description: &String) -> BytesN<32> {
@@ -148,16 +214,24 @@ fn dao_flow_executes_treasury_call() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -188,7 +262,10 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
 
     e.ledger().set_timestamp(2_111);
     // Proposal succeeds with alice's vote
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     let _ = desc_hash;
     let _ = bob; // Bob can't vote (zero weight at snapshot)
@@ -217,9 +294,14 @@ fn dao_flow_mints_token_via_treasury_execution() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
@@ -227,7 +309,10 @@ fn dao_flow_mints_token_via_treasury_execution() {
 
     assert_eq!(token.balance(&recipient), 1);
     assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -260,9 +345,14 @@ fn sac_classic_asset_without_auth_requirement_can_be_received_held_and_transferr
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
@@ -270,7 +360,10 @@ fn sac_classic_asset_without_auth_requirement_can_be_received_held_and_transferr
 
     assert_eq!(asset_client.balance(&treasury.address), 0);
     assert_eq!(asset_client.balance(&target.address), amount);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -319,9 +412,14 @@ fn sac_classic_asset_with_auth_requirement_can_be_received_held_and_transferred_
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
@@ -329,7 +427,10 @@ fn sac_classic_asset_with_auth_requirement_can_be_received_held_and_transferred_
 
     assert_eq!(asset_client.balance(&treasury.address), 0);
     assert_eq!(asset_client.balance(&target.address), 100);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -346,7 +447,8 @@ fn governance_token_can_be_received_held_and_transferred_via_proposal() {
 
     let targets = vec![&e, token.address.clone()];
     let functions = vec![&e, symbol_short!("transfer")];
-    let args = transfer_proposal_args_u32(&e, &treasury.address, &target.address, treasury_token_id);
+    let args =
+        transfer_proposal_args_u32(&e, &treasury.address, &target.address, treasury_token_id);
     let description = String::from_str(&e, "Transfer governance token from treasury");
     let desc_hash = description_hash(&e, &description);
 
@@ -356,9 +458,14 @@ fn governance_token_can_be_received_held_and_transferred_via_proposal() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
@@ -366,7 +473,10 @@ fn governance_token_can_be_received_held_and_transferred_via_proposal() {
 
     assert_eq!(token.balance(&treasury.address), 0);
     assert_eq!(token.balance(&target.address), 1);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 
     let _ = proposer_token_id;
 }
@@ -394,9 +504,14 @@ fn dao_flow_batch_mints_tokens_via_treasury() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
@@ -405,7 +520,10 @@ fn dao_flow_batch_mints_tokens_via_treasury() {
     assert_eq!(token.balance(&recipient), 10);
     assert_eq!(token.get_votes(&recipient), 10);
     assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -476,15 +594,23 @@ fn proposal_flow_with_modified_governance_parameters() {
 
     // Vote ends after 50 seconds (new voting period)
     e.ledger().set_timestamp(2_056);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_356_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_356_u32, &proposer,
+    );
 
     e.ledger().set_timestamp(2_356);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -544,10 +670,15 @@ fn reentrancy_attack_is_prevented() {
 
     // Wait for voting period to end
     e.ledger().set_timestamp(2_111); // After voting period
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     // Queue the proposal
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     // Execute the proposal - this will trigger the reentrancy attack

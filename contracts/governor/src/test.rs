@@ -1,9 +1,13 @@
 extern crate std;
 
+use soroban_sdk::{
+    contract, contractimpl, symbol_short,
+    testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke},
+    vec, Address, BytesN, Env, IntoVal, String, Val, Vec,
+};
+use stellar_governance::governor::ProposalState;
 use token::{DaoTokenContract, DaoTokenContractClient};
 use treasury::{DaoTreasuryContract, DaoTreasuryContractClient};
-use soroban_sdk::{contract, contractimpl, symbol_short, testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke}, vec, Address, BytesN, Env, IntoVal, String, Val, Vec};
-use stellar_governance::governor::ProposalState;
 
 use crate::{DaoGovernorContract, DaoGovernorContractClient};
 
@@ -18,7 +22,10 @@ impl TargetContract {
     }
 
     pub fn get_value(e: &Env) -> u32 {
-        e.storage().instance().get(&symbol_short!("value")).unwrap_or(0)
+        e.storage()
+            .instance()
+            .get(&symbol_short!("value"))
+            .unwrap_or(0)
     }
 }
 
@@ -30,9 +37,19 @@ pub struct MaliciousReentrantContract;
 impl MaliciousReentrantContract {
     /// This function attempts to re-enter the governor's execute() function
     /// when called during proposal execution
-    pub fn attack(e: &Env, governor: Address, targets: Vec<Address>, functions: Vec<soroban_sdk::Symbol>, args: Vec<Vec<Val>>, desc_hash: BytesN<32>, executor: Address) {
+    pub fn attack(
+        e: &Env,
+        governor: Address,
+        targets: Vec<Address>,
+        functions: Vec<soroban_sdk::Symbol>,
+        args: Vec<Vec<Val>>,
+        desc_hash: BytesN<32>,
+        executor: Address,
+    ) {
         // Store attack parameters
-        e.storage().instance().set(&symbol_short!("attacked"), &true);
+        e.storage()
+            .instance()
+            .set(&symbol_short!("attacked"), &true);
 
         // Attempt to re-enter execute() - this should fail because proposal is already marked Executed
         let governor_client = DaoGovernorContractClient::new(e, &governor);
@@ -40,11 +57,21 @@ impl MaliciousReentrantContract {
     }
 
     pub fn was_attacked(e: &Env) -> bool {
-        e.storage().instance().get(&symbol_short!("attacked")).unwrap_or(false)
+        e.storage()
+            .instance()
+            .get(&symbol_short!("attacked"))
+            .unwrap_or(false)
     }
 }
 
-fn setup() -> (Env, DaoTokenContractClient<'static>, DaoTreasuryContractClient<'static>, DaoGovernorContractClient<'static>, TargetContractClient<'static>, Address) {
+fn setup() -> (
+    Env,
+    DaoTokenContractClient<'static>,
+    DaoTreasuryContractClient<'static>,
+    DaoGovernorContractClient<'static>,
+    TargetContractClient<'static>,
+    Address,
+) {
     let e = Env::default();
     e.mock_all_auths();
     e.ledger().set_sequence_number(100);
@@ -116,22 +143,33 @@ fn full_governance_flow_executes_treasury_call() {
     let desc_hash = description_hash(&e, &description);
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Pending
+    );
 
     e.ledger().set_timestamp(2_011);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 }
 
 #[test]
@@ -172,7 +210,9 @@ fn execute_accepts_direct_target_calls() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
     e.ledger().set_timestamp(2_111);
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
@@ -200,7 +240,9 @@ fn execute_fails_before_queue_delay_elapses() {
     e.ledger().set_timestamp(2_011);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
     e.ledger().set_timestamp(2_111);
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
 
     e.ledger().set_timestamp(2_410);
     let _ = governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
@@ -228,7 +270,9 @@ fn execute_cannot_run_twice() {
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
     e.ledger().set_timestamp(2_111);
 
-    governor.queue(&targets, &functions, &args, &desc_hash, &2_411_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+    );
     e.ledger().set_timestamp(2_411);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
@@ -609,7 +653,10 @@ fn proposal_handles_large_timestamps() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Verify proposal was created successfully
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Pending
+    );
 
     let _ = e;
 }
@@ -636,7 +683,10 @@ fn proposal_timestamps_stored_as_u64() {
 
     // If this didn't panic, timestamps are being stored correctly as u64
     // Verify proposal was created and is in Pending state
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Pending
+    );
 }
 
 #[test]
@@ -659,7 +709,10 @@ fn proposal_state_transitions_with_large_timestamps() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Should be Pending
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Pending);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Pending
+    );
 
     // Move past voting_delay (10 seconds)
     e.ledger().set_timestamp(start_time + 11);
@@ -670,7 +723,10 @@ fn proposal_state_transitions_with_large_timestamps() {
 
     // Move past voting_period (100 seconds total from proposal)
     e.ledger().set_timestamp(start_time + 111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 }
 
 #[test]
@@ -752,10 +808,15 @@ fn queued_proposal_expires_after_14_days() {
 
     // Advance to after voting period (proposal now Succeeded)
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     // Queue the proposal (ETA = 2_111 + 1000 = 3_111)
-    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &3_111_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     // Advance to just after ETA (still queued, can execute)
@@ -772,11 +833,17 @@ fn queued_proposal_expires_after_14_days() {
 
     // Test at expiration time (expires)
     e.ledger().set_timestamp(3_111 + 1_209_600); // ETA + 14 days = 1_212_711
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Expired);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Expired
+    );
 
     // Test after expiration
     e.ledger().set_timestamp(3_111 + 1_209_601); // ETA + 14 days + 1 second
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Expired);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Expired
+    );
 }
 
 #[test]
@@ -804,10 +871,15 @@ fn queued_proposal_can_execute_before_expiration() {
 
     // Advance to after voting period
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     // Queue the proposal (ETA = 2_111 + 1000 = 3_111)
-    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &3_111_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     // Advance to ETA (can now execute)
@@ -816,7 +888,10 @@ fn queued_proposal_can_execute_before_expiration() {
 
     // Execute before expiration
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
     assert_eq!(target.get_value(), 42);
 }
 
@@ -846,14 +921,22 @@ fn expired_proposal_cannot_be_executed() {
 
     // Advance to after voting period
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     // Queue the proposal (ETA = 2_111 + 1000 = 3_111)
-    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &3_111_u32, &proposer,
+    );
 
     // Advance past expiration (ETA + 14 days + 1 second)
     e.ledger().set_timestamp(1_212_712); // 3_111 + 1_209_600 + 1
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Expired);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Expired
+    );
 
     // Try to execute expired proposal (should fail with ProposalNotQueued error #5007)
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
@@ -918,10 +1001,15 @@ fn execute_prevents_reentrancy_attack() {
 
     // Advance to after voting period (proposal now Succeeded)
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     // Queue the proposal
-    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &3_111_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     // Advance past ETA
@@ -958,10 +1046,15 @@ fn execute_updates_state_before_external_calls() {
 
     // Advance to after voting period
     e.ledger().set_timestamp(2_111);
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Succeeded);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Succeeded
+    );
 
     // Queue the proposal
-    governor.queue(&targets, &functions, &args, &desc_hash, &3_111_u32, &proposer);
+    governor.queue(
+        &targets, &functions, &args, &desc_hash, &3_111_u32, &proposer,
+    );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
     // Advance past ETA
@@ -971,7 +1064,10 @@ fn execute_updates_state_before_external_calls() {
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     // Verify proposal state is Executed (not Queued)
-    assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Executed);
+    assert_eq!(
+        governor.proposal_state(&proposal_id),
+        ProposalState::Executed
+    );
 
     // Verify the target contract function was actually called
     assert_eq!(target.get_value(), 42);

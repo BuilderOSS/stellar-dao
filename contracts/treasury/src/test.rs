@@ -1,7 +1,10 @@
 extern crate std;
 
-use soroban_sdk::{contract, contractimpl, symbol_short, testutils::Address as _, vec, Address, Env, IntoVal, Val, Vec};
 use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
+use soroban_sdk::{
+    contract, contractimpl, symbol_short, testutils::Address as _, vec, Address, Env, IntoVal, Val,
+    Vec,
+};
 
 use crate::{DaoTreasuryContract, DaoTreasuryContractClient};
 
@@ -16,7 +19,10 @@ impl TargetContract {
     }
 
     pub fn get_value(e: &Env) -> u32 {
-        e.storage().instance().get(&symbol_short!("value")).unwrap_or(0)
+        e.storage()
+            .instance()
+            .get(&symbol_short!("value"))
+            .unwrap_or(0)
     }
 }
 

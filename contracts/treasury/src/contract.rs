@@ -54,7 +54,9 @@ pub struct DaoTreasuryContract;
 impl DaoTreasuryContract {
     pub fn __constructor(e: &Env, owner: Address, governor: Address) {
         set_owner(e, &owner);
-        e.storage().instance().set(&TreasuryKey::Governor, &governor);
+        e.storage()
+            .instance()
+            .set(&TreasuryKey::Governor, &governor);
 
         #[cfg(feature = "mercury")]
         retroshade::TreasuryInitializedIndexed {
@@ -72,7 +74,9 @@ impl DaoTreasuryContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_governor = Self::governor(e);
-        e.storage().instance().set(&TreasuryKey::Governor, &governor);
+        e.storage()
+            .instance()
+            .set(&TreasuryKey::Governor, &governor);
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorChangedIndexed {
@@ -86,7 +90,10 @@ impl DaoTreasuryContract {
     }
 
     pub fn governor(e: &Env) -> Address {
-        e.storage().instance().get(&TreasuryKey::Governor).expect("governor not set")
+        e.storage()
+            .instance()
+            .get(&TreasuryKey::Governor)
+            .expect("governor not set")
     }
 
     pub fn execute(e: &Env, target: Address, function: Symbol, args: Vec<Val>) -> Val {

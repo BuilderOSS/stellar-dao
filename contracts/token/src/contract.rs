@@ -121,7 +121,9 @@ impl DaoTokenContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_enabled = Self::mint_authority(e, authority.clone());
-        e.storage().instance().set(&TokenKey::MintAuthority(authority.clone()), &enabled);
+        e.storage()
+            .instance()
+            .set(&TokenKey::MintAuthority(authority.clone()), &enabled);
 
         #[cfg(feature = "mercury")]
         retroshade::MintAuthorityChangedIndexed {
@@ -136,7 +138,10 @@ impl DaoTokenContract {
     }
 
     pub fn mint_authority(e: &Env, authority: Address) -> bool {
-        e.storage().instance().get(&TokenKey::MintAuthority(authority)).unwrap_or(false)
+        e.storage()
+            .instance()
+            .get(&TokenKey::MintAuthority(authority))
+            .unwrap_or(false)
     }
 
     pub fn mint(e: &Env, minter: &Address, to: &Address) -> u32 {
@@ -232,7 +237,13 @@ impl DaoTokenContract {
         .emit(e);
     }
 
-    pub fn approve(e: &Env, owner: &Address, spender: &Address, token_id: u32, expiration_ledger: u32) {
+    pub fn approve(
+        e: &Env,
+        owner: &Address,
+        spender: &Address,
+        token_id: u32,
+        expiration_ledger: u32,
+    ) {
         Base::approve(e, owner, spender, token_id, expiration_ledger);
 
         #[cfg(feature = "mercury")]
@@ -275,7 +286,9 @@ impl DaoTokenContract {
     fn ensure_self_delegate(e: &Env, account: &Address) {
         if get_delegate(e, account).is_none() {
             // Set delegatee storage (same as library's delegate() function)
-            e.storage().persistent().set(&VotesStorageKey::Delegatee(account.clone()), account);
+            e.storage()
+                .persistent()
+                .set(&VotesStorageKey::Delegatee(account.clone()), account);
 
             // Emit standard delegation event (same as library)
             emit_delegate_changed(e, account, None, account);
