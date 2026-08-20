@@ -15,8 +15,13 @@ type ProposalOverviewProps = {
 function formatCountdown(target: number, now: number) {
   if (!target) return '—';
   const delta = Math.max(0, target - Math.floor(now / 1000));
-  const minutes = Math.floor(delta / 60);
+  const days = Math.floor(delta / 86400);
+  const hours = Math.floor((delta % 86400) / 3600);
+  const minutes = Math.floor((delta % 3600) / 60);
   const seconds = delta % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
@@ -55,10 +60,18 @@ function getTimeline(detail: ProposalDetail, now: number) {
         subline: 'This proposal can now be queued for execution.'
       };
     case ProposalState.Queued:
+      if (hasValidTimestamp(detail.eta) && detail.eta > Math.floor(now / 1000)) {
+        return {
+          eyebrow: 'Execution scheduled',
+          headline: `Executable in ${formatCountdown(detail.eta, now)}`,
+          subline: `ETA ${formatDateTime(detail.eta)}`
+        };
+      }
+
       return {
         eyebrow: 'Ready to execute',
-        headline: detail.eta ? `Execution ETA ${formatDateTime(detail.eta)}` : 'Queued for execution',
-        subline: 'This proposal is waiting to be executed.'
+        headline: 'Ready to execute now',
+        subline: detail.eta ? `ETA was ${formatDateTime(detail.eta)}` : 'The queued proposal can now be executed.'
       };
     case ProposalState.Defeated:
     case ProposalState.Canceled:
