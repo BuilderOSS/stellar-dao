@@ -1,5 +1,5 @@
-import { Button, Card, Text } from '@/components/ui';
-import { Stack } from 'styled-system/jsx';
+import { Button } from '@/components/ui';
+import { ProposalLifecyclePanel } from './proposal-lifecycle-panel';
 
 type ProposalQueuePanelProps = {
   busy: boolean;
@@ -8,16 +8,16 @@ type ProposalQueuePanelProps = {
 
 export function ProposalQueuePanel({ busy, onQueue }: ProposalQueuePanelProps) {
   return (
-    <Card p="5">
-      <Stack gap="3">
-        <Text className="label">Queue proposal</Text>
-        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-          This proposal passed. Queue it to make it eligible for execution.
-        </Text>
+    <ProposalLifecyclePanel
+      badge="Lifecycle action"
+      title="Queue proposal"
+      description="This proposal passed. Queue it to make it eligible for execution."
+    >
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button type="button" onClick={onQueue} disabled={busy}>
-          Queue proposal
+          {busy ? 'Queueing...' : 'Queue proposal'}
         </Button>
-      </Stack>
-    </Card>
+      </div>
+    </ProposalLifecyclePanel>
   );
 }

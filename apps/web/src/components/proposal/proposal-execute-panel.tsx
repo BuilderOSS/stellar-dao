@@ -1,5 +1,5 @@
-import { Button, Card, Text } from '@/components/ui';
-import { Stack } from 'styled-system/jsx';
+import { Button } from '@/components/ui';
+import { ProposalLifecyclePanel } from './proposal-lifecycle-panel';
 
 type ProposalExecutePanelProps = {
   busy: boolean;
@@ -12,18 +12,18 @@ export function ProposalExecutePanel({ busy, now, eta, onExecute }: ProposalExec
   const ready = now >= eta * 1000;
 
   return (
-    <Card p="5">
-      <Stack gap="3">
-        <Text className="label">Execute proposal</Text>
-        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-          {ready ? 'This proposal is queued and ready to execute on-chain.' : 'This proposal is queued and will become executable when the ETA in the overview is reached.'}
-        </Text>
+    <ProposalLifecyclePanel
+      badge="Lifecycle action"
+      title="Execute proposal"
+      description={ready ? 'This proposal is queued and ready to execute on-chain.' : 'This proposal is queued and will become executable when the ETA in the overview is reached.'}
+    >
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         {ready ? (
           <Button type="button" onClick={onExecute} disabled={busy}>
-            Execute proposal
+            {busy ? 'Executing...' : 'Execute proposal'}
           </Button>
         ) : null}
-      </Stack>
-    </Card>
+      </div>
+    </ProposalLifecyclePanel>
   );
 }

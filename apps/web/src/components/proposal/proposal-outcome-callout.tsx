@@ -1,4 +1,4 @@
-import { Callout } from '@/components/ui';
+import { ProposalLifecyclePanel } from './proposal-lifecycle-panel';
 
 type ProposalOutcomeCalloutProps = {
   stateLabel: string;
@@ -23,6 +23,29 @@ function getOutcomeCopy(stateLabel: string) {
   }
 }
 
+function getOutcomeTitle(stateLabel: string) {
+  switch (stateLabel) {
+    case 'Pending':
+      return 'Voting has not opened yet';
+    case 'Defeated':
+      return 'Proposal defeated';
+    case 'Expired':
+      return 'Proposal expired';
+    case 'Canceled':
+      return 'Proposal canceled';
+    case 'Executed':
+      return 'Proposal executed';
+    default:
+      return 'No lifecycle action available';
+  }
+}
+
 export function ProposalOutcomeCallout({ stateLabel }: ProposalOutcomeCalloutProps) {
-  return <Callout variant="info" badge="Status" title={getOutcomeCopy(stateLabel)} />;
+  return (
+    <ProposalLifecyclePanel
+      badge="Lifecycle status"
+      title={getOutcomeTitle(stateLabel)}
+      description={getOutcomeCopy(stateLabel)}
+    />
+  );
 }
