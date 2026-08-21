@@ -1,3 +1,4 @@
+import { createInterface } from 'node:readline';
 import { existsSync, readFileSync } from 'node:fs';
 
 const envPath = 'apps/web/.env.local';
@@ -14,7 +15,7 @@ Usage:
   node scripts/mercury.mjs query --program <id> --tables
   node scripts/mercury.mjs query --program <id> --describe <table>
   node scripts/mercury.mjs query --sql <sql> [--json]
-  node scripts/mercury.mjs delete-plan --keep <id[,id...]> [--json]
+  node scripts/mercury.mjs delete [--keep <id[,id...]>] [--force] [--json]
 
 Examples:
   pnpm mercury:list
@@ -22,7 +23,7 @@ Examples:
   pnpm mercury:status -- --program 15
   pnpm mercury:query -- --program 15 --table mint_indexed --limit 10
   pnpm mercury:query -- --program 40 --table proposal_vote --count
-  pnpm mercury:delete:plan -- --keep 15`);
+  pnpm mercury:delete -- --keep 15`);
 }
 
 function loadEnvFile(filePath) {
@@ -105,8 +106,12 @@ function requireLimit(value, fallback = 25) {
 }
 
 function parseKeepIds(value) {
+  if (typeof value === 'undefined' || value === null || String(value).trim() === '') {
+    return new Set();
+  }
+
   return new Set(
-    String(value ?? '')
+    String(value)
       .split(',')
       .map((item) => Number.parseInt(item.trim(), 10))
       .filter((item) => Number.isInteger(item) && item > 0)
@@ -341,16 +346,39 @@ async function runQuery(flags) {
   printJsonOrRows(rows, flags.json);
 }
 
-async function runDeletePlan(flags) {
-  const keepIds = parseKeepIds(flags.keep);
-  if (!keepIds.size) {
-    throw new Error('--keep <id[,id...]> is required for delete-plan.');
-  }
+async function deleteProgram(programId) {
+  return mercuryFetch(`/retroshade/${programId}`, {
+    method: 'DELETE'
+  });
+}
 
+function promptConfirmation(message) {
+  return new Promise((resolve) => {
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question(message, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+async function runDelete(flags) {
+  const keepIds = parseKeepIds(flags.keep);
   const [programs, tables] = await Promise.all([listPrograms(), listTables()]);
   const candidates = programs.filter((program) => !keepIds.has(program.id));
-  const rows = [];
 
+  if (!candidates.length) {
+    if (!flags.json) {
+      console.log('No programs to delete.');
+    }
+    return;
+  }
+
+  const rows = [];
   for (const program of candidates) {
     const programTables = tablesForProgram(tables, program.id);
     const rowCounts = [];
@@ -359,7 +387,6 @@ async function runDeletePlan(flags) {
     }
 
     rows.push({
-      action: 'would_delete',
       id: program.id,
       project_name: program.project_name,
       running: program.running,
@@ -370,11 +397,51 @@ async function runDeletePlan(flags) {
   }
 
   if (!flags.json) {
-    console.log(`Keeping program ids: ${[...keepIds].join(', ')}`);
-    console.log('No deletion was performed. This is a plan only.');
+    if (keepIds.size === 0) {
+      console.log('WARNING: No programs will be kept. ALL programs will be deleted!');
+    } else {
+      console.log(`Keeping program ids: ${[...keepIds].join(', ')}`);
+    }
+    console.log('');
+    console.log(`The following ${candidates.length} program(s) will be PERMANENTLY DELETED:`);
     console.log('');
   }
+
   printJsonOrRows(rows, flags.json);
+
+  if (flags.json) {
+    return;
+  }
+
+  if (!flags.force) {
+    console.log('');
+    const answer = await promptConfirmation("Type 'DELETE' to confirm (or Ctrl+C to cancel): ");
+
+    if (answer !== 'DELETE') {
+      console.log('Deletion cancelled.');
+      return;
+    }
+  }
+
+  console.log('');
+  console.log('Deleting programs...');
+  console.log('');
+
+  const results = [];
+  for (const program of candidates) {
+    try {
+      await deleteProgram(program.id);
+      results.push({ id: program.id, status: 'deleted' });
+      console.log(`✓ Deleted program ${program.id} (${program.project_name})`);
+    } catch (error) {
+      results.push({ id: program.id, status: 'failed', error: error.message });
+      console.log(`✗ Failed to delete program ${program.id} (${program.project_name}): ${error.message}`);
+    }
+  }
+
+  console.log('');
+  console.log('Deletion complete.');
+  console.log(`Success: ${results.filter((r) => r.status === 'deleted').length}, Failed: ${results.filter((r) => r.status === 'failed').length}`);
 }
 
 async function main() {
@@ -390,7 +457,7 @@ async function main() {
   if (command === 'tables') return runTables(flags);
   if (command === 'status') return runStatus(flags);
   if (command === 'query') return runQuery(flags);
-  if (command === 'delete-plan') return runDeletePlan(flags);
+  if (command === 'delete') return runDelete(flags);
 
   throw new Error(`Unknown command: ${command}`);
 }

@@ -19,7 +19,7 @@
     "mercury:tables": "node scripts/mercury.mjs tables",
     "mercury:status": "node scripts/mercury.mjs status",
     "mercury:query": "node scripts/mercury.mjs query",
-    "mercury:delete:plan": "node scripts/mercury.mjs delete-plan",
+    "mercury:delete": "node scripts/mercury.mjs delete",
     "mercury:deploy:local": "node scripts/deploy-dao-mercury.mjs configs/local.json",
     "mercury:deploy:testnet": "node scripts/deploy-dao-mercury.mjs configs/testnet.json",
     "dao:local:up": "node scripts/dao-local-up.mjs",
