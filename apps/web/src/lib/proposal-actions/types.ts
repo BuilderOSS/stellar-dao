@@ -62,12 +62,6 @@ export interface BuildContext {
   governorContractId: string;
   tokenContractId: string;
   treasuryAddress: string;
-  treasuryAssets: Array<{
-    code: string;
-    contractId?: string;
-    issuer?: string;
-    isNative?: boolean;
-  }>;
 }
 
 /**

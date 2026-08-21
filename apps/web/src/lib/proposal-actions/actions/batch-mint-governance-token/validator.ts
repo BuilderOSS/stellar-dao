@@ -1,0 +1,45 @@
+// src/lib/proposal-actions/actions/batch-mint-governance-token/validator.ts
+
+import { validateStellarAddress } from '@/lib/validate-address';
+import type { ValidationResult, FormContext } from '../../types';
+import type { BatchMintGovernanceTokenData } from './types';
+
+export function validateBatchMintGovernanceToken(
+  data: BatchMintGovernanceTokenData,
+  context: FormContext
+): ValidationResult {
+  const fields: Record<string, string> = {};
+
+  // Validate recipient
+  const recipientValidation = validateStellarAddress(data.recipient);
+  if (!recipientValidation.isValid) {
+    fields.recipient = recipientValidation.error || 'Invalid address';
+  }
+
+  // Validate amount (1-20 for batch mint)
+  const amount = data.amount.trim();
+  if (amount.length === 0) {
+    fields.amount = 'Amount is required';
+  } else if (!/^\d+$/.test(amount)) {
+    fields.amount = 'Amount must be a positive whole number';
+  } else {
+    const numAmount = parseInt(amount, 10);
+    if (numAmount < 1) {
+      fields.amount = 'Amount must be at least 1';
+    } else if (numAmount > 20) {
+      fields.amount = 'Amount cannot exceed 20 tokens per batch';
+    }
+  }
+
+  const hasErrors = Object.keys(fields).length > 0;
+
+  if (hasErrors) {
+    return {
+      valid: false,
+      message: 'Please fix the errors below',
+      fields,
+    };
+  }
+
+  return { valid: true };
+}

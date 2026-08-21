@@ -127,52 +127,35 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
         set((state) => ({ metadata: { ...state.metadata, ...patch } })),
 
       // Action editing
-      beginCreate: (actionType = 'mint-governance-token') => {
-        // We'll import getActionHandler lazily to avoid circular deps
-        const getDefaultValues = () => {
-          // For now, return basic defaults - will be replaced by handler
-          if (actionType === 'mint-governance-token') {
-            return { recipient: '', amount: '1' };
-          }
-          if (actionType === 'batch-mint-governance-token') {
-            return { recipient: '', amount: '1' };
-          }
-          if (actionType === 'transfer-sac-token') {
-            return { recipient: '', amount: '', assetCode: '' };
-          }
-          return {};
-        };
+      beginCreate: async (actionType = 'mint-governance-token') => {
+        // Dynamically import to avoid circular deps
+        const { getActionHandler } = await import('@/lib/proposal-actions/registry');
+        const handler = getActionHandler(actionType);
 
         set({
           editingState: {
             mode: 'create',
             actionType,
-            draftData: getDefaultValues(),
+            draftData: handler.getDefaultValues(),
           },
         });
       },
 
-      beginEdit: (index) => {
+      beginEdit: async (index) => {
         const { queuedActions } = get();
         const action = queuedActions[index];
         if (!action) return;
 
-        // Deserialize action back to form data
-        const draftData: any = {
-          recipient: action.recipient || '',
-          amount: action.amount || '',
-        };
-
-        if (action.type === 'transfer-sac-token') {
-          draftData.assetCode = action.assetCode || '';
-        }
+        // Dynamically import to avoid circular deps
+        const { getActionHandler } = await import('@/lib/proposal-actions/registry');
+        const handler = getActionHandler(action.type);
 
         set({
           editingState: {
             mode: 'edit',
             actionType: action.type,
             index,
-            draftData,
+            draftData: handler.deserialize(action),
           },
         });
       },
@@ -183,19 +166,10 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
           return { editingState: { ...state.editingState, draftData } };
         }),
 
-      changeActionType: (actionType) => {
-        const getDefaultValues = () => {
-          if (actionType === 'mint-governance-token') {
-            return { recipient: '', amount: '1' };
-          }
-          if (actionType === 'batch-mint-governance-token') {
-            return { recipient: '', amount: '1' };
-          }
-          if (actionType === 'transfer-sac-token') {
-            return { recipient: '', amount: '', assetCode: '' };
-          }
-          return {};
-        };
+      changeActionType: async (actionType) => {
+        // Dynamically import to avoid circular deps
+        const { getActionHandler } = await import('@/lib/proposal-actions/registry');
+        const handler = getActionHandler(actionType);
 
         set((state) => {
           if (!state.editingState) return state;
@@ -203,7 +177,7 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
             editingState: {
               ...state.editingState,
               actionType,
-              draftData: getDefaultValues(),
+              draftData: handler.getDefaultValues(),
             },
           };
         });
