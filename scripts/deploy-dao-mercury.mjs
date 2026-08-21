@@ -43,7 +43,7 @@ function loadEnvValue(filePath, key) {
 }
 
 function projectName(label, network, contractName) {
-  return `dao-${label}-${contractName}-${network}-v7`;
+  return `dao-${label}-${contractName}-${network}-v8`;
 }
 
 function deriveDeployArtifactPath(filePath) {
