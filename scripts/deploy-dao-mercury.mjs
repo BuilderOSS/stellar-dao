@@ -46,7 +46,7 @@ function loadEnvValue(filePath, key) {
 }
 
 function projectName(label, network, contractName) {
-  return `dao-${label}-${contractName}-${network}-v8`;
+  return `dao-${label}-${contractName}-${network}-v9`;
 }
 
 function deriveDeployArtifactPath(filePath) {
@@ -87,15 +87,6 @@ async function listMercuryPrograms() {
   return response.json();
 }
 
-function upsertEnvValue(content, key, value) {
-  const line = `${key}=${value}`;
-  const pattern = new RegExp(`^${key}=.*$`, 'm');
-  if (pattern.test(content)) {
-    return content.replace(pattern, line);
-  }
-
-  return `${content.trimEnd()}\n${line}`;
-}
 
 async function confirmOverwrite(filePath) {
   if (force || !existsSync(filePath)) {
@@ -153,21 +144,6 @@ async function main() {
 
   if (!tokenProgram || !governorProgram || !treasuryProgram) {
     throw new Error('Failed to read deployed Mercury program ids');
-  }
-
-  // Write to .env.local with confirmation
-  const envPath = 'apps/web/.env.local';
-  if (await confirmOverwrite(envPath)) {
-    let env = readFileSync(envPath, 'utf8');
-    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROGRAM_ID', String(tokenProgram.id));
-    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROGRAM_ID', String(governorProgram.id));
-    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROGRAM_ID', String(treasuryProgram.id));
-    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROJECT', tokenProgram.project_name);
-    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROJECT', governorProgram.project_name);
-    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROJECT', treasuryProgram.project_name);
-    writeFileSync(envPath, `${env.trimEnd()}\n`);
-  } else {
-    console.log(`Skipped writing ${envPath}.`);
   }
 
   // Update deploy artifact with Mercury program metadata

@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "panda codegen && panda cssgen",
+    "predev": "node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
     "dev": "next dev",
-    "prebuild": "panda codegen && panda cssgen",
+    "prebuild": "node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

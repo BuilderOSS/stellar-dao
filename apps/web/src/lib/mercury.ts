@@ -1,4 +1,4 @@
-import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { getDeployment } from '@/config/deployments.generated';
 import type { ProposalCallArgs } from '@/lib/proposal-call';
 import type {
   MercuryActivityItem,
@@ -220,29 +220,31 @@ function collectAddresses(row: MercuryTableRow, fields: string[]) {
 }
 
 function getConfig(): { baseUrl: string; jwt: string; adminAddress: string; programs: MercuryProgramConfig[] } | null {
-  const network = getDefaultDaoNetwork();
-  const config = getDaoNetworkConfig(network);
-  const baseUrl = (process.env.MERCURY_BASE_URL?.trim() ?? config.rpcUrl).replace(/\/$/, '');
+  const network = process.env.NEXT_PUBLIC_DAO_NETWORK || 'local';
+  const label = process.env.NEXT_PUBLIC_DAO_LABEL || 'local';
+
+  const deployment = getDeployment(network, label);
+  const baseUrl = deployment.mercuryBaseUrl;
   const jwt = process.env.MERCURY_JWT?.trim() ?? '';
 
   const programs = [
     {
       key: 'token' as const,
       label: 'Token',
-      programId: Number.parseInt(config.tokenMercuryProgramId || (process.env.NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROGRAM_ID ?? '0'), 10),
-      projectName: config.tokenMercuryProject || process.env.NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROJECT || ''
+      programId: Number(deployment.mercury?.programs?.token?.program_id ?? 0),
+      projectName: deployment.mercury?.programs?.token?.project ?? ''
     },
     {
       key: 'governor' as const,
       label: 'Governor',
-      programId: Number.parseInt(config.governorMercuryProgramId || (process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROGRAM_ID ?? '0'), 10),
-      projectName: config.governorMercuryProject || process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROJECT || ''
+      programId: Number(deployment.mercury?.programs?.governor?.program_id ?? 0),
+      projectName: deployment.mercury?.programs?.governor?.project ?? ''
     },
     {
       key: 'treasury' as const,
       label: 'Treasury',
-      programId: Number.parseInt(config.treasuryMercuryProgramId || (process.env.NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROGRAM_ID ?? '0'), 10),
-      projectName: config.treasuryMercuryProject || process.env.NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROJECT || ''
+      programId: Number(deployment.mercury?.programs?.treasury?.program_id ?? 0),
+      projectName: deployment.mercury?.programs?.treasury?.project ?? ''
     }
   ].filter((item) => Number.isFinite(item.programId) && item.programId > 0 && item.projectName);
 
@@ -250,7 +252,7 @@ function getConfig(): { baseUrl: string; jwt: string; adminAddress: string; prog
     return null;
   }
 
-  return { baseUrl, jwt, adminAddress: config.adminAddress, programs };
+  return { baseUrl, jwt, adminAddress: deployment.config.adminAddress, programs };
 }
 
 async function mercuryFetchJson<T>(baseUrl: string, jwt: string, path: string, init?: RequestInit) {

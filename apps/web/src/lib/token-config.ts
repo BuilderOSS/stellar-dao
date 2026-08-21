@@ -1,11 +1,22 @@
-const defaultTokenName = 'Builder Test';
-const defaultTokenSymbol = 'BUILD';
-const defaultTokenDescription = 'Unlock the possibilities of collective creation';
+import { getDeployment } from '@/config/deployments.generated';
 
-export const TOKEN_NAME = process.env.NEXT_PUBLIC_STELLAR_TOKEN_NAME ?? defaultTokenName;
-export const TOKEN_SYMBOL = process.env.NEXT_PUBLIC_STELLAR_TOKEN_SYMBOL ?? defaultTokenSymbol;
-export const TOKEN_DESCRIPTION =
-  process.env.NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION ?? defaultTokenDescription;
+function getTokenConfig() {
+  const network = process.env.NEXT_PUBLIC_DAO_NETWORK || 'local';
+  const label = process.env.NEXT_PUBLIC_DAO_LABEL || 'local';
+  const deployment = getDeployment(network, label);
+
+  return {
+    name: deployment.config.token.name,
+    symbol: deployment.config.token.symbol,
+    description: deployment.config.token.description
+  };
+}
+
+const config = getTokenConfig();
+
+export const TOKEN_NAME = config.name;
+export const TOKEN_SYMBOL = config.symbol;
+export const TOKEN_DESCRIPTION = config.description;
 
 export function getTokenDisplayName(tokenId: number) {
   return `${TOKEN_NAME} #${tokenId}`;

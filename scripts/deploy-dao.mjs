@@ -35,7 +35,6 @@ const defaultDeployConfig = {
 const config = loadDeployConfig(configPath);
 const networkName = config.network;
 const identityName = `${networkName}-dev`;
-const envPath = 'apps/web/.env.local';
 const adminAddress = config.adminAddress;
 const webBaseUrl = config.webBaseUrl;
 const tokenBaseUri = `${webBaseUrl.replace(/\/$/, '')}/api/token/`;
@@ -104,15 +103,6 @@ function ensureIdentity() {
   runQuiet('stellar', ['keys', 'fund', identityName, '--network', networkName]);
 }
 
-function upsertEnvValue(content, key, value) {
-  const line = `${key}=${value}`;
-  const pattern = new RegExp(`^${key}=.*$`, 'm');
-  if (pattern.test(content)) {
-    return content.replace(pattern, line);
-  }
-
-  return content ? `${content.trimEnd()}\n${line}` : `${line}`;
-}
 
 function wasmPath(packageName) {
   return `${contractBuildDir}/${packageName}.wasm`;
@@ -190,26 +180,6 @@ function deployIfMissing(packageName, alias, initArgs) {
   }
 
   return { id, txMetadata };
-}
-
-async function writeEnvIfMissing(contracts) {
-  if (!(await confirmOverwrite(envPath))) {
-    console.log(`Skipped writing ${envPath}.`);
-    return;
-  }
-
-  const lines = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
-  const updated = [
-    ['NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID', contracts.token],
-    ['NEXT_PUBLIC_STELLAR_GOVERNOR_CONTRACT_ID', contracts.governor],
-    ['NEXT_PUBLIC_STELLAR_TREASURY_CONTRACT_ID', contracts.treasury],
-    ['NEXT_PUBLIC_STELLAR_TOKEN_NAME', config.token.name],
-    ['NEXT_PUBLIC_STELLAR_TOKEN_SYMBOL', config.token.symbol],
-    ['NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION', config.token.description]
-  ].reduce((content, [key, value]) => upsertEnvValue(content, key, value), lines);
-
-  mkdirSync('apps/web', { recursive: true });
-  writeFileSync(envPath, `${updated.trimEnd()}\n`);
 }
 
 async function writeDeployArtifact(contracts, transactions) {
@@ -317,7 +287,6 @@ async function main() {
       governor: governorDeploy.txMetadata
     };
 
-    await writeEnvIfMissing({ token, governor, treasury });
     await writeDeployArtifact({ token, governor, treasury }, transactions);
 
     console.log(`Deployed ${networkName} DAO contracts:`);

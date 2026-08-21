@@ -1,4 +1,6 @@
-export type DaoNetworkName = 'local' | 'testnet';
+import { getDeployment, type DeploymentNetwork } from '@/config/deployments.generated';
+
+export type DaoNetworkName = DeploymentNetwork;
 
 export type DaoNetworkConfig = {
   name: DaoNetworkName;
@@ -19,30 +21,36 @@ export type DaoNetworkConfig = {
   treasuryMercuryProject: string;
 };
 
-const defaultAdminAddress = 'GCLGEIQB4RCG63LSIBSHQ6T67YICWKTHSORNHVXHFVVGXISZU3MQU6CO';
-
 export function getDefaultDaoNetwork(): DaoNetworkName {
-  const value = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
-  return value === 'testnet' ? 'testnet' : 'local';
+  const network = process.env.NEXT_PUBLIC_DAO_NETWORK || 'local';
+  const label = process.env.NEXT_PUBLIC_DAO_LABEL || 'local';
+
+  // This will throw if deployment not found - fail fast
+  const deployment = getDeployment(network, label);
+  return deployment.network as DaoNetworkName;
 }
 
 export function getDaoNetworkConfig(name: DaoNetworkName): DaoNetworkConfig {
+  const network = process.env.NEXT_PUBLIC_DAO_NETWORK || 'local';
+  const label = process.env.NEXT_PUBLIC_DAO_LABEL || 'local';
+  const deployment = getDeployment(network, label);
+
   return {
-    name,
-    label: name === 'testnet' ? 'Testnet' : 'Local',
-    rpcUrl: process.env.NEXT_PUBLIC_STELLAR_RPC_URL ?? 'http://localhost:8000/rpc',
-    passphrase: process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? 'Standalone Network ; February 2017',
-    tokenName: process.env.NEXT_PUBLIC_STELLAR_TOKEN_NAME ?? 'DAO Token',
-    tokenDescription: process.env.NEXT_PUBLIC_STELLAR_TOKEN_DESCRIPTION ?? 'A single-DAO governance interface for voting, treasury execution, token details, and admin minting.',
-    adminAddress: process.env.NEXT_PUBLIC_STELLAR_ADMIN_ADDRESS ?? defaultAdminAddress,
-    tokenContractId: process.env.NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID ?? '',
-    governorContractId: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_CONTRACT_ID ?? '',
-    treasuryContractId: process.env.NEXT_PUBLIC_STELLAR_TREASURY_CONTRACT_ID ?? '',
-    tokenMercuryProgramId: process.env.NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROGRAM_ID ?? '',
-    governorMercuryProgramId: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROGRAM_ID ?? '',
-    treasuryMercuryProgramId: process.env.NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROGRAM_ID ?? '',
-    tokenMercuryProject: process.env.NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROJECT ?? '',
-    governorMercuryProject: process.env.NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROJECT ?? '',
-    treasuryMercuryProject: process.env.NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROJECT ?? ''
+    name: deployment.network as DaoNetworkName,
+    label: deployment.label,
+    rpcUrl: deployment.config.rpcUrl,
+    passphrase: deployment.config.networkPassphrase,
+    tokenName: deployment.config.token.name,
+    tokenDescription: deployment.config.token.description,
+    adminAddress: deployment.config.adminAddress,
+    tokenContractId: deployment.contracts.token,
+    governorContractId: deployment.contracts.governor,
+    treasuryContractId: deployment.contracts.treasury,
+    tokenMercuryProgramId: String(deployment.mercury?.programs?.token?.program_id || ''),
+    governorMercuryProgramId: String(deployment.mercury?.programs?.governor?.program_id || ''),
+    treasuryMercuryProgramId: String(deployment.mercury?.programs?.treasury?.program_id || ''),
+    tokenMercuryProject: deployment.mercury?.programs?.token?.project || '',
+    governorMercuryProject: deployment.mercury?.programs?.governor?.project || '',
+    treasuryMercuryProject: deployment.mercury?.programs?.treasury?.project || ''
   };
 }
