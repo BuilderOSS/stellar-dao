@@ -26,6 +26,7 @@ import { proposalIdToRouteId } from '@/lib/proposal-id';
 import { encodeProposalMetadata, type ProposalMetadataDraft, validateProposalMetadataDraft } from '@/lib/proposal-metadata';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
+import { useTreasuryBalances } from '@/lib/treasury-queries';
 import { validateStellarAddress } from '@/lib/validate-address';
 import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
@@ -106,6 +107,10 @@ export default function ProposalCreatePage() {
     error: governorSettingsError,
     isLoading: governorSettingsLoading
   } = useGovernorSettings(config, session.address || config.adminAddress);
+  const {
+    data: treasuryBalances,
+    isLoading: treasuryBalancesLoading
+  } = useTreasuryBalances(config);
   const [step, setStep] = useState<ProposalStep>(1);
   const [metadata, setMetadata] = useState<ProposalMetadataDraft>(EMPTY_METADATA);
   const [actionType, setActionType] = useState<ProposalActionType>(EMPTY_ACTION_STATE.type);
@@ -146,10 +151,22 @@ export default function ProposalCreatePage() {
   const recipientIsValid = recipientValidation.isValid;
   const recipientError = recipient.trim().length > 0 && !recipientValidation.isValid ? recipientValidation.error : undefined;
   const assetIsValid = actionType === 'transfer-sac-token' ? assetCode.trim().length > 0 : true;
+
+  // Check balance for SAC transfers
+  const selectedAssetBalance = actionType === 'transfer-sac-token' && assetCode && treasuryBalances
+    ? treasuryBalances.find((b) => b.assetCode === assetCode)
+    : undefined;
+  const balanceExceeded = actionType === 'transfer-sac-token' && assetCode && amount.trim().length > 0 && isPositiveDecimal(amount)
+    ? selectedAssetBalance && parseFloat(amount) > parseFloat(selectedAssetBalance.balance)
+    : false;
+  const amountError = balanceExceeded
+    ? `Amount exceeds treasury balance of ${selectedAssetBalance ? parseFloat(selectedAssetBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 }) : '0'} ${assetCode}`
+    : undefined;
+
   const amountIsValid = actionType === 'batch-mint-governance-token'
     ? isPositiveWholeNumber(amount) && Number(amount) <= MAX_BATCH_MINT_AMOUNT
     : actionType === 'transfer-sac-token'
-      ? isPositiveDecimal(amount)
+      ? isPositiveDecimal(amount) && !balanceExceeded
       : true;
   const actionIsValid = recipientIsValid && amountIsValid && assetIsValid && !actionMintAuthorityError && !proposalCreationLocked;
   const canReview = metadataIsValid && queuedActions.length > 0 && !editingAction && !(queuedActionsNeedMintAuthority && mintAuthorityMissing) && !proposalCreationLocked;
@@ -175,6 +192,15 @@ export default function ProposalCreatePage() {
   function clearActionDraft() {
     resetActionDraft();
     setFormMessage('Action draft cleared.');
+  }
+
+  function handleMaxClick() {
+    if (actionType === 'transfer-sac-token' && assetCode && treasuryBalances) {
+      const balance = treasuryBalances.find((b) => b.assetCode === assetCode);
+      if (balance) {
+        setAmount(balance.balance);
+      }
+    }
   }
 
   function queueAction() {
@@ -212,6 +238,15 @@ export default function ProposalCreatePage() {
     if (actionType === 'transfer-sac-token' && !isPositiveDecimal(amount)) {
       setFormMessage('Transfer amount must be a positive decimal number.');
       return;
+    }
+
+    // Check balance for SAC transfers
+    if (actionType === 'transfer-sac-token' && assetCode && treasuryBalances) {
+      const balance = treasuryBalances.find((b) => b.assetCode === assetCode);
+      if (balance && parseFloat(amount) > parseFloat(balance.balance)) {
+        setFormMessage(`Amount exceeds treasury balance of ${parseFloat(balance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })} ${assetCode}`);
+        return;
+      }
     }
 
     // Find asset contract ID for SAC transfers
@@ -509,6 +544,9 @@ export default function ProposalCreatePage() {
                       canSave={actionIsValid}
                       disabledReason={proposalCreationLockMessage || (mintAuthoritiesLoading ? undefined : actionMintAuthorityError)}
                       recipientError={recipientError}
+                      amountError={amountError}
+                      treasuryBalances={treasuryBalances}
+                      balancesLoading={treasuryBalancesLoading}
                       onActionTypeChange={(nextType) => {
                         setActionType(nextType);
                         if (nextType === 'batch-mint-governance-token' && amount.trim() === '') {
@@ -522,6 +560,7 @@ export default function ProposalCreatePage() {
                       onRecipientChange={setRecipient}
                       onAmountChange={setAmount}
                       onAssetCodeChange={setAssetCode}
+                      onMaxClick={handleMaxClick}
                       onSave={queueAction}
                       onClear={editingAction ? cancelEdit : clearActionDraft}
                       onCancelEdit={cancelEdit}

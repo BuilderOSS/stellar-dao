@@ -2,6 +2,7 @@
 
 import { Badge, Button, Callout, Card, FieldHelperText, FieldLabel, Input, Select, Text } from '@/components/ui';
 import { getProposalActionLabel, type ProposalActionType } from '@/lib/proposal-call';
+import type { AssetBalance } from '@/lib/treasury-queries';
 import { validateStellarAddress } from '@/lib/validate-address';
 import { Stack } from 'styled-system/jsx';
 
@@ -15,10 +16,14 @@ type ProposalActionEditorProps = {
   canSave: boolean;
   disabledReason?: string;
   recipientError?: string;
+  amountError?: string;
+  treasuryBalances?: AssetBalance[];
+  balancesLoading?: boolean;
   onActionTypeChange: (value: ProposalActionType) => void;
   onRecipientChange: (value: string) => void;
   onAmountChange: (value: string) => void;
   onAssetCodeChange?: (value: string) => void;
+  onMaxClick?: () => void;
   onSave: () => void;
   onClear: () => void;
   onCancelEdit: () => void;
@@ -34,10 +39,14 @@ export function ProposalActionEditor({
   canSave,
   disabledReason,
   recipientError,
+  amountError,
+  treasuryBalances,
+  balancesLoading,
   onActionTypeChange,
   onRecipientChange,
   onAmountChange,
   onAssetCodeChange,
+  onMaxClick,
   onSave,
   onClear,
   onCancelEdit
@@ -47,6 +56,19 @@ export function ProposalActionEditor({
   const needsAmount = batchMint || sacTransfer;
   const title = editingActionId ? 'Edit queued action' : 'Add action';
   const formDisabled = busy || Boolean(disabledReason);
+
+  // Find the balance for the selected asset
+  const selectedAssetBalance = sacTransfer && assetCode && treasuryBalances
+    ? treasuryBalances.find((b) => b.assetCode === assetCode)
+    : undefined;
+
+  const balanceDisplay = sacTransfer && assetCode
+    ? balancesLoading
+      ? 'Loading balance...'
+      : selectedAssetBalance
+        ? `${parseFloat(selectedAssetBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })} ${assetCode}`
+        : '0 ' + assetCode
+    : undefined;
 
   return (
     <Card p="5">
@@ -103,6 +125,11 @@ export function ProposalActionEditor({
                   <option value="EURC">EURC</option>
                 </Select>
                 <FieldHelperText>Choose which SAC token to transfer from the treasury.</FieldHelperText>
+                {balanceDisplay ? (
+                  <FieldHelperText>
+                    <strong>Treasury balance:</strong> {balanceDisplay}
+                  </FieldHelperText>
+                ) : null}
               </Stack>
             ) : null}
 
@@ -125,24 +152,43 @@ export function ProposalActionEditor({
             {needsAmount ? (
               <Stack gap="2">
                 <FieldLabel htmlFor="proposal-action-amount">Amount</FieldLabel>
-                <Input
-                  id="proposal-action-amount"
-                  value={amount}
-                  onChange={(event) => onAmountChange(event.target.value)}
-                  placeholder={sacTransfer ? "Amount to transfer (e.g., 100.5)" : "Amount to mint"}
-                  type="number"
-                  min="0.0000001"
-                  max={batchMint ? "20" : undefined}
-                  step={sacTransfer ? "0.0000001" : "1"}
-                  disabled={formDisabled}
-                />
-                <FieldHelperText>
-                  {sacTransfer
-                    ? 'Use a positive decimal number (supports up to 7 decimal places).'
-                    : batchMint
-                    ? 'Use a positive whole number up to 20 tokens.'
-                    : 'Use a positive whole number of tokens.'}
-                </FieldHelperText>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      id="proposal-action-amount"
+                      value={amount}
+                      onChange={(event) => onAmountChange(event.target.value)}
+                      placeholder={sacTransfer ? "Amount to transfer (e.g., 100.5)" : "Amount to mint"}
+                      type="number"
+                      min="0.0000001"
+                      max={batchMint ? "20" : undefined}
+                      step={sacTransfer ? "0.0000001" : "1"}
+                      disabled={formDisabled}
+                    />
+                  </div>
+                  {sacTransfer && assetCode && onMaxClick ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onMaxClick}
+                      disabled={formDisabled || balancesLoading}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      Max
+                    </Button>
+                  ) : null}
+                </div>
+                {amountError ? (
+                  <FieldHelperText style={{ color: 'var(--error-9)' }}>{amountError}</FieldHelperText>
+                ) : (
+                  <FieldHelperText>
+                    {sacTransfer
+                      ? 'Use a positive decimal number (supports up to 7 decimal places).'
+                      : batchMint
+                      ? 'Use a positive whole number up to 20 tokens.'
+                      : 'Use a positive whole number of tokens.'}
+                  </FieldHelperText>
+                )}
               </Stack>
             ) : null}
 
