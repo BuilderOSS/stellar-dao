@@ -1,4 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { run } from './lib.mjs';
 
 const configPath = process.argv[2];
@@ -7,9 +9,21 @@ if (!configPath) {
   throw new Error('Usage: node scripts/deploy-dao-mercury.mjs <config.json>');
 }
 
-const mercuryCliPath = process.env.MERCURY_CLI_PATH ?? '/home/dan13ram/code/stellar/mercury-cli/target/release/mercury-cli';
+const defaultMercuryCliPath = join(homedir(), 'code/stellar/mercury-cli/target/release/mercury-cli');
+const mercuryCliPath = process.env.MERCURY_CLI_PATH ?? defaultMercuryCliPath;
 const mercuryBaseUrl = (process.env.MERCURY_BASE_URL?.trim() || 'https://testnet.mercurydata.app/rest').replace(/\/$/, '');
 const mercuryJwt = process.env.MERCURY_JWT?.trim() || loadEnvValue('apps/web/.env.local', 'MERCURY_JWT');
+
+if (!existsSync(mercuryCliPath)) {
+  throw new Error(
+    `Mercury CLI not found at: ${mercuryCliPath}\n\n` +
+    `Please either:\n` +
+    `  1. Build mercury-cli and ensure it exists at the path above\n` +
+    `  2. Set MERCURY_CLI_PATH environment variable to the correct path:\n` +
+    `     export MERCURY_CLI_PATH=/path/to/mercury-cli\n` +
+    `     pnpm mercury:deploy:testnet`
+  );
+}
 
 function loadConfig(filePath) {
   if (!existsSync(filePath)) {
