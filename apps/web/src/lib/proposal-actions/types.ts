@@ -39,6 +39,17 @@ export type ValidationResult =
     };
 
 /**
+ * Precondition check result - determines if action can be executed at all
+ */
+export type PreconditionResult =
+  | { canExecute: true }
+  | {
+      canExecute: false;
+      reason: string; // User-facing message explaining why action cannot be executed
+      loading?: boolean; // True if still checking preconditions
+    };
+
+/**
  * Context provided to all action handlers
  */
 export interface FormContext {
@@ -107,6 +118,9 @@ export interface ActionHandler<TData = any> {
 
   // Call building
   buildCallVector: (data: TData, context: BuildContext) => CallVectorResult;
+
+  // Precondition check - determines if action can be executed at all (independent of form data)
+  checkPreconditions?: (context: FormContext) => PreconditionResult;
 
   // Optional metadata
   requiresMintAuthority?: boolean;

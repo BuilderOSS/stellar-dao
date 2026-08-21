@@ -43,5 +43,33 @@ export const batchMintGovernanceTokenHandler: ActionHandler<BatchMintGovernanceT
     ],
   }),
 
+  checkPreconditions: (context) => {
+    // Check if still loading
+    if (context.mintAuthoritiesLoading) {
+      return {
+        canExecute: false,
+        reason: 'Checking mint authority...',
+        loading: true,
+      };
+    }
+
+    // Check if treasury has mint authority
+    const treasuryHasMintAuthority = Boolean(
+      context.config.treasuryContractId &&
+      context.mintAuthorities?.some(
+        (item) => item.authority === context.config.treasuryContractId && item.enabled
+      )
+    );
+
+    if (!treasuryHasMintAuthority) {
+      return {
+        canExecute: false,
+        reason: 'Grant mint authority to the treasury before creating mint proposals.',
+      };
+    }
+
+    return { canExecute: true };
+  },
+
   requiresMintAuthority: false,
 };

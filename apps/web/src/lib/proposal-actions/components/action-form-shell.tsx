@@ -2,9 +2,9 @@
 
 'use client';
 
-import { Badge, Button, Card, FieldLabel, Select, Text } from '@/components/ui';
+import { Badge, Button, Card, FieldLabel, Select, Text, Callout } from '@/components/ui';
 import { getAllActionHandlers } from '../registry';
-import type { ProposalActionType } from '../types';
+import type { ProposalActionType, PreconditionResult } from '../types';
 import { Stack } from 'styled-system/jsx';
 import type { ReactNode } from 'react';
 
@@ -13,6 +13,7 @@ export interface ActionFormShellProps {
   actionType: ProposalActionType;
   actionLabel: string;
   disabled: boolean;
+  preconditionResult?: PreconditionResult;
   onActionTypeChange: (type: ProposalActionType) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -24,6 +25,7 @@ export function ActionFormShell({
   actionType,
   actionLabel,
   disabled,
+  preconditionResult,
   onActionTypeChange,
   onSave,
   onCancel,
@@ -34,6 +36,14 @@ export function ActionFormShell({
   return (
     <Card p="5">
       <Stack gap="3">
+        {/* Precondition blocking message */}
+        {preconditionResult && !preconditionResult.canExecute && (
+          <Callout
+            variant={preconditionResult.loading ? 'info' : 'error'}
+            title={preconditionResult.reason}
+          />
+        )}
+
         {/* Header */}
         <div
           style={{

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useCallback, Suspense } from 'react';
+import { useCallback, useEffect, Suspense } from 'react';
 import { getActionHandler } from '../registry';
 import { useActionFormContext } from '../context';
 import {
@@ -32,6 +32,10 @@ export function ActionFormWrapper() {
   const cancelEdit = useProposalComposerStore((s) => s.cancelEdit);
   const changeActionType = useProposalComposerStore((s) => s.changeActionType);
   const setValidationErrors = useProposalComposerStore((s) => s.setValidationErrors);
+
+  // Check preconditions for current action
+  const handler = editingState ? getActionHandler(editingState.actionType) : null;
+  const preconditionResult = handler?.checkPreconditions?.(context) ?? { canExecute: true };
 
   const handleSave = useCallback(() => {
     if (!editingState) return;
@@ -81,15 +85,16 @@ export function ActionFormWrapper() {
     return null;
   }
 
-  const handler = getActionHandler(editingState.actionType);
-  const FormComponent = handler.FormComponent;
+  const FormComponent = handler!.FormComponent;
+  const isDisabled = busy || !preconditionResult.canExecute;
 
   return (
     <ActionFormShell
       mode={editingState.mode}
       actionType={editingState.actionType}
-      actionLabel={handler.label}
-      disabled={busy}
+      actionLabel={handler!.label}
+      disabled={isDisabled}
+      preconditionResult={preconditionResult}
       onActionTypeChange={handleActionTypeChange}
       onSave={handleSave}
       onCancel={handleCancel}
@@ -99,7 +104,7 @@ export function ActionFormWrapper() {
           <FormComponent
             value={editingState.draftData}
             onChange={updateDraft}
-            disabled={busy}
+            disabled={isDisabled}
             validationErrors={validationErrors || undefined}
           />
         </Suspense>
