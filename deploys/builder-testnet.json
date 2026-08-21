@@ -21,14 +21,45 @@
     }
   },
   "contracts": {
-    "token": "CCAWKWUUWBROBNPKSTT3GD3PNKV4SE3AI4763XCV4NS3YQ2DBULTN2OK",
-    "governor": "CDVMYNJYGDQSHLSW4IFUHAJ5FHP7HJ5OD5O5WRU2B7SONXVUZYYYCAW4",
-    "treasury": "CBABZ6NA2BCB45ESNWAHOMGVCRGOBID4NVVTIYSFH4Q5PXICBEECYDTG"
+    "token": "CCMP5CSZJNX2QW7ETB2CKVA4I7JC5XZM2BZFOTCPUSCKHWBJCAMFP7TL",
+    "governor": "CC452SXLNTOD3UYHQ7ORRIAJREOUKPQ3Z6A44BZ553AZ3DHU3IY3TBGX",
+    "treasury": "CBAYRSONPLSBNIUN44RNPNGVNWRD6TVNKGTQOR2FSTHWFZARHKGGTNG6"
   },
   "outputs": {
     "tokenBaseUri": "https://test-dao-stellar-web.vercel.app/api/token/",
     "identityName": "testnet-dev",
-    "saltSuffix": "789982",
+    "saltSuffix": null,
     "deployArtifactPath": "deploys/builder-testnet.json"
+  },
+  "transactions": {
+    "token": {
+      "deployedAt": "2026-08-21T12:33:57.502Z",
+      "txHash": "24ef69d93a6e346103178359028f18ad757957de8d22c0e578bbe2213f08e2e9"
+    },
+    "treasury": {
+      "deployedAt": "2026-08-21T12:34:07.861Z",
+      "txHash": "16a5ac706691d35d45b1f8ae9ba88988cb8fcd31680a9407d603a54353586ff0"
+    },
+    "governor": {
+      "deployedAt": "2026-08-21T12:34:18.030Z",
+      "txHash": "6d3d6893fef2c4d81045c16951af0fe068e846c50c20878e5c7905eb3bb6c6c0"
+    }
+  },
+  "mercury": {
+    "deployedAt": "2026-08-21T12:34:41.058Z",
+    "programs": {
+      "token": {
+        "program_id": 45,
+        "project": "dao-builder-token-testnet-v8"
+      },
+      "governor": {
+        "program_id": 46,
+        "project": "dao-builder-governor-testnet-v8"
+      },
+      "treasury": {
+        "program_id": 47,
+        "project": "dao-builder-treasury-testnet-v8"
+      }
+    }
   }
 }
