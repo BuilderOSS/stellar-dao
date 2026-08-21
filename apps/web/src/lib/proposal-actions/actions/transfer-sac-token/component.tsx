@@ -3,7 +3,7 @@
 'use client';
 
 import { Stack } from 'styled-system/jsx';
-import { FieldLabel, FieldHelperText, Input, Select, Button } from '@/components/ui';
+import { FieldLabel, FieldHelperText, Input, Select, Button, Callout } from '@/components/ui';
 import { useActionFormContext } from '../../context';
 import type { ActionFormProps } from '../../types';
 import type { TransferSacTokenData } from './types';
@@ -59,7 +59,7 @@ export function TransferSacTokenForm({
           <option value="EURC">EURC</option>
         </Select>
         {validationErrors && !validationErrors.valid && validationErrors.fields?.assetCode ? (
-          <FieldHelperText id="asset-code-error" style={{ color: 'var(--error-9)' }}>
+          <FieldHelperText id="asset-code-error" style={{ color: '#f87171' }}>
             {validationErrors.fields.assetCode}
           </FieldHelperText>
         ) : (
@@ -91,7 +91,7 @@ export function TransferSacTokenForm({
           }
         />
         {validationErrors && !validationErrors.valid && validationErrors.fields?.recipient ? (
-          <FieldHelperText id="recipient-error" style={{ color: 'var(--error-9)' }}>
+          <FieldHelperText id="recipient-error" style={{ color: '#f87171' }}>
             {validationErrors.fields.recipient}
           </FieldHelperText>
         ) : (
@@ -135,7 +135,7 @@ export function TransferSacTokenForm({
           )}
         </div>
         {validationErrors && !validationErrors.valid && validationErrors.fields?.amount ? (
-          <FieldHelperText id="amount-error" style={{ color: 'var(--error-9)' }}>
+          <FieldHelperText id="amount-error" style={{ color: '#f87171' }}>
             {validationErrors.fields.amount}
           </FieldHelperText>
         ) : (
