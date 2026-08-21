@@ -5,6 +5,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { DaoNetworkConfig } from '@/lib/dao-config';
 import { useTreasuryBalances } from '@/lib/treasury-queries';
+import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
 import type { FormContext } from './types';
 
 const ActionFormContext = createContext<FormContext | null>(null);
@@ -25,6 +26,7 @@ export function ActionFormProvider({
   session,
 }: ActionFormProviderProps) {
   const { data: balances, isLoading: balancesLoading } = useTreasuryBalances(config);
+  const { data: mintAuthoritiesData, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
 
   const contextValue = useMemo<FormContext>(
     () => ({
@@ -32,8 +34,10 @@ export function ActionFormProvider({
       session,
       balances,
       balancesLoading,
+      mintAuthorities: mintAuthoritiesData?.items,
+      mintAuthoritiesLoading,
     }),
-    [config, session, balances, balancesLoading]
+    [config, session, balances, balancesLoading, mintAuthoritiesData, mintAuthoritiesLoading]
   );
 
   return (

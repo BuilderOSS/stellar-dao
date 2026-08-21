@@ -50,6 +50,8 @@ export interface FormContext {
   // Shared data
   balances?: AssetBalance[];
   balancesLoading?: boolean;
+  mintAuthorities?: Array<{ authority: string; enabled: boolean }>;
+  mintAuthoritiesLoading?: boolean;
   // Allow custom extensions per action type
   [key: string]: any;
 }
