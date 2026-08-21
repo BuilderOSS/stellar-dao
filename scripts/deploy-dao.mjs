@@ -148,8 +148,9 @@ function deployIfMissing(packageName, alias, initArgs) {
   const id = contractId(packageName);
   const exists = runQuiet('stellar', ['contract', 'fetch', '--id', id, '--network', networkName]);
 
+  let txMetadata = null;
   if (!exists.ok) {
-    run('stellar', [
+    const result = runQuiet('stellar', [
       'contract',
       'deploy',
       '--alias',
@@ -165,12 +166,38 @@ function deployIfMissing(packageName, alias, initArgs) {
       '--',
       ...initArgs
     ]);
+
+    if (!result.ok) {
+      console.error('Deploy output:', result.stdout);
+      console.error('Deploy error:', result.stderr);
+      throw new Error(`Failed to deploy ${packageName}`);
+    }
+
+    console.log(result.stdout);
+    console.error(result.stderr);
+
+    // Parse transaction metadata from stellar CLI output
+    const output = result.stdout + result.stderr;
+    const txHashMatch = output.match(/Signing transaction:\s*([a-f0-9]{64})/i);
+
+    txMetadata = {
+      deployedAt: new Date().toISOString()
+    };
+
+    if (txHashMatch) {
+      txMetadata.txHash = txHashMatch[1];
+    }
   }
 
-  return id;
+  return { id, txMetadata };
 }
 
-function writeEnvIfMissing(contracts) {
+async function writeEnvIfMissing(contracts) {
+  if (!(await confirmOverwrite(envPath))) {
+    console.log(`Skipped writing ${envPath}.`);
+    return;
+  }
+
   const lines = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
   const updated = [
     ['NEXT_PUBLIC_STELLAR_TOKEN_CONTRACT_ID', contracts.token],
@@ -185,40 +212,39 @@ function writeEnvIfMissing(contracts) {
   writeFileSync(envPath, `${updated.trimEnd()}\n`);
 }
 
-async function writeDeployArtifact(contracts) {
+async function writeDeployArtifact(contracts, transactions) {
   if (!(await confirmOverwrite(deployArtifactPath))) {
     console.log(`Skipped writing ${deployArtifactPath}.`);
     return;
   }
 
+  const artifact = {
+    network: networkName,
+    label: config.label,
+    config: {
+      label: config.label,
+      adminAddress,
+      webBaseUrl,
+      rpcUrl,
+      networkPassphrase,
+      token: config.token,
+      governor: config.governor
+    },
+    contracts,
+    outputs: {
+      tokenBaseUri,
+      identityName,
+      saltSuffix: saltSuffix || null,
+      deployArtifactPath
+    }
+  };
+
+  if (transactions && (transactions.token || transactions.governor || transactions.treasury)) {
+    artifact.transactions = transactions;
+  }
+
   mkdirSync('deploys', { recursive: true });
-  writeFileSync(
-    deployArtifactPath,
-    `${JSON.stringify(
-      {
-        network: networkName,
-        label: config.label,
-        config: {
-          label: config.label,
-          adminAddress,
-          webBaseUrl,
-          rpcUrl,
-          networkPassphrase,
-          token: config.token,
-          governor: config.governor
-        },
-        contracts,
-        outputs: {
-          tokenBaseUri,
-          identityName,
-          saltSuffix: saltSuffix || null,
-          deployArtifactPath
-        }
-      },
-      null,
-      2
-    )}\n`
-  );
+  writeFileSync(deployArtifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
 }
 
 function cleanupTempConfig() {
@@ -248,7 +274,7 @@ async function main() {
     const treasury = contractId('treasury');
     const governor = contractId('governor');
 
-    deployIfMissing('token', `dao-token-${networkName}`, [
+    const tokenDeploy = deployIfMissing('token', `dao-token-${networkName}`, [
       '--owner',
       adminAddress,
       '--uri',
@@ -259,14 +285,14 @@ async function main() {
       config.token.symbol
     ]);
 
-    deployIfMissing('treasury', `dao-treasury-${networkName}`, [
+    const treasuryDeploy = deployIfMissing('treasury', `dao-treasury-${networkName}`, [
       '--owner',
       adminAddress,
       '--governor',
       governor
     ]);
 
-    deployIfMissing('governor', `dao-governor-${networkName}`, [
+    const governorDeploy = deployIfMissing('governor', `dao-governor-${networkName}`, [
       '--owner',
       adminAddress,
       '--token_contract',
@@ -285,8 +311,14 @@ async function main() {
       String(config.governor.quorumBps)
     ]);
 
-    writeEnvIfMissing({ token, governor, treasury });
-    await writeDeployArtifact({ token, governor, treasury });
+    const transactions = {
+      token: tokenDeploy.txMetadata,
+      treasury: treasuryDeploy.txMetadata,
+      governor: governorDeploy.txMetadata
+    };
+
+    await writeEnvIfMissing({ token, governor, treasury });
+    await writeDeployArtifact({ token, governor, treasury }, transactions);
 
     console.log(`Deployed ${networkName} DAO contracts:`);
     console.log(`TOKEN=${token}`);

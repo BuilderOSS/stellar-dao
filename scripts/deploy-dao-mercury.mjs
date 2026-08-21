@@ -1,12 +1,15 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import readline from 'node:readline/promises';
 import { run } from './lib.mjs';
 
-const configPath = process.argv[2];
+const args = process.argv.slice(2);
+const force = args.includes('--force');
+const configPath = args.find((arg) => arg !== '--force');
 
 if (!configPath) {
-  throw new Error('Usage: node scripts/deploy-dao-mercury.mjs <config.json>');
+  throw new Error('Usage: node scripts/deploy-dao-mercury.mjs <config.json> [--force]');
 }
 
 const defaultMercuryCliPath = join(homedir(), 'code/stellar/mercury-cli/target/release/mercury-cli');
@@ -94,53 +97,101 @@ function upsertEnvValue(content, key, value) {
   return `${content.trimEnd()}\n${line}`;
 }
 
-const config = loadConfig(configPath);
-const deployArtifactPath = deriveDeployArtifactPath(configPath);
+async function confirmOverwrite(filePath) {
+  if (force || !existsSync(filePath)) {
+    return true;
+  }
 
-if (!existsSync(deployArtifactPath)) {
-  throw new Error(`Deploy artifact not found: ${deployArtifactPath}`);
+  if (!process.stdin.isTTY) {
+    throw new Error(`Refusing to overwrite ${filePath} without --force in non-interactive mode`);
+  }
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question(`Overwrite ${filePath}? [y/N] `);
+  rl.close();
+
+  return ['y', 'yes'].includes(answer.trim().toLowerCase());
 }
 
-run('pnpm', ['dao:build:mercury']);
+async function main() {
+  const config = loadConfig(configPath);
+  const deployArtifactPath = deriveDeployArtifactPath(configPath);
 
-const deployed = JSON.parse(readFileSync(deployArtifactPath, 'utf8'));
-const tokenId = deployed.contracts.token;
-const governorId = deployed.contracts.governor;
-const treasuryId = deployed.contracts.treasury;
+  if (!existsSync(deployArtifactPath)) {
+    throw new Error(`Deploy artifact not found: ${deployArtifactPath}`);
+  }
 
-deployMercuryProgram(
-  'target/wasm32v1-none/release/token.wasm',
-  projectName(config.label, config.network, 'token'),
-  tokenId
-);
+  run('pnpm', ['dao:build:mercury']);
 
-deployMercuryProgram(
-  'target/wasm32v1-none/release/governor.wasm',
-  projectName(config.label, config.network, 'governor'),
-  governorId
-);
+  const deployed = JSON.parse(readFileSync(deployArtifactPath, 'utf8'));
+  const tokenId = deployed.contracts.token;
+  const governorId = deployed.contracts.governor;
+  const treasuryId = deployed.contracts.treasury;
 
-deployMercuryProgram(
-  'target/wasm32v1-none/release/treasury.wasm',
-  projectName(config.label, config.network, 'treasury'),
-  treasuryId
-);
+  deployMercuryProgram(
+    'target/wasm32v1-none/release/token.wasm',
+    projectName(config.label, config.network, 'token'),
+    tokenId
+  );
 
-const programs = await listMercuryPrograms();
-const tokenProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'token'));
-const governorProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'governor'));
-const treasuryProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'treasury'));
+  deployMercuryProgram(
+    'target/wasm32v1-none/release/governor.wasm',
+    projectName(config.label, config.network, 'governor'),
+    governorId
+  );
 
-if (!tokenProgram || !governorProgram || !treasuryProgram) {
-  throw new Error('Failed to read deployed Mercury program ids');
+  deployMercuryProgram(
+    'target/wasm32v1-none/release/treasury.wasm',
+    projectName(config.label, config.network, 'treasury'),
+    treasuryId
+  );
+
+  const programs = await listMercuryPrograms();
+  const tokenProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'token'));
+  const governorProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'governor'));
+  const treasuryProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'treasury'));
+
+  if (!tokenProgram || !governorProgram || !treasuryProgram) {
+    throw new Error('Failed to read deployed Mercury program ids');
+  }
+
+  // Write to .env.local with confirmation
+  const envPath = 'apps/web/.env.local';
+  if (await confirmOverwrite(envPath)) {
+    let env = readFileSync(envPath, 'utf8');
+    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROGRAM_ID', String(tokenProgram.id));
+    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROGRAM_ID', String(governorProgram.id));
+    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROGRAM_ID', String(treasuryProgram.id));
+    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROJECT', tokenProgram.project_name);
+    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROJECT', governorProgram.project_name);
+    env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROJECT', treasuryProgram.project_name);
+    writeFileSync(envPath, `${env.trimEnd()}\n`);
+  } else {
+    console.log(`Skipped writing ${envPath}.`);
+  }
+
+  // Update deploy artifact with Mercury program metadata
+  if (await confirmOverwrite(deployArtifactPath)) {
+    const updatedArtifact = {
+      ...deployed,
+      mercury: {
+        deployedAt: new Date().toISOString(),
+        programs: {
+          token: { program_id: tokenProgram.id, project: tokenProgram.project_name },
+          governor: { program_id: governorProgram.id, project: governorProgram.project_name },
+          treasury: { program_id: treasuryProgram.id, project: treasuryProgram.project_name }
+        }
+      }
+    };
+    writeFileSync(deployArtifactPath, `${JSON.stringify(updatedArtifact, null, 2)}\n`);
+  } else {
+    console.log(`Skipped writing ${deployArtifactPath}.`);
+  }
+
+  console.log('Mercury programs deployed successfully!');
+  console.log(`TOKEN: program_id=${tokenProgram.id}, project=${tokenProgram.project_name}`);
+  console.log(`GOVERNOR: program_id=${governorProgram.id}, project=${governorProgram.project_name}`);
+  console.log(`TREASURY: program_id=${treasuryProgram.id}, project=${treasuryProgram.project_name}`);
 }
 
-const envPath = 'apps/web/.env.local';
-let env = readFileSync(envPath, 'utf8');
-env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROGRAM_ID', String(tokenProgram.id));
-env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROGRAM_ID', String(governorProgram.id));
-env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROGRAM_ID', String(treasuryProgram.id));
-env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TOKEN_MERCURY_PROJECT', tokenProgram.project_name);
-env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_GOVERNOR_MERCURY_PROJECT', governorProgram.project_name);
-env = upsertEnvValue(env, 'NEXT_PUBLIC_STELLAR_TREASURY_MERCURY_PROJECT', treasuryProgram.project_name);
-writeFileSync(envPath, `${env.trimEnd()}\n`);
+await main();
