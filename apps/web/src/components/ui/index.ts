@@ -9,3 +9,4 @@ export { IconLinkButton } from './icon-link-button';
 export { Input } from './input';
 export { Select } from './select';
 export { ShortId } from './short-id';
+export { Textarea } from './textarea';
