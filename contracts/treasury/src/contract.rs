@@ -100,9 +100,11 @@ impl DaoTreasuryContract {
         let governor = Self::governor(e);
         governor.require_auth();
 
-        // Authorize this contract to call the target function, with full sub-invocation authority.
-        // The empty sub_invocations vector means "authorize any require_auth calls made by the target
-        // function that need this contract's (treasury's) authorization".
+        // Authorize this Treasury contract as the authorizer of the
+        // immediate target function invocation.
+        //
+        // If deeper downstream invocations require Treasury authorization,
+        // those invocations must also be represented in `sub_invocations`.
         e.authorize_as_current_contract(vec![
             e,
             InvokerContractAuthEntry::Contract(SubContractInvocation {

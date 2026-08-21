@@ -753,11 +753,7 @@ fn treasury_batch_mint_with_explicit_auth() {
         invoke: &MockAuthInvoke {
             contract: &treasury_id,
             fn_name: "execute",
-            args: (
-                &token_id,
-                &Symbol::new(&e, "batch_mint"),
-                &batch_mint_args,
-            ).into_val(&e),
+            args: (&token_id, &Symbol::new(&e, "batch_mint"), &batch_mint_args).into_val(&e),
             sub_invokes: &[
                 // Treasury itself needs to authorize the batch_mint call where it's the minter
                 MockAuthInvoke {
@@ -771,11 +767,7 @@ fn treasury_batch_mint_with_explicit_auth() {
     }]);
 
     // Call treasury.execute which should call token.batch_mint
-    treasury.execute(
-        &token_id,
-        &Symbol::new(&e, "batch_mint"),
-        &batch_mint_args,
-    );
+    treasury.execute(&token_id, &Symbol::new(&e, "batch_mint"), &batch_mint_args);
 
     // Verify the tokens were minted
     assert_eq!(token.balance(&recipient), 3);

@@ -808,7 +808,6 @@ impl Governor for DaoGovernorContract {
         executor: Address,
     ) -> BytesN<32> {
         executor.require_auth();
-        e.current_contract_address().require_auth();
 
         // CHECKS: Validate proposal parameters are consistent
         if targets.len() != functions.len() || targets.len() != args.len() {
