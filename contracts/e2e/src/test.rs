@@ -1,5 +1,6 @@
 extern crate std;
 
+use auction::{AuctionContract, AuctionContractClient};
 use governor::{DaoGovernorContract, DaoGovernorContractClient};
 use soroban_sdk::{
     contract, contractimpl, symbol_short,
@@ -773,4 +774,280 @@ fn treasury_batch_mint_with_explicit_auth() {
     assert_eq!(token.balance(&recipient), 3);
     assert_eq!(token.get_votes(&recipient), 3);
     assert_eq!(token.get_delegate(&recipient), Some(recipient.clone()));
+}
+
+// ============================================================================
+// AUCTION CONTRACT E2E TESTS
+// ============================================================================
+
+
+fn setup_auction() -> (
+    Env,
+    DaoTokenContractClient<'static>,
+    DaoTreasuryContractClient<'static>,
+    AuctionContractClient<'static>,
+    Address,  // owner
+    Address,  // payment token
+    StellarAssetClient<'static>,  // payment token client
+) {
+    let e = Env::default();
+    e.ledger().set_sequence_number(100);
+    e.ledger().set_timestamp(1_000);
+
+    let owner = Address::generate(&e);
+
+    // Deploy DAO token (NFT)
+    let token_id = e.register(
+        DaoTokenContract,
+        (
+            owner.clone(),
+            String::from_str(&e, "https://example.com/"),
+            String::from_str(&e, "DAO Vote NFT"),
+            String::from_str(&e, "vDAO"),
+        ),
+    );
+    let token = DaoTokenContractClient::new(&e, &token_id);
+
+    // Deploy treasury
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
+    let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
+
+    // Create payment token (SAC - like USDC)
+    let payment_token_admin = Address::generate(&e);
+    let payment_token_contract = e.register_stellar_asset_contract_v2(payment_token_admin.clone());
+    let payment_token = payment_token_contract.address();
+    let payment_client = StellarAssetClient::new(&e, &payment_token);
+
+    // Deploy auction contract
+    let auction_id = e.register(
+        AuctionContract,
+        (
+            owner.clone(),
+            token_id.clone(),
+            treasury_id.clone(),
+            100_u64,  // duration: 100 ledgers
+            100_0000000_i128,  // reserve price: 100 USDC
+            10_u32,  // min bid increment: 10%
+            10_u64,  // time buffer: 10 ledgers
+            Some(payment_token.clone()),  // payment token
+        ),
+    );
+    let auction = AuctionContractClient::new(&e, &auction_id);
+
+    e.mock_all_auths();
+
+    // Grant mint authority to auction contract
+    token.set_mint_authority(&auction_id, &true);
+
+    (e, token, treasury, auction, owner, payment_token, payment_client)
+}
+
+#[test]
+fn test_auction_full_lifecycle() {
+    let (e, token, treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder1 = Address::generate(&e);
+    let bidder2 = Address::generate(&e);
+
+    // Mint payment tokens to bidders
+    payment_client.mint(&bidder1, &1000_0000000);
+    payment_client.mint(&bidder2, &2000_0000000);
+
+    // Unpause to start first auction
+    auction.unpause(&owner);
+
+    // Get auction state
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+    assert_eq!(auction_state.highest_bid, 0);
+    assert_eq!(auction_state.highest_bidder, None);
+    assert!(!auction_state.settled);
+
+    // Bidder 1 places first bid at reserve price
+    auction.create_bid(&bidder1, &token_id, &100_0000000);
+
+    let auction_state = auction.get_auction();
+    assert_eq!(auction_state.highest_bid, 100_0000000);
+    assert_eq!(auction_state.highest_bidder, Some(bidder1.clone()));
+
+    // Bidder 2 places higher bid (110 USDC - 10% increment)
+    auction.create_bid(&bidder2, &token_id, &110_0000000);
+
+    let auction_state = auction.get_auction();
+    assert_eq!(auction_state.highest_bid, 110_0000000);
+    assert_eq!(auction_state.highest_bidder, Some(bidder2.clone()));
+
+    // Bidder 1 should have been refunded
+    assert_eq!(payment_client.balance(&bidder1), 1000_0000000);
+    assert_eq!(payment_client.balance(&bidder2), 2000_0000000 - 110_0000000);
+
+    // Advance past auction end
+    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+
+    // Settle and create new auction
+    auction.settle_and_create_new();
+
+    // Verify bidder2 received the NFT
+    assert_eq!(token.balance(&bidder2), 1);
+
+    // Verify treasury received payment
+    assert_eq!(payment_client.balance(&treasury.address), 110_0000000);
+
+    // Verify new auction was created
+    let new_auction_state = auction.get_auction();
+    assert_ne!(new_auction_state.token_id, token_id);
+    assert_eq!(new_auction_state.highest_bid, 0);
+    assert!(!new_auction_state.settled);
+}
+
+#[test]
+fn test_auction_time_extension() {
+    let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder = Address::generate(&e);
+    payment_client.mint(&bidder, &1000_0000000);
+
+    // Start auction
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+    let original_end = auction_state.end_ledger;
+
+    // Advance to within time buffer (5 ledgers before end)
+    e.ledger().set_sequence_number(original_end - 5);
+
+    // Place bid - should extend auction
+    auction.create_bid(&bidder, &token_id, &100_0000000);
+
+    let auction_state = auction.get_auction();
+    let config = auction.get_config();
+    
+    // End time should be extended by time_buffer
+    assert_eq!(auction_state.end_ledger, e.ledger().sequence() + config.time_buffer as u32);
+    assert!(auction_state.end_ledger > original_end);
+}
+
+#[test]
+fn test_auction_no_bids_burns_token() {
+    let (e, token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+
+    // Start auction
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+
+    // Token should exist (minted to auction contract)
+    assert_eq!(token.balance(&auction.address), 1);
+
+    // Advance past auction end without bids
+    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+
+    // Settle auction
+    auction.settle_and_create_new();
+
+    // Token should have been burned (balance should be 0 for auction contract)
+    // Note: The new auction will have minted a new token
+    assert_eq!(token.balance(&auction.address), 1);  // New auction token
+}
+
+#[test]
+fn test_auction_config_updates_only_when_paused() {
+    let (e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+
+    // Contract starts paused, config updates should work
+    auction.set_duration(&200);
+    auction.set_reserve_price(&200_0000000);
+    auction.set_min_bid_increment(&15);
+
+    let config = auction.get_config();
+    assert_eq!(config.duration, 200);
+    assert_eq!(config.reserve_price, 200_0000000);
+    assert_eq!(config.min_bid_increment_percent, 15);
+
+    // Unpause
+    auction.unpause(&owner);
+
+    // Config updates should fail when not paused
+    let result = auction.try_set_duration(&300);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_auction_multiple_consecutive_auctions() {
+    let (e, token, treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidders = [
+        Address::generate(&e),
+        Address::generate(&e),
+        Address::generate(&e),
+    ];
+
+    // Mint payment tokens to all bidders
+    for bidder in &bidders {
+        payment_client.mint(bidder, &1000_0000000);
+    }
+
+    // Start auctions
+    auction.unpause(&owner);
+
+    // Run 3 consecutive auctions
+    for i in 0..3 {
+        let auction_state = auction.get_auction();
+        let token_id = auction_state.token_id;
+
+        // Each bidder bids on their respective auction
+        auction.create_bid(&bidders[i], &token_id, &100_0000000);
+
+        // Advance and settle
+        e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+        auction.settle_and_create_new();
+
+        // Verify winner received NFT
+        assert_eq!(token.balance(&bidders[i]), 1);
+    }
+
+    // Treasury should have received 3 payments
+    assert_eq!(payment_client.balance(&treasury.address), 300_0000000);
+}
+
+#[test]
+#[should_panic(expected = "ReservePriceNotMet")]
+fn test_auction_bid_below_reserve() {
+    let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder = Address::generate(&e);
+    payment_client.mint(&bidder, &1000_0000000);
+
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    
+    // Try to bid below reserve price (should panic)
+    auction.create_bid(&bidder, &auction_state.token_id, &50_0000000);
+}
+
+#[test]
+#[should_panic(expected = "MinBidNotMet")]
+fn test_auction_bid_below_min_increment() {
+    let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder1 = Address::generate(&e);
+    let bidder2 = Address::generate(&e);
+    
+    payment_client.mint(&bidder1, &1000_0000000);
+    payment_client.mint(&bidder2, &1000_0000000);
+
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+    
+    // First bid at reserve
+    auction.create_bid(&bidder1, &token_id, &100_0000000);
+
+    // Try to bid with insufficient increment (should panic)
+    // Min increment is 10%, so need at least 110 USDC
+    auction.create_bid(&bidder2, &token_id, &105_0000000);
 }

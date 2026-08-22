@@ -65,13 +65,19 @@ pub trait AuctionContractTrait {
 impl Pausable for AuctionContract {
     fn pause(e: &Env, caller: Address) {
         caller.require_auth();
-        ownable::enforce_owner_auth(e);
+        let owner = ownable::get_owner(e).unwrap();
+        if caller != owner {
+            panic_with_error!(e, AuctionError::Unauthorized);
+        }
         pausable::pause(e);
     }
 
     fn unpause(e: &Env, caller: Address) {
         caller.require_auth();
-        ownable::enforce_owner_auth(e);
+        let owner = ownable::get_owner(e).unwrap();
+        if caller != owner {
+            panic_with_error!(e, AuctionError::Unauthorized);
+        }
         pausable::unpause(e);
 
         // If first auction, launch

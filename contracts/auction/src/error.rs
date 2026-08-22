@@ -30,4 +30,6 @@ pub enum AuctionError {
     NotLaunched = 12,
     /// Cannot create new auction
     CannotCreateAuction = 13,
+    /// Unauthorized access
+    Unauthorized = 14,
 }
