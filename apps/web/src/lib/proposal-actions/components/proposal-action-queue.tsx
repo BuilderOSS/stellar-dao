@@ -18,7 +18,7 @@ export function ProposalActionQueue() {
     // If already editing a different action, confirm before switching
     if (editingState && editingIndex !== index) {
       const confirmed = window.confirm(
-        'You have unsaved changes. Switch to editing this action? Your current draft will be lost.'
+        'Switch to editing this action?\n\nYour current unsaved changes will be discarded (the original queued action remains unchanged).'
       );
       if (!confirmed) return;
     }
