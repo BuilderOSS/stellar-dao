@@ -47,10 +47,10 @@ auction.__constructor(
     owner,
     token_contract,
     treasury,
-    duration_in_ledgers,
+    duration_in_seconds,
     reserve_price,
     min_bid_increment_percent,
-    time_buffer_in_ledgers,
+    time_buffer_in_seconds,
     payment_token, // Option<Address>
 );
 ```
@@ -80,10 +80,10 @@ auction.settle_and_create_new();
 
 All configuration changes require the auction to be paused:
 
-- `set_duration(ledgers)` - Set auction duration
+- `set_duration(seconds)` - Set auction duration in seconds
 - `set_reserve_price(amount)` - Set minimum first bid
 - `set_min_bid_increment(percent)` - Set minimum bid increase (%)
-- `set_time_buffer(ledgers)` - Set time extension buffer
+- `set_time_buffer(seconds)` - Set time extension buffer in seconds
 - `set_payment_token(token)` - Set accepted SAC token
 - `set_treasury(address)` - Set proceeds recipient
 

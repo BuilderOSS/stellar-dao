@@ -7,8 +7,8 @@ use crate::storage::PaymentType;
 pub struct AuctionCreated {
     #[topic]
     pub token_id: u128,
-    pub start_ledger: u32,
-    pub end_ledger: u32,
+    pub start_time: u64,
+    pub end_time: u64,
 }
 
 #[contractevent]
@@ -21,7 +21,7 @@ pub struct BidPlaced {
     pub amount: i128,
     pub payment_type: PaymentType,
     pub extended: bool,
-    pub new_end_ledger: u32,
+    pub new_end_time: u64,
 }
 
 #[contractevent]
@@ -88,11 +88,11 @@ pub struct AuctionCancelled {
 }
 
 // Event publishing helpers
-pub fn emit_auction_created(e: &Env, token_id: u128, start_ledger: u32, end_ledger: u32) {
+pub fn emit_auction_created(e: &Env, token_id: u128, start_time: u64, end_time: u64) {
     AuctionCreated {
         token_id,
-        start_ledger,
-        end_ledger,
+        start_time,
+        end_time,
     }
     .publish(e);
 }
@@ -104,7 +104,7 @@ pub fn emit_bid_placed(
     amount: i128,
     payment_type: &PaymentType,
     extended: bool,
-    new_end_ledger: u32,
+    new_end_time: u64,
 ) {
     BidPlaced {
         token_id,
@@ -112,7 +112,7 @@ pub fn emit_bid_placed(
         amount,
         payment_type: payment_type.clone(),
         extended,
-        new_end_ledger,
+        new_end_time,
     }
     .publish(e);
 }

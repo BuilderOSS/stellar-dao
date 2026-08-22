@@ -180,8 +180,8 @@ impl AuctionContractTrait for AuctionContract {
         }
 
         // Check auction not ended
-        let current_ledger = e.ledger().sequence();
-        if current_ledger >= auction.end_ledger {
+        let now = e.ledger().timestamp();
+        if now >= auction.end_time {
             panic_with_error!(e, AuctionError::AuctionOver);
         }
 
@@ -216,8 +216,8 @@ impl AuctionContractTrait for AuctionContract {
         let auction = get_auction(e);
 
         // Ensure auction has ended
-        let current_ledger = e.ledger().sequence();
-        if current_ledger < auction.end_ledger {
+        let now = e.ledger().timestamp();
+        if now < auction.end_time {
             panic_with_error!(e, AuctionError::AuctionActive);
         }
 
@@ -373,19 +373,19 @@ impl AuctionContract {
         let token_id_u32: u32 = e.invoke_contract(&config.token_contract, &mint_symbol, mint_args);
         let token_id: u128 = token_id_u32 as u128;
 
-        let current_ledger = e.ledger().sequence();
+        let now = e.ledger().timestamp();
 
         // SECURITY: Use checked arithmetic for duration calculation
-        let end_ledger = current_ledger
-            .checked_add(config.duration as u32)
+        let end_time = now
+            .checked_add(config.duration)
             .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
 
         let auction = AuctionState {
             token_id,
             highest_bid: 0,
             highest_bidder: None,
-            start_ledger: current_ledger,
-            end_ledger,
+            start_time: now,
+            end_time,
             settled: false,
             // SECURITY: Will be locked to SAC token on first bid
             payment_currency: PaymentType::Native, // Placeholder only
@@ -393,7 +393,7 @@ impl AuctionContract {
         };
 
         set_auction(e, &auction);
-        emit_auction_created(e, token_id, current_ledger, end_ledger);
+        emit_auction_created(e, token_id, now, end_time);
     }
 
     fn process_bid(
@@ -443,9 +443,9 @@ impl AuctionContract {
         auction.highest_bidder = Some(bidder.clone());
 
         // SECURITY: Check if we need to extend, with max extension limit to prevent DoS
-        let current_ledger = e.ledger().sequence();
-        let remaining = auction.end_ledger - current_ledger;
-        let extended = remaining < config.time_buffer as u32;
+        let now = e.ledger().timestamp();
+        let remaining = auction.end_time.saturating_sub(now);
+        let extended = remaining < config.time_buffer;
 
         if extended {
             // SECURITY: Enforce maximum extensions to prevent auction extension DoS
@@ -454,8 +454,8 @@ impl AuctionContract {
             }
 
             // SECURITY: Use checked arithmetic for time extension
-            auction.end_ledger = current_ledger
-                .checked_add(config.time_buffer as u32)
+            auction.end_time = now
+                .checked_add(config.time_buffer)
                 .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
 
             auction.extension_count += 1;
@@ -476,7 +476,7 @@ impl AuctionContract {
             amount,
             payment_type,
             extended,
-            auction.end_ledger,
+            auction.end_time,
         );
     }
 
@@ -489,7 +489,7 @@ impl AuctionContract {
         }
 
         // Ensure auction has started
-        if auction.start_ledger == 0 {
+        if auction.start_time == 0 {
             panic_with_error!(e, AuctionError::AuctionNotStarted);
         }
 

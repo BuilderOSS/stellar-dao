@@ -2,7 +2,7 @@ use soroban_sdk::{contracttype, panic_with_error, Address, Env};
 
 use crate::error::AuctionError;
 
-// Storage TTL constants - extend for ~30 days worth of ledgers (at 5s/ledger = 518,400 ledgers)
+// Storage TTL constants - extend for ~30 days (518,400 seconds)
 const LEDGERS_TO_LIVE: u32 = 518_400;
 const MAX_TTL: u32 = 518_400;
 
@@ -24,13 +24,13 @@ pub struct AuctionConfig {
     pub token_contract: Address,
     /// The treasury address to receive auction proceeds
     pub treasury: Address,
-    /// Duration of each auction in ledgers
+    /// Duration of each auction in seconds
     pub duration: u64,
     /// Minimum first bid amount
     pub reserve_price: i128,
     /// Minimum bid increment as percentage (e.g., 10 = 10%)
     pub min_bid_increment_percent: u32,
-    /// Time buffer in ledgers - extends auction if bid placed near end
+    /// Time buffer in seconds - extends auction if bid placed near end
     pub time_buffer: u64,
     /// Optional SAC token for payments (None = native XLM only)
     pub payment_token: Option<Address>,
@@ -45,10 +45,10 @@ pub struct AuctionState {
     pub highest_bid: i128,
     /// Current highest bidder (None if no bids yet)
     pub highest_bidder: Option<Address>,
-    /// Ledger sequence when auction started
-    pub start_ledger: u32,
-    /// Ledger sequence when auction ends
-    pub end_ledger: u32,
+    /// Timestamp when auction started
+    pub start_time: u64,
+    /// Timestamp when auction ends
+    pub end_time: u64,
     /// Whether auction has been settled
     pub settled: bool,
     /// Payment type for this auction (locked on first bid)

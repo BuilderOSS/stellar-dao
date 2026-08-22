@@ -825,10 +825,10 @@ fn setup_auction() -> (
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            100_u64,  // duration: 100 ledgers
+            500_u64,  // duration: 500 seconds
             100_0000000_i128,  // reserve price: 100 USDC
             10_u32,  // min bid increment: 10%
-            10_u64,  // time buffer: 10 ledgers
+            50_u64,  // time buffer: 50 seconds
             Some(payment_token.clone()),  // payment token
         ),
     );
@@ -882,7 +882,7 @@ fn test_auction_full_lifecycle() {
     assert_eq!(payment_client.balance(&bidder2), 2000_0000000 - 110_0000000);
 
     // Advance past auction end
-    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+    e.ledger().set_timestamp(auction_state.end_time + 1);
 
     // Settle and create new auction
     auction.settle_and_create_new();
@@ -912,20 +912,20 @@ fn test_auction_time_extension() {
 
     let auction_state = auction.get_auction();
     let token_id = auction_state.token_id;
-    let original_end = auction_state.end_ledger;
+    let original_end = auction_state.end_time;
 
-    // Advance to within time buffer (5 ledgers before end)
-    e.ledger().set_sequence_number(original_end - 5);
+    // Advance to within time buffer (25 seconds before end)
+    e.ledger().set_timestamp(original_end - 25);
 
     // Place bid - should extend auction
     auction.create_bid(&bidder, &token_id, &100_0000000);
 
     let auction_state = auction.get_auction();
     let config = auction.get_config();
-    
+
     // End time should be extended by time_buffer
-    assert_eq!(auction_state.end_ledger, e.ledger().sequence() + config.time_buffer as u32);
-    assert!(auction_state.end_ledger > original_end);
+    assert_eq!(auction_state.end_time, e.ledger().timestamp() + config.time_buffer);
+    assert!(auction_state.end_time > original_end);
 }
 
 #[test]
@@ -943,7 +943,7 @@ fn test_auction_no_bids_transfers_to_treasury() {
     assert_eq!(token.balance(&treasury.address), 0);
 
     // Advance past auction end without bids
-    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+    e.ledger().set_timestamp(auction_state.end_time + 1);
 
     // Settle auction
     auction.settle_and_create_new();
@@ -964,12 +964,12 @@ fn test_auction_config_updates_only_when_paused() {
     let (_e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
 
     // Contract starts paused, config updates should work
-    auction.set_duration(&200);
+    auction.set_duration(&1000);
     auction.set_reserve_price(&200_0000000);
     auction.set_min_bid_increment(&15);
 
     let config = auction.get_config();
-    assert_eq!(config.duration, 200);
+    assert_eq!(config.duration, 1000);
     assert_eq!(config.reserve_price, 200_0000000);
     assert_eq!(config.min_bid_increment_percent, 15);
 
@@ -977,7 +977,7 @@ fn test_auction_config_updates_only_when_paused() {
     auction.unpause(&owner);
 
     // Config updates should fail when not paused
-    let result = auction.try_set_duration(&300);
+    let result = auction.try_set_duration(&1500);
     assert!(result.is_err());
 }
 
@@ -1008,7 +1008,7 @@ fn test_auction_multiple_consecutive_auctions() {
         auction.create_bid(&bidders[i], &token_id, &100_0000000);
 
         // Advance and settle
-        e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+        e.ledger().set_timestamp(auction_state.end_time + 1);
         auction.settle_and_create_new();
 
         // Verify winner received NFT
@@ -1090,7 +1090,7 @@ fn test_auction_bid_after_end() {
     let token_id = auction_state.token_id;
 
     // Advance past auction end
-    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+    e.ledger().set_timestamp(auction_state.end_time + 1);
 
     // Try to bid after auction ended (should panic)
     auction.create_bid(&bidder, &token_id, &100_0000000);
@@ -1115,7 +1115,7 @@ fn test_auction_settle_while_active() {
     let auction_state = auction.get_auction();
 
     // Try to settle while auction is still active (should panic)
-    e.ledger().set_sequence_number(auction_state.end_ledger - 10);
+    e.ledger().set_timestamp(auction_state.end_time - 50);
     auction.settle_and_create_new();
 }
 
@@ -1140,7 +1140,7 @@ fn test_auction_pause_and_resume() {
     assert!(auction.paused());
 
     // Settle the current auction while paused
-    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+    e.ledger().set_timestamp(auction_state.end_time + 1);
     auction.settle_auction();
 
     // Verify settlement happened
@@ -1193,7 +1193,7 @@ fn test_auction_config_update_when_unpaused() {
     auction.unpause(&owner);
 
     // Try to update config while unpaused (should fail)
-    auction.set_duration(&300);
+    auction.set_duration(&1500);
 }
 
 #[test]
@@ -1213,7 +1213,7 @@ fn test_auction_settle_auction_vs_settle_and_create() {
     auction.create_bid(&bidder, &token_id, &100_0000000);
 
     // Advance past end
-    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+    e.ledger().set_timestamp(auction_state.end_time + 1);
 
     // Pause and use settle_auction instead of settle_and_create_new
     auction.pause(&owner);

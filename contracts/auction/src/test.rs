@@ -27,10 +27,10 @@ fn setup_auction_contract(
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            100_u64,
+            500_u64,              // duration: 500 seconds
             1_000_0000_i128,
             10_u32,
-            10_u64,
+            50_u64,               // time_buffer: 50 seconds
             Some(payment_token.clone()), // SECURITY FIX: SAC-only
         ),
     );
@@ -60,10 +60,10 @@ fn setup_with_payment_token(
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            100_u64,
+            500_u64,              // duration: 500 seconds
             1_000_0000_i128,
             10_u32,
-            10_u64,
+            50_u64,               // time_buffer: 50 seconds
             Some(payment_token.clone()),
         ),
     );
@@ -94,10 +94,10 @@ fn test_constructor_initializes_correctly() {
     let config = auction.get_config();
     assert_eq!(config.token_contract, token_contract);
     assert_eq!(config.treasury, treasury);
-    assert_eq!(config.duration, 100);
+    assert_eq!(config.duration, 500);
     assert_eq!(config.reserve_price, 1_000_0000);
     assert_eq!(config.min_bid_increment_percent, 10);
-    assert_eq!(config.time_buffer, 10);
+    assert_eq!(config.time_buffer, 50);
     assert_eq!(config.payment_token, Some(payment_token));
 }
 
@@ -189,8 +189,8 @@ fn test_set_duration_when_paused() {
 
     let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
-    auction.set_duration(&200);
-    assert_eq!(auction.get_config().duration, 200);
+    auction.set_duration(&1000);
+    assert_eq!(auction.get_config().duration, 1000);
 }
 
 #[test]
@@ -242,8 +242,8 @@ fn test_set_time_buffer_when_paused() {
 
     let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
-    auction.set_time_buffer(&20);
-    assert_eq!(auction.get_config().time_buffer, 20);
+    auction.set_time_buffer(&100);
+    assert_eq!(auction.get_config().time_buffer, 100);
 }
 
 #[test]
@@ -311,10 +311,10 @@ fn test_get_config() {
     let config = auction.get_config();
     assert_eq!(config.token_contract, token_contract);
     assert_eq!(config.treasury, treasury);
-    assert_eq!(config.duration, 100);
+    assert_eq!(config.duration, 500);
     assert_eq!(config.reserve_price, 1_000_0000);
     assert_eq!(config.min_bid_increment_percent, 10);
-    assert_eq!(config.time_buffer, 10);
+    assert_eq!(config.time_buffer, 50);
     assert_eq!(config.payment_token, Some(payment_token));
 }
 
@@ -358,16 +358,16 @@ fn test_multiple_config_updates() {
     let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Update multiple configs
-    auction.set_duration(&150);
+    auction.set_duration(&750);
     auction.set_reserve_price(&2_000_0000);
     auction.set_min_bid_increment(&20);
-    auction.set_time_buffer(&15);
+    auction.set_time_buffer(&75);
 
     let config = auction.get_config();
-    assert_eq!(config.duration, 150);
+    assert_eq!(config.duration, 750);
     assert_eq!(config.reserve_price, 2_000_0000);
     assert_eq!(config.min_bid_increment_percent, 20);
-    assert_eq!(config.time_buffer, 15);
+    assert_eq!(config.time_buffer, 75);
 }
 
 #[test]
@@ -378,14 +378,14 @@ fn test_config_setters_work_when_paused() {
     let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Config setters should work when paused
-    auction.set_duration(&200);
+    auction.set_duration(&1000);
     auction.set_reserve_price(&3_000_0000);
-    auction.set_time_buffer(&25);
+    auction.set_time_buffer(&125);
 
     let config = auction.get_config();
-    assert_eq!(config.duration, 200);
+    assert_eq!(config.duration, 1000);
     assert_eq!(config.reserve_price, 3_000_0000);
-    assert_eq!(config.time_buffer, 25);
+    assert_eq!(config.time_buffer, 125);
 }
 
 // ============================================================================
