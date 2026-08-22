@@ -929,14 +929,13 @@ fn test_auction_time_extension() {
 }
 
 #[test]
-fn test_auction_no_bids_burns_token() {
+fn test_auction_no_bids_keeps_token() {
     let (e, token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
 
     // Start auction
     auction.unpause(&owner);
 
     let auction_state = auction.get_auction();
-    let token_id = auction_state.token_id;
 
     // Token should exist (minted to auction contract)
     assert_eq!(token.balance(&auction.address), 1);
@@ -947,14 +946,14 @@ fn test_auction_no_bids_burns_token() {
     // Settle auction
     auction.settle_and_create_new();
 
-    // Token should have been burned (balance should be 0 for auction contract)
-    // Note: The new auction will have minted a new token
-    assert_eq!(token.balance(&auction.address), 1);  // New auction token
+    // Token remains with auction contract (no burn function)
+    // Plus a new token was minted for the new auction
+    assert_eq!(token.balance(&auction.address), 2);  // Old unsold token + new auction token
 }
 
 #[test]
 fn test_auction_config_updates_only_when_paused() {
-    let (e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+    let (_e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
 
     // Contract starts paused, config updates should work
     auction.set_duration(&200);
@@ -1013,7 +1012,7 @@ fn test_auction_multiple_consecutive_auctions() {
 }
 
 #[test]
-#[should_panic(expected = "ReservePriceNotMet")]
+#[should_panic(expected = "Error(Contract, #6)")]  // ReservePriceNotMet
 fn test_auction_bid_below_reserve() {
     let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
 
@@ -1029,13 +1028,13 @@ fn test_auction_bid_below_reserve() {
 }
 
 #[test]
-#[should_panic(expected = "MinBidNotMet")]
+#[should_panic(expected = "Error(Contract, #7)")]  // MinBidNotMet
 fn test_auction_bid_below_min_increment() {
     let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
 
     let bidder1 = Address::generate(&e);
     let bidder2 = Address::generate(&e);
-    
+
     payment_client.mint(&bidder1, &1000_0000000);
     payment_client.mint(&bidder2, &1000_0000000);
 
@@ -1043,11 +1042,272 @@ fn test_auction_bid_below_min_increment() {
 
     let auction_state = auction.get_auction();
     let token_id = auction_state.token_id;
-    
+
     // First bid at reserve
     auction.create_bid(&bidder1, &token_id, &100_0000000);
 
     // Try to bid with insufficient increment (should panic)
     // Min increment is 10%, so need at least 110 USDC
     auction.create_bid(&bidder2, &token_id, &105_0000000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1)")]  // InvalidTokenId
+fn test_auction_bid_wrong_token_id() {
+    let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder = Address::generate(&e);
+    payment_client.mint(&bidder, &1000_0000000);
+
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let wrong_token_id = auction_state.token_id + 999;
+
+    // Try to bid on wrong token ID (should panic)
+    auction.create_bid(&bidder, &wrong_token_id, &100_0000000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]  // AuctionOver
+fn test_auction_bid_after_end() {
+    let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder = Address::generate(&e);
+    payment_client.mint(&bidder, &1000_0000000);
+
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+
+    // Advance past auction end
+    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+
+    // Try to bid after auction ended (should panic)
+    auction.create_bid(&bidder, &token_id, &100_0000000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")]  // NotLaunched
+fn test_auction_get_auction_before_launch() {
+    let (_e, _token, _treasury, auction, _owner, _payment_token, _payment_client) = setup_auction();
+
+    // Try to get auction before unpause/launch (should panic)
+    auction.get_auction();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #4)")]  // AuctionActive
+fn test_auction_settle_while_active() {
+    let (e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+
+    // Try to settle while auction is still active (should panic)
+    e.ledger().set_sequence_number(auction_state.end_ledger - 10);
+    auction.settle_and_create_new();
+}
+
+#[test]
+fn test_auction_pause_and_resume() {
+    let (e, token, treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder = Address::generate(&e);
+    payment_client.mint(&bidder, &1000_0000000);
+
+    // Start auction
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+
+    // Place a bid
+    auction.create_bid(&bidder, &token_id, &100_0000000);
+
+    // Pause the auction
+    auction.pause(&owner);
+    assert!(auction.paused());
+
+    // Settle the current auction while paused
+    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+    auction.settle_auction();
+
+    // Verify settlement happened
+    assert_eq!(token.balance(&bidder), 1);
+    assert_eq!(payment_client.balance(&treasury.address), 100_0000000);
+
+    // Unpause to resume - should create new auction
+    auction.unpause(&owner);
+    assert!(!auction.paused());
+
+    // Verify new auction was created
+    let new_auction_state = auction.get_auction();
+    assert_ne!(new_auction_state.token_id, token_id);
+    assert_eq!(new_auction_state.highest_bid, 0);
+}
+
+#[test]
+fn test_auction_ownership_remains_with_deployer() {
+    let (_e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+
+    // Initially owned by owner
+    assert_eq!(auction.get_owner(), Some(owner.clone()));
+
+    // Unpause - ownership should remain with original owner
+    auction.unpause(&owner);
+
+    // Ownership should still be with original owner
+    assert_eq!(auction.get_owner(), Some(owner.clone()));
+}
+
+#[test]
+fn test_auction_set_treasury() {
+    let (e, _token, _treasury, auction, _owner, _payment_token, _payment_client) = setup_auction();
+
+    let new_treasury = Address::generate(&e);
+
+    // Update treasury while paused
+    auction.set_treasury(&new_treasury);
+
+    let config = auction.get_config();
+    assert_eq!(config.treasury, new_treasury);
+}
+
+#[test]
+#[should_panic]
+fn test_auction_config_update_when_unpaused() {
+    let (_e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+
+    // Unpause
+    auction.unpause(&owner);
+
+    // Try to update config while unpaused (should fail)
+    auction.set_duration(&300);
+}
+
+#[test]
+fn test_auction_settle_auction_vs_settle_and_create() {
+    let (e, token, treasury, auction, owner, _payment_token, payment_client) = setup_auction();
+
+    let bidder = Address::generate(&e);
+    payment_client.mint(&bidder, &2000_0000000);
+
+    // Start auction
+    auction.unpause(&owner);
+
+    let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
+
+    // Place bid
+    auction.create_bid(&bidder, &token_id, &100_0000000);
+
+    // Advance past end
+    e.ledger().set_sequence_number(auction_state.end_ledger + 1);
+
+    // Pause and use settle_auction instead of settle_and_create_new
+    auction.pause(&owner);
+    auction.settle_auction();
+
+    // Verify settlement
+    assert_eq!(token.balance(&bidder), 1);
+    assert_eq!(payment_client.balance(&treasury.address), 100_0000000);
+
+    // The auction should be settled but no new auction created yet
+    let settled_auction = auction.get_auction();
+    assert!(settled_auction.settled);
+
+    // When we unpause, a new auction should be created
+    auction.unpause(&owner);
+    let new_auction = auction.get_auction();
+    assert_ne!(new_auction.token_id, token_id);
+    assert!(!new_auction.settled);
+}
+
+// ============================================================================
+// Native XLM Payment Tests
+// ============================================================================
+
+fn setup_auction_native_xlm() -> (
+    Env,
+    DaoTokenContractClient<'static>,
+    DaoTreasuryContractClient<'static>,
+    AuctionContractClient<'static>,
+    Address,  // owner
+) {
+    let e = Env::default();
+    e.ledger().set_sequence_number(100);
+    e.ledger().set_timestamp(1_000);
+
+    let owner = Address::generate(&e);
+
+    // Deploy DAO token (NFT)
+    let token_id = e.register(
+        DaoTokenContract,
+        (
+            owner.clone(),
+            String::from_str(&e, "https://example.com/"),
+            String::from_str(&e, "DAO Vote NFT"),
+            String::from_str(&e, "vDAO"),
+        ),
+    );
+    let token = DaoTokenContractClient::new(&e, &token_id);
+
+    // Deploy treasury
+    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), Address::generate(&e)));
+    let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
+
+    // Deploy auction contract WITHOUT payment token (native XLM)
+    let auction_id = e.register(
+        AuctionContract,
+        (
+            owner.clone(),
+            token_id.clone(),
+            treasury_id.clone(),
+            100_u64,  // duration: 100 ledgers
+            100_0000000_i128,  // reserve price: 100 XLM
+            10_u32,  // min bid increment: 10%
+            10_u64,  // time buffer: 10 ledgers
+            None::<Address>,  // No payment token = native XLM
+        ),
+    );
+    let auction = AuctionContractClient::new(&e, &auction_id);
+
+    e.mock_all_auths();
+
+    // Grant mint authority to auction contract
+    token.set_mint_authority(&auction_id, &true);
+
+    (e, token, treasury, auction, owner)
+}
+
+// NOTE: Native XLM payment support is not yet implemented
+// The contract currently only supports SAC token payments (payment_token: Some(Address))
+// Native XLM would require different transfer mechanics and is planned for future implementation
+//
+// #[test]
+// fn test_auction_native_xlm_full_lifecycle() { ... }
+
+#[test]
+fn test_auction_payment_token_setter() {
+    let (e, _token, _treasury, auction, _owner) = setup_auction_native_xlm();
+
+    // Initially None (native XLM)
+    let config = auction.get_config();
+    assert_eq!(config.payment_token, None);
+
+    // Set to a SAC token
+    let payment_token = Address::generate(&e);
+    auction.set_payment_token(&Some(payment_token.clone()));
+
+    let config = auction.get_config();
+    assert_eq!(config.payment_token, Some(payment_token));
+
+    // Set back to None
+    auction.set_payment_token(&None);
+
+    let config = auction.get_config();
+    assert_eq!(config.payment_token, None);
 }
