@@ -2,10 +2,20 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useProposalComposerStore } from '@/stores/proposal-composer-store';
 import { getActionHandler } from '../registry';
 import { Card, Button, Badge, Text } from '@/components/ui';
+import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
 import { Stack } from 'styled-system/jsx';
+
+type ConfirmDialogState = {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+} | null;
 
 export function ProposalActionQueue() {
   const queuedActions = useProposalComposerStore((s) => s.queuedActions);
@@ -14,23 +24,37 @@ export function ProposalActionQueue() {
   const beginEdit = useProposalComposerStore((s) => s.beginEdit);
   const removeAction = useProposalComposerStore((s) => s.removeAction);
 
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
+
   const handleEdit = (index: number) => {
     // If already editing a different action, confirm before switching
     if (editingState && editingIndex !== index) {
-      const confirmed = window.confirm(
-        'Switch to editing this action?\n\nYour current unsaved changes will be discarded (the original queued action remains unchanged).'
-      );
-      if (!confirmed) return;
+      setConfirmDialog({
+        open: true,
+        title: 'Switch to editing this action?',
+        message: 'Your current unsaved changes will be discarded (the original queued action remains unchanged).',
+        confirmLabel: 'Switch',
+        onConfirm: () => {
+          beginEdit(index);
+          setConfirmDialog(null);
+        },
+      });
+      return;
     }
     beginEdit(index);
   };
 
   const handleRemove = (index: number, actionLabel: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to remove this ${actionLabel} action?`
-    );
-    if (!confirmed) return;
-    removeAction(index);
+    setConfirmDialog({
+      open: true,
+      title: 'Remove action?',
+      message: `Are you sure you want to remove this ${actionLabel} action?`,
+      confirmLabel: 'Remove',
+      onConfirm: () => {
+        removeAction(index);
+        setConfirmDialog(null);
+      },
+    });
   };
 
   if (queuedActions.length === 0) {
@@ -95,6 +119,15 @@ export function ProposalActionQueue() {
           </Card>
         );
       })}
+      <ProposalActionConfirmDialog
+        open={confirmDialog?.open ?? false}
+        title={confirmDialog?.title ?? ''}
+        message={confirmDialog?.message ?? ''}
+        confirmLabel={confirmDialog?.confirmLabel ?? 'Confirm'}
+        busy={false}
+        onConfirm={confirmDialog?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </Stack>
   );
 }

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useCallback, useEffect, Suspense } from 'react';
+import { useCallback, useState, Suspense } from 'react';
 import { getActionHandler } from '../registry';
 import { useActionFormContext } from '../context';
 import {
@@ -12,7 +12,16 @@ import {
 import { ActionFormShell } from './action-form-shell';
 import { ActionErrorBoundary } from './action-error-boundary';
 import { Text } from '@/components/ui';
+import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
 import type { ProposalActionType } from '../types';
+
+type ConfirmDialogState = {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+} | null;
 
 /**
  * ActionFormWrapper consumes Zustand store directly
@@ -20,6 +29,7 @@ import type { ProposalActionType } from '../types';
  */
 export function ActionFormWrapper() {
   const context = useActionFormContext();
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
 
   // Subscribe to only what we need (performance optimization)
   const editingState = useProposalComposerStore((s) => s.editingState);
@@ -63,10 +73,18 @@ export function ActionFormWrapper() {
         JSON.stringify(handler.getDefaultValues());
 
       if (hasChanges) {
-        const confirmed = window.confirm(
-          'Switching action type will clear your current draft. Continue?'
-        );
-        if (!confirmed) return;
+        setConfirmDialog({
+          open: true,
+          title: 'Switch action type?',
+          message: 'Switching action type will clear your current draft. Continue?',
+          confirmLabel: 'Switch',
+          onConfirm: () => {
+            changeActionType(newType);
+            setValidationErrors(null);
+            setConfirmDialog(null);
+          },
+        });
+        return;
       }
 
       changeActionType(newType);
@@ -89,26 +107,37 @@ export function ActionFormWrapper() {
   const isDisabled = busy || !preconditionResult.canExecute;
 
   return (
-    <ActionFormShell
-      mode={editingState.mode}
-      actionType={editingState.actionType}
-      actionLabel={handler!.label}
-      disabled={isDisabled}
-      preconditionResult={preconditionResult}
-      onActionTypeChange={handleActionTypeChange}
-      onSave={handleSave}
-      onCancel={handleCancel}
-    >
-      <ActionErrorBoundary actionType={editingState.actionType}>
-        <Suspense fallback={<Text>Loading form...</Text>}>
-          <FormComponent
-            value={editingState.draftData}
-            onChange={updateDraft}
-            disabled={isDisabled}
-            validationErrors={validationErrors || undefined}
-          />
-        </Suspense>
-      </ActionErrorBoundary>
-    </ActionFormShell>
+    <>
+      <ActionFormShell
+        mode={editingState.mode}
+        actionType={editingState.actionType}
+        actionLabel={handler!.label}
+        disabled={isDisabled}
+        preconditionResult={preconditionResult}
+        onActionTypeChange={handleActionTypeChange}
+        onSave={handleSave}
+        onCancel={handleCancel}
+      >
+        <ActionErrorBoundary actionType={editingState.actionType}>
+          <Suspense fallback={<Text>Loading form...</Text>}>
+            <FormComponent
+              value={editingState.draftData}
+              onChange={updateDraft}
+              disabled={isDisabled}
+              validationErrors={validationErrors || undefined}
+            />
+          </Suspense>
+        </ActionErrorBoundary>
+      </ActionFormShell>
+      <ProposalActionConfirmDialog
+        open={confirmDialog?.open ?? false}
+        title={confirmDialog?.title ?? ''}
+        message={confirmDialog?.message ?? ''}
+        confirmLabel={confirmDialog?.confirmLabel ?? 'Confirm'}
+        busy={false}
+        onConfirm={confirmDialog?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmDialog(null)}
+      />
+    </>
   );
 }
