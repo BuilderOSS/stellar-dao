@@ -8,6 +8,7 @@ import { proposalStateLabel, type ProposalState as ProposalStateValue } from '@/
 
 type ProposalListItem = {
   proposalId: string;
+  proposalNumber: number;
   metadata: ProposalMetadata;
   state: ProposalStateValue | null;
   stateLabel: string;
@@ -80,6 +81,7 @@ export async function GET(request: Request) {
             const state = await fetchProposalState(client, group.proposalId);
             return {
               proposalId: group.proposalId,
+              proposalNumber: detail?.proposalNumber ?? 0,
               metadata,
               state,
               stateLabel: proposalStateLabel(state),
@@ -91,6 +93,7 @@ export async function GET(request: Request) {
           } catch {
             return {
               proposalId: group.proposalId,
+              proposalNumber: detail?.proposalNumber ?? 0,
               metadata,
               state: null,
               stateLabel: 'Unknown',

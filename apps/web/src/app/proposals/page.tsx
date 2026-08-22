@@ -104,7 +104,7 @@ export default function ProposalsPage() {
                     <Stack gap="2">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <Text className="mono" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                          {shorten(item.proposalId)}
+                          Proposal #{item.proposalNumber}
                         </Text>
                         <ProposalStateBadge label={item.stateLabel} />
                       </div>

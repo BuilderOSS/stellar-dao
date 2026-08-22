@@ -41,6 +41,7 @@ export type MercuryProposalVoteItem = {
 
 export type MercuryProposalDetailItem = {
   proposalId: string;
+  proposalNumber: number;
   proposer: string;
   description: string;
   targets: string[];

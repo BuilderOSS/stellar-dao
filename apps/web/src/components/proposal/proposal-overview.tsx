@@ -117,7 +117,10 @@ export function ProposalOverview({ detail, now, network, actionSlot }: ProposalO
       <Card p="4" style={{ background: 'rgba(157, 179, 203, 0.08)', border: '1px solid rgba(157, 179, 203, 0.18)' }}>
         <Grid columns={{ base: 1, lg: actionSlot ? 2 : 1 }} gap="4" alignItems="start">
           <Stack gap="3">
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <Text className="mono" style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(176, 201, 229, 0.95)' }}>
+                Proposal #{detail.proposalNumber}
+              </Text>
               <ProposalStateBadge label={detail.label} />
             </div>
             <Stack gap="1">
