@@ -4,7 +4,6 @@ import type { ProposalState } from '@/lib/proposal-state';
 
 export type ProposalDetail = {
   proposalId: string;
-  proposalNumber: number;
   metadata: ProposalMetadata;
   proposer: string;
   description: string;
@@ -36,7 +35,6 @@ export type ProposalVoteItem = {
 
 export type ProposalListItem = {
   proposalId: string;
-  proposalNumber: number;
   metadata: ProposalMetadata;
   state: ProposalState | null;
   stateLabel: string;

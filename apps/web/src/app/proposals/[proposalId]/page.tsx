@@ -291,7 +291,7 @@ export default function ProposalDetailPage() {
     <DaoShell>
       <PageSection
         eyebrow="Proposal detail"
-        title={detail ? `Proposal #${detail.proposalNumber}: ${detail.metadata.title}` : `Proposal ${shortenProposalId(proposalId)}`}
+        title={detail ? detail.metadata.title : `Proposal ${shortenProposalId(proposalId)}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">

@@ -632,7 +632,6 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
   if (!config) {
     return {
       proposalId,
-      proposalNumber: 0,
       proposer: '',
       description: '',
       targets: [],
@@ -658,7 +657,6 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
   if (!governorProgram) {
     return {
       proposalId,
-      proposalNumber: 0,
       proposer: '',
       description: '',
       targets: [],
@@ -704,7 +702,6 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
 
     return {
       proposalId,
-      proposalNumber: asNumber(row.proposal_number),
       proposer: asString(row.proposer),
       description: asString(row.description),
       targets: asDecodedStringArray(row.targets),
@@ -727,7 +724,6 @@ export async function getMercuryProposalDetail(proposalId: string): Promise<Merc
 
     return {
       proposalId,
-      proposalNumber: 0,
       proposer: '',
       description: '',
       targets: [],
