@@ -174,7 +174,6 @@ export function ProposalOverview({ detail, now, network, actionSlot }: ProposalO
 
       <Card p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)', background: 'rgba(157, 179, 203, 0.06)' }}>
         <Stack gap="3">
-          <Text className="label">Proposal brief</Text>
           <Stack gap="1">
             <Text className="label">Description</Text>
             <Text
