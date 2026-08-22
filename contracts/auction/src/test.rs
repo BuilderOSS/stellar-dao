@@ -1,7 +1,10 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    symbol_short, testutils::{Address as _, Ledger}, token::{StellarAssetClient, TokenClient}, Address, Env
+    symbol_short,
+    testutils::{Address as _, Ledger},
+    token::{StellarAssetClient, TokenClient},
+    Address, Env,
 };
 
 use crate::{
@@ -41,7 +44,7 @@ fn setup_auction_contract<'a>(
         &owner,
         &token_address,
         &treasury,
-        &100, // duration: 100 ledgers
+        &100,        // duration: 100 ledgers
         &1_000_0000, // reserve price: 10 XLM (7 decimals)
         &10,         // 10% min bid increment
         &10,         // 10 ledger time buffer
@@ -50,7 +53,7 @@ fn setup_auction_contract<'a>(
 
     // Grant mint authority to auction contract
     token_client.mint(&auction_address, &1); // Mint one to grant authority
-    // Note: In real implementation, we'd need to set mint_authority
+                                             // Note: In real implementation, we'd need to set mint_authority
 
     (auction, owner, treasury, auction_address, token_client)
 }

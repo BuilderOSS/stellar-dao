@@ -1,7 +1,6 @@
 use soroban_sdk::{
-    contract, contractimpl, contracttrait, panic_with_error, Address, Env,
-    IntoVal, Symbol, Val, Vec,
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
+    contract, contractimpl, contracttrait, panic_with_error, Address, Env, IntoVal, Symbol,
 };
 use stellar_access::ownable::{self, Ownable};
 use stellar_contract_utils::pausable::{self, Pausable};
@@ -15,8 +14,8 @@ use crate::{
         emit_time_buffer_updated, emit_treasury_updated,
     },
     storage::{
-        get_auction, get_config, is_launched, set_auction, set_config, set_launched,
-        AuctionConfig, AuctionState, PaymentType,
+        get_auction, get_config, is_launched, set_auction, set_config, set_launched, AuctionConfig,
+        AuctionState, PaymentType,
     },
 };
 
@@ -434,11 +433,7 @@ impl AuctionContract {
                 }),
             ]);
 
-            e.invoke_contract::<()>(
-                &config.token_contract,
-                &transfer_symbol,
-                nft_transfer_args,
-            );
+            e.invoke_contract::<()>(&config.token_contract, &transfer_symbol, nft_transfer_args);
 
             // Transfer proceeds to treasury
             if auction.highest_bid > 0 {
@@ -468,7 +463,11 @@ impl AuctionContract {
                             }),
                         ]);
 
-                        e.invoke_contract::<()>(token_addr, &transfer_symbol, payment_transfer_args);
+                        e.invoke_contract::<()>(
+                            token_addr,
+                            &transfer_symbol,
+                            payment_transfer_args,
+                        );
                     }
                 }
             }
