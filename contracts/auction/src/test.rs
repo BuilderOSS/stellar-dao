@@ -2,7 +2,7 @@
 
 extern crate std;
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
+use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
 use crate::contract::{AuctionContract, AuctionContractClient};
 
@@ -17,20 +17,19 @@ fn setup_auction_contract(
 ) {
     let owner = Address::generate(e);
     let treasury = Address::generate(e);
-    let token_contract = Address::generate(e); // Mock NFT token contract address
+    let token_contract = Address::generate(e);
 
-    // Deploy and initialize auction contract
     let auction_address = e.register(
         AuctionContract,
         (
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            100_u64,         // duration: 100 ledgers
-            1_000_0000_i128, // reserve price: 10 XLM (7 decimals)
-            10_u32,          // 10% min bid increment
-            10_u64,          // 10 ledger time buffer
-            None::<Address>, // No payment token (native XLM)
+            100_u64,
+            1_000_0000_i128,
+            10_u32,
+            10_u64,
+            None::<Address>,
         ),
     );
     let auction = AuctionContractClient::new(e, &auction_address);
@@ -38,19 +37,58 @@ fn setup_auction_contract(
     (auction, owner, treasury, token_contract, auction_address)
 }
 
-#[test]
-fn test_constructor() {
-    let e = Env::default();
+fn setup_with_payment_token(
+    e: &Env,
+) -> (
+    AuctionContractClient<'static>,
+    Address,
+    Address,
+    Address,
+    Address,
+    Address,
+) {
+    let owner = Address::generate(e);
+    let treasury = Address::generate(e);
+    let token_contract = Address::generate(e);
+    let payment_token = Address::generate(e);
 
+    let auction_address = e.register(
+        AuctionContract,
+        (
+            owner.clone(),
+            token_contract.clone(),
+            treasury.clone(),
+            100_u64,
+            1_000_0000_i128,
+            10_u32,
+            10_u64,
+            Some(payment_token.clone()),
+        ),
+    );
+    let auction = AuctionContractClient::new(e, &auction_address);
+
+    (
+        auction,
+        owner,
+        treasury,
+        token_contract,
+        auction_address,
+        payment_token,
+    )
+}
+
+// ============================================================================
+// Constructor Tests
+// ============================================================================
+
+#[test]
+fn test_constructor_initializes_correctly() {
+    let e = Env::default();
     let (auction, owner, treasury, token_contract, _) = setup_auction_contract(&e);
 
-    // Should start paused
     assert!(auction.paused());
-
-    // Should have correct owner
     assert_eq!(auction.get_owner(), Some(owner));
 
-    // Should have correct config
     let config = auction.get_config();
     assert_eq!(config.token_contract, token_contract);
     assert_eq!(config.treasury, treasury);
@@ -62,31 +100,280 @@ fn test_constructor() {
 }
 
 #[test]
-fn test_config_getters() {
+fn test_constructor_with_payment_token() {
     let e = Env::default();
-
-    let (auction, _, treasury, token_contract, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, payment_token) = setup_with_payment_token(&e);
 
     let config = auction.get_config();
-    assert_eq!(config.token_contract, token_contract);
-    assert_eq!(config.treasury, treasury);
-    assert_eq!(config.duration, 100);
-    assert_eq!(config.reserve_price, 1_000_0000);
-    assert_eq!(config.min_bid_increment_percent, 10);
-    assert_eq!(config.time_buffer, 10);
-    assert_eq!(config.payment_token, None);
+    assert_eq!(config.payment_token, Some(payment_token));
 }
 
 #[test]
-fn test_paused_state() {
+#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+fn test_constructor_rejects_zero_duration() {
     let e = Env::default();
+    let owner = Address::generate(&e);
+    let treasury = Address::generate(&e);
+    let token_contract = Address::generate(&e);
+
+    e.register(
+        AuctionContract,
+        (
+            owner,
+            token_contract,
+            treasury,
+            0_u64, // Invalid
+            1_000_0000_i128,
+            10_u32,
+            10_u64,
+            None::<Address>,
+        ),
+    );
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+fn test_constructor_rejects_zero_min_bid_increment() {
+    let e = Env::default();
+    let owner = Address::generate(&e);
+    let treasury = Address::generate(&e);
+    let token_contract = Address::generate(&e);
+
+    e.register(
+        AuctionContract,
+        (
+            owner,
+            token_contract,
+            treasury,
+            100_u64,
+            1_000_0000_i128,
+            0_u32, // Invalid
+            10_u64,
+            None::<Address>,
+        ),
+    );
+}
+
+// ============================================================================
+// Pausable Tests
+// ============================================================================
+
+#[test]
+fn test_pause_unpause() {
+    let e = Env::default();
+    e.ledger().set_sequence_number(100);
 
     let (auction, _, _, _, _) = setup_auction_contract(&e);
 
-    // Should start paused
+    // Initially paused
     assert!(auction.paused());
+
+    // Note: Cannot test unpause/pause in unit tests due to owner auth requirements
+    // These are tested in e2e tests with proper contract setup
 }
 
-// Note: Full integration tests (unpause, bidding, settlement, token minting, etc.)
-// are in the e2e test suite where we can properly mock token contracts and test
-// the complete auction flow with actual token interactions.
+// Note: pause/unpause authorization tests are in e2e tests
+// Unit tests cannot properly test Ownable auth with mock_all_auths()
+// due to manual owner checking in the implementation
+
+// ============================================================================
+// Config Setter Tests (only work when paused)
+// ============================================================================
+
+#[test]
+fn test_set_duration_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    auction.set_duration(&200);
+    assert_eq!(auction.get_config().duration, 200);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+fn test_set_duration_rejects_zero() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    auction.set_duration(&0);
+}
+
+#[test]
+fn test_set_reserve_price_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    auction.set_reserve_price(&5_000_0000);
+    assert_eq!(auction.get_config().reserve_price, 5_000_0000);
+}
+
+#[test]
+fn test_set_min_bid_increment_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    auction.set_min_bid_increment(&15);
+    assert_eq!(auction.get_config().min_bid_increment_percent, 15);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+fn test_set_min_bid_increment_rejects_zero() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    auction.set_min_bid_increment(&0);
+}
+
+#[test]
+fn test_set_time_buffer_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    auction.set_time_buffer(&20);
+    assert_eq!(auction.get_config().time_buffer, 20);
+}
+
+#[test]
+fn test_set_payment_token_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _, _) = setup_with_payment_token(&e);
+    let new_payment_token = Address::generate(&e);
+
+    auction.set_payment_token(&Some(new_payment_token.clone()));
+    assert_eq!(auction.get_config().payment_token, Some(new_payment_token));
+
+    // Can set to None
+    auction.set_payment_token(&None);
+    assert_eq!(auction.get_config().payment_token, None);
+}
+
+#[test]
+fn test_set_treasury_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _, _) = setup_with_payment_token(&e);
+    let new_treasury = Address::generate(&e);
+
+    auction.set_treasury(&new_treasury);
+    assert_eq!(auction.get_config().treasury, new_treasury);
+}
+
+// ============================================================================
+// Ownership Tests
+// ============================================================================
+
+#[test]
+fn test_get_owner() {
+    let e = Env::default();
+
+    let (auction, owner, _, _, _) = setup_auction_contract(&e);
+
+    // Owner should be set correctly on initialization
+    assert_eq!(auction.get_owner(), Some(owner));
+}
+
+// Note: transfer_ownership, renounce_ownership, and ownership transfer on unpause
+// are tested in e2e tests due to auth requirements
+
+// ============================================================================
+// Getter Tests
+// ============================================================================
+
+#[test]
+fn test_get_config() {
+    let e = Env::default();
+    let (auction, _, treasury, token_contract, _, payment_token) = setup_with_payment_token(&e);
+
+    let config = auction.get_config();
+    assert_eq!(config.token_contract, token_contract);
+    assert_eq!(config.treasury, treasury);
+    assert_eq!(config.duration, 100);
+    assert_eq!(config.reserve_price, 1_000_0000);
+    assert_eq!(config.min_bid_increment_percent, 10);
+    assert_eq!(config.time_buffer, 10);
+    assert_eq!(config.payment_token, Some(payment_token));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")] // NotLaunched
+fn test_get_auction_fails_before_launch() {
+    let e = Env::default();
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    // Should panic because auction hasn't been launched yet
+    auction.get_auction();
+}
+
+// ============================================================================
+// Auction State Tests (Testing state, not actual token operations)
+// ============================================================================
+
+// Note: Auction creation on unpause and SAC currency tests
+// are in e2e tests due to unpause requiring owner authorization
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+#[test]
+fn test_paused_state_prevents_operations() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    // Auction is paused, so settle should fail
+    assert!(auction.try_settle_auction().is_err());
+}
+
+#[test]
+fn test_multiple_config_updates() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    // Update multiple configs
+    auction.set_duration(&150);
+    auction.set_reserve_price(&2_000_0000);
+    auction.set_min_bid_increment(&20);
+    auction.set_time_buffer(&15);
+
+    let config = auction.get_config();
+    assert_eq!(config.duration, 150);
+    assert_eq!(config.reserve_price, 2_000_0000);
+    assert_eq!(config.min_bid_increment_percent, 20);
+    assert_eq!(config.time_buffer, 15);
+}
+
+#[test]
+fn test_config_setters_work_when_paused() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _) = setup_auction_contract(&e);
+
+    // Config setters should work when paused
+    auction.set_duration(&200);
+    auction.set_reserve_price(&3_000_0000);
+    auction.set_time_buffer(&25);
+
+    let config = auction.get_config();
+    assert_eq!(config.duration, 200);
+    assert_eq!(config.reserve_price, 3_000_0000);
+    assert_eq!(config.time_buffer, 25);
+}

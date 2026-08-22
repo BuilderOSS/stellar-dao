@@ -1,4 +1,6 @@
-use soroban_sdk::{contracttype, Address, Env};
+use soroban_sdk::{contracttype, panic_with_error, Address, Env};
+
+use crate::error::AuctionError;
 
 #[derive(Clone, Debug)]
 #[contracttype]
@@ -65,6 +67,9 @@ pub fn set_config(e: &Env, config: &AuctionConfig) {
 }
 
 pub fn get_auction(e: &Env) -> AuctionState {
+    if !is_launched(e) {
+        panic_with_error!(e, AuctionError::NotLaunched);
+    }
     e.storage().instance().get(&DataKey::Auction).unwrap()
 }
 
