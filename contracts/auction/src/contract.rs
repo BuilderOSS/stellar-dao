@@ -1,4 +1,8 @@
-use soroban_sdk::{contract, contractimpl, contracttrait, panic_with_error, token::TokenClient, Address, Env, IntoVal};
+use soroban_sdk::{
+    contract, contractimpl, contracttrait, panic_with_error, token::TokenClient, Address, Env,
+    IntoVal, Symbol, Val, Vec,
+    auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
+};
 use stellar_access::ownable::{self, Ownable};
 use stellar_contract_utils::pausable::{self, Pausable};
 use stellar_macros::{only_owner, when_not_paused, when_paused};
@@ -279,17 +283,25 @@ impl AuctionContract {
     fn create_auction(e: &Env) {
         let config = get_config(e);
 
-        // Mint new token
-        let token_client = TokenClient::new(e, &config.token_contract);
+        // Mint new token - authorize auction contract to call mint
+        let mint_symbol = Symbol::new(e, "mint");
+        let mint_args = soroban_sdk::vec![e, e.current_contract_address().to_val()];
+
+        // Authorize auction contract to call token.mint()
+        e.authorize_as_current_contract(soroban_sdk::vec![
+            e,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: config.token_contract.clone(),
+                    fn_name: mint_symbol.clone(),
+                    args: mint_args.clone(),
+                },
+                sub_invocations: soroban_sdk::vec![e],
+            }),
+        ]);
 
         // Call the mint function - it returns the token ID
-        // This assumes the token contract returns u128 token ID
-        let result: u128 = e.invoke_contract(
-            &config.token_contract,
-            &soroban_sdk::symbol_short!("mint"),
-            soroban_sdk::vec![e, e.current_contract_address().to_val()],
-        );
-        let token_id = result;
+        let token_id: u128 = e.invoke_contract(&config.token_contract, &mint_symbol, mint_args);
 
         let current_ledger = e.ledger().sequence();
         let end_ledger = current_ledger + config.duration as u32;
@@ -386,12 +398,31 @@ impl AuctionContract {
         let config = get_config(e);
 
         if let Some(winner) = &auction.highest_bidder {
-            // Transfer token to winner
-            let token_client = TokenClient::new(e, &config.token_contract);
-            token_client.transfer(
-                &e.current_contract_address(),
-                winner,
-                &(auction.token_id as i128),
+            // Transfer NFT token to winner - authorize the transfer
+            let transfer_symbol = Symbol::new(e, "transfer");
+            let nft_transfer_args = soroban_sdk::vec![
+                e,
+                e.current_contract_address().to_val(),
+                winner.to_val(),
+                (auction.token_id as i128).into_val(e)
+            ];
+
+            e.authorize_as_current_contract(soroban_sdk::vec![
+                e,
+                InvokerContractAuthEntry::Contract(SubContractInvocation {
+                    context: ContractContext {
+                        contract: config.token_contract.clone(),
+                        fn_name: transfer_symbol.clone(),
+                        args: nft_transfer_args.clone(),
+                    },
+                    sub_invocations: soroban_sdk::vec![e],
+                }),
+            ]);
+
+            e.invoke_contract::<()>(
+                &config.token_contract,
+                &transfer_symbol,
+                nft_transfer_args,
             );
 
             // Transfer proceeds to treasury
@@ -403,12 +434,26 @@ impl AuctionContract {
                         panic_with_error!(e, AuctionError::TransferFailed);
                     }
                     PaymentType::SAC(token_addr) => {
-                        let token_client = TokenClient::new(e, token_addr);
-                        token_client.transfer(
-                            &e.current_contract_address(),
-                            &config.treasury,
-                            &auction.highest_bid,
-                        );
+                        let payment_transfer_args = soroban_sdk::vec![
+                            e,
+                            e.current_contract_address().to_val(),
+                            config.treasury.to_val(),
+                            auction.highest_bid.into_val(e)
+                        ];
+
+                        e.authorize_as_current_contract(soroban_sdk::vec![
+                            e,
+                            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                                context: ContractContext {
+                                    contract: token_addr.clone(),
+                                    fn_name: transfer_symbol.clone(),
+                                    args: payment_transfer_args.clone(),
+                                },
+                                sub_invocations: soroban_sdk::vec![e],
+                            }),
+                        ]);
+
+                        e.invoke_contract::<()>(token_addr, &transfer_symbol, payment_transfer_args);
                     }
                 }
             }
@@ -421,16 +466,27 @@ impl AuctionContract {
                 &auction.payment_currency,
             );
         } else {
-            // No bids - burn the token
-            e.invoke_contract::<()>(
-                &config.token_contract,
-                &soroban_sdk::symbol_short!("burn"),
-                soroban_sdk::vec![
-                    e,
-                    e.current_contract_address().to_val(),
-                    (auction.token_id as i128).into_val(e)
-                ],
-            );
+            // No bids - burn the token - authorize the burn
+            let burn_symbol = Symbol::new(e, "burn");
+            let burn_args = soroban_sdk::vec![
+                e,
+                e.current_contract_address().to_val(),
+                (auction.token_id as i128).into_val(e)
+            ];
+
+            e.authorize_as_current_contract(soroban_sdk::vec![
+                e,
+                InvokerContractAuthEntry::Contract(SubContractInvocation {
+                    context: ContractContext {
+                        contract: config.token_contract.clone(),
+                        fn_name: burn_symbol.clone(),
+                        args: burn_args.clone(),
+                    },
+                    sub_invocations: soroban_sdk::vec![e],
+                }),
+            ]);
+
+            e.invoke_contract::<()>(&config.token_contract, &burn_symbol, burn_args);
 
             emit_auction_settled(e, auction.token_id, &None, 0, &auction.payment_currency);
         }
@@ -448,8 +504,28 @@ impl AuctionContract {
                 panic_with_error!(e, AuctionError::TransferFailed);
             }
             PaymentType::SAC(token_addr) => {
-                let token_client = TokenClient::new(e, token_addr);
-                token_client.transfer(&e.current_contract_address(), bidder, &amount);
+                // Authorize refund transfer
+                let transfer_symbol = Symbol::new(e, "transfer");
+                let refund_args = soroban_sdk::vec![
+                    e,
+                    e.current_contract_address().to_val(),
+                    bidder.to_val(),
+                    amount.into_val(e)
+                ];
+
+                e.authorize_as_current_contract(soroban_sdk::vec![
+                    e,
+                    InvokerContractAuthEntry::Contract(SubContractInvocation {
+                        context: ContractContext {
+                            contract: token_addr.clone(),
+                            fn_name: transfer_symbol.clone(),
+                            args: refund_args.clone(),
+                        },
+                        sub_invocations: soroban_sdk::vec![e],
+                    }),
+                ]);
+
+                e.invoke_contract::<()>(token_addr, &transfer_symbol, refund_args);
             }
         }
     }
