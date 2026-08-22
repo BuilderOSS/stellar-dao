@@ -9,9 +9,29 @@ import { Stack } from 'styled-system/jsx';
 
 export function ProposalActionQueue() {
   const queuedActions = useProposalComposerStore((s) => s.queuedActions);
-  const editingIndex = useProposalComposerStore((s) => s.editingState?.index);
+  const editingState = useProposalComposerStore((s) => s.editingState);
+  const editingIndex = editingState?.index;
   const beginEdit = useProposalComposerStore((s) => s.beginEdit);
   const removeAction = useProposalComposerStore((s) => s.removeAction);
+
+  const handleEdit = (index: number) => {
+    // If already editing a different action, confirm before switching
+    if (editingState && editingIndex !== index) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Switch to editing this action? Your current draft will be lost.'
+      );
+      if (!confirmed) return;
+    }
+    beginEdit(index);
+  };
+
+  const handleRemove = (index: number, actionLabel: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to remove this ${actionLabel} action?`
+    );
+    if (!confirmed) return;
+    removeAction(index);
+  };
 
   if (queuedActions.length === 0) {
     return (
@@ -56,7 +76,7 @@ export function ProposalActionQueue() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => beginEdit(index)}
+                  onClick={() => handleEdit(index)}
                   disabled={isEditing}
                 >
                   {isEditing ? 'Editing' : 'Edit'}
@@ -65,7 +85,7 @@ export function ProposalActionQueue() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => removeAction(index)}
+                  onClick={() => handleRemove(index, handler.label)}
                   disabled={isEditing}
                 >
                   Remove
