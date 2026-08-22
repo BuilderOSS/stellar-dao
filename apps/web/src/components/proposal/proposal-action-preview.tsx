@@ -1,5 +1,7 @@
 import { Badge, Card, ShortId, Text } from '@/components/ui';
 import { normalizeProposalCallArgs, type ProposalCallArg, type ProposalCallArgs } from '@/lib/proposal-call';
+import { getTreasuryAssets } from '@/lib/assets-config';
+import { getDefaultDaoNetwork } from '@/lib/dao-config';
 import { Stack } from 'styled-system/jsx';
 
 type ProposalActionPreviewProps = {
@@ -26,6 +28,16 @@ function formatStroopsAmount(stroops: ProposalCallArg): string {
 }
 
 /**
+ * Lookup asset code from contract ID using the treasury assets config
+ */
+function getAssetCodeFromContractId(contractId: string): string {
+  const network = getDefaultDaoNetwork();
+  const assets = getTreasuryAssets(network);
+  const asset = assets.find(a => a.contractId === contractId);
+  return asset?.code || 'tokens';
+}
+
+/**
  * Detect if this is a SAC transfer by checking if it's NOT the token contract
  * and the function is 'transfer' with 3 args
  */
@@ -45,7 +57,8 @@ function getActionTitle(target: string, functionName: string, args: ProposalCall
   if (isSacTransfer(target, functionName, args, tokenContractId)) {
     const amount = formatStroopsAmount(args[2] ?? '0');
     const recipient = formatArg(args[1] ?? '');
-    return `Transfer ${amount} SAC tokens to ${recipient}`;
+    const assetCode = getAssetCodeFromContractId(target);
+    return `Transfer ${amount} ${assetCode} to ${recipient}`;
   }
 
   return functionName;
