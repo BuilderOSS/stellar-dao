@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contract, contractimpl, contracttrait, panic_with_error, token::TokenClient, Address, Env,
+    contract, contractimpl, contracttrait, panic_with_error, Address, Env,
     IntoVal, Symbol, Val, Vec,
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
 };
@@ -163,14 +163,29 @@ impl AuctionContractTrait for AuctionContract {
             panic_with_error!(e, AuctionError::AuctionOver);
         }
 
-        // Transfer tokens from bidder to contract
-        let token_client = TokenClient::new(e, payment_token);
-        token_client.transfer_from(
-            &e.current_contract_address(),
-            &bidder,
-            &e.current_contract_address(),
-            &amount,
-        );
+        // Transfer payment tokens from bidder to contract - authorize the transfer
+        let transfer_from_symbol = Symbol::new(e, "transfer_from");
+        let transfer_from_args = soroban_sdk::vec![
+            e,
+            e.current_contract_address().to_val(),
+            bidder.to_val(),
+            e.current_contract_address().to_val(),
+            amount.into_val(e)
+        ];
+
+        e.authorize_as_current_contract(soroban_sdk::vec![
+            e,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: payment_token.clone(),
+                    fn_name: transfer_from_symbol.clone(),
+                    args: transfer_from_args.clone(),
+                },
+                sub_invocations: soroban_sdk::vec![e],
+            }),
+        ]);
+
+        e.invoke_contract::<()>(payment_token, &transfer_from_symbol, transfer_from_args);
 
         Self::process_bid(
             e,
