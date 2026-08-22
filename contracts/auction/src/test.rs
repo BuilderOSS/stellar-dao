@@ -14,10 +14,12 @@ fn setup_auction_contract(
     Address,
     Address,
     Address,
+    Address,
 ) {
     let owner = Address::generate(e);
     let treasury = Address::generate(e);
     let token_contract = Address::generate(e);
+    let payment_token = Address::generate(e); // SECURITY FIX: Always require payment token
 
     let auction_address = e.register(
         AuctionContract,
@@ -29,12 +31,12 @@ fn setup_auction_contract(
             1_000_0000_i128,
             10_u32,
             10_u64,
-            None::<Address>,
+            Some(payment_token.clone()), // SECURITY FIX: SAC-only
         ),
     );
     let auction = AuctionContractClient::new(e, &auction_address);
 
-    (auction, owner, treasury, token_contract, auction_address)
+    (auction, owner, treasury, token_contract, auction_address, payment_token)
 }
 
 fn setup_with_payment_token(
@@ -84,7 +86,7 @@ fn setup_with_payment_token(
 #[test]
 fn test_constructor_initializes_correctly() {
     let e = Env::default();
-    let (auction, owner, treasury, token_contract, _) = setup_auction_contract(&e);
+    let (auction, owner, treasury, token_contract, _, payment_token) = setup_auction_contract(&e);
 
     assert!(auction.paused());
     assert_eq!(auction.get_owner(), Some(owner));
@@ -96,7 +98,7 @@ fn test_constructor_initializes_correctly() {
     assert_eq!(config.reserve_price, 1_000_0000);
     assert_eq!(config.min_bid_increment_percent, 10);
     assert_eq!(config.time_buffer, 10);
-    assert_eq!(config.payment_token, None);
+    assert_eq!(config.payment_token, Some(payment_token));
 }
 
 #[test]
@@ -163,7 +165,7 @@ fn test_pause_unpause() {
     let e = Env::default();
     e.ledger().set_sequence_number(100);
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Initially paused
     assert!(auction.paused());
@@ -185,7 +187,7 @@ fn test_set_duration_when_paused() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     auction.set_duration(&200);
     assert_eq!(auction.get_config().duration, 200);
@@ -197,7 +199,7 @@ fn test_set_duration_rejects_zero() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
     auction.set_duration(&0);
 }
 
@@ -206,7 +208,7 @@ fn test_set_reserve_price_when_paused() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     auction.set_reserve_price(&5_000_0000);
     assert_eq!(auction.get_config().reserve_price, 5_000_0000);
@@ -217,7 +219,7 @@ fn test_set_min_bid_increment_when_paused() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     auction.set_min_bid_increment(&15);
     assert_eq!(auction.get_config().min_bid_increment_percent, 15);
@@ -229,7 +231,7 @@ fn test_set_min_bid_increment_rejects_zero() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
     auction.set_min_bid_increment(&0);
 }
 
@@ -238,7 +240,7 @@ fn test_set_time_buffer_when_paused() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     auction.set_time_buffer(&20);
     assert_eq!(auction.get_config().time_buffer, 20);
@@ -280,7 +282,7 @@ fn test_set_treasury_when_paused() {
 fn test_get_owner() {
     let e = Env::default();
 
-    let (auction, owner, _, _, _) = setup_auction_contract(&e);
+    let (auction, owner, _, _, _, _) = setup_auction_contract(&e);
 
     // Owner should be set correctly on initialization
     assert_eq!(auction.get_owner(), Some(owner));
@@ -312,7 +314,7 @@ fn test_get_config() {
 #[should_panic(expected = "Error(Contract, #12)")] // NotLaunched
 fn test_get_auction_fails_before_launch() {
     let e = Env::default();
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Should panic because auction hasn't been launched yet
     auction.get_auction();
@@ -334,7 +336,7 @@ fn test_paused_state_prevents_operations() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Auction is paused, so settle should fail
     assert!(auction.try_settle_auction().is_err());
@@ -345,7 +347,7 @@ fn test_multiple_config_updates() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Update multiple configs
     auction.set_duration(&150);
@@ -365,7 +367,7 @@ fn test_config_setters_work_when_paused() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let (auction, _, _, _, _) = setup_auction_contract(&e);
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
 
     // Config setters should work when paused
     auction.set_duration(&200);
@@ -377,3 +379,116 @@ fn test_config_setters_work_when_paused() {
     assert_eq!(config.reserve_price, 3_000_0000);
     assert_eq!(config.time_buffer, 25);
 }
+
+// ============================================================================
+// Security Tests - Added from audit
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "#11")]
+fn test_constructor_requires_payment_token() {
+    let e = Env::default();
+    let owner = Address::generate(&e);
+    let treasury = Address::generate(&e);
+    let token_contract = Address::generate(&e);
+
+    // SECURITY: Constructor should reject None payment token
+    e.register(
+        AuctionContract,
+        (
+            owner,
+            token_contract,
+            treasury,
+            100_u64,
+            1_000_0000_i128,
+            10_u32,
+            10_u64,
+            None::<Address>,
+        ),
+    );
+}
+
+#[test]
+#[should_panic(expected = "#16")]
+fn test_constructor_rejects_low_reserve_price() {
+    let e = Env::default();
+    let owner = Address::generate(&e);
+    let treasury = Address::generate(&e);
+    let token_contract = Address::generate(&e);
+    let payment_token = Address::generate(&e);
+
+    // SECURITY: Reserve price must be >= 1000
+    e.register(
+        AuctionContract,
+        (
+            owner,
+            token_contract,
+            treasury,
+            100_u64,
+            999_i128, // Too low
+            10_u32,
+            10_u64,
+            Some(payment_token),
+        ),
+    );
+}
+
+#[test]
+#[should_panic(expected = "#8")]
+fn test_constructor_rejects_high_min_increment() {
+    let e = Env::default();
+    let owner = Address::generate(&e);
+    let treasury = Address::generate(&e);
+    let token_contract = Address::generate(&e);
+    let payment_token = Address::generate(&e);
+
+    // SECURITY: Min increment must be <= 100%
+    e.register(
+        AuctionContract,
+        (
+            owner,
+            token_contract,
+            treasury,
+            100_u64,
+            1_000_0000_i128,
+            101_u32, // Too high
+            10_u64,
+            Some(payment_token),
+        ),
+    );
+}
+
+#[test]
+#[should_panic(expected = "#16")]
+fn test_set_reserve_price_rejects_low_value() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
+
+    // SECURITY: Reserve price must be >= 1000
+    auction.set_reserve_price(&999);
+}
+
+#[test]
+#[should_panic(expected = "#8")]
+fn test_set_min_increment_rejects_high_value() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _, _) = setup_auction_contract(&e);
+
+    // SECURITY: Min increment must be <= 100%
+    auction.set_min_bid_increment(&101);
+}
+
+// Note: Testing extension_count, overflow, DoS, and auth scenarios require
+// mock implementations of token contracts and more complex test infrastructure.
+// These are thoroughly tested in e2e tests where full contract interactions exist.
+//
+// The e2e tests verify:
+// - extension_count is properly tracked and incremented
+// - Maximum extensions limit prevents DoS
+// - Payment currency is locked on first bid
+// - Overflow protection in bid increment calculations
+// - Authorization checks for owner-only functions

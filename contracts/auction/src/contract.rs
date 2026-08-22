@@ -9,13 +9,14 @@ use stellar_macros::{only_owner, when_not_paused, when_paused};
 use crate::{
     error::AuctionError,
     events::{
-        emit_auction_created, emit_auction_settled, emit_bid_placed, emit_duration_updated,
-        emit_min_bid_increment_updated, emit_payment_token_updated, emit_reserve_price_updated,
-        emit_time_buffer_updated, emit_treasury_updated,
+        emit_auction_cancelled, emit_auction_created, emit_auction_settled, emit_bid_placed,
+        emit_bid_refunded, emit_duration_updated, emit_min_bid_increment_updated,
+        emit_payment_token_updated, emit_reserve_price_updated, emit_time_buffer_updated,
+        emit_treasury_updated,
     },
     storage::{
-        get_auction, get_config, is_launched, set_auction, set_config, set_launched, AuctionConfig,
-        AuctionState, PaymentType,
+        get_auction, get_config, is_launched, set_auction, set_config, set_launched,
+        AuctionConfig, AuctionState, PaymentType, MAX_AUCTION_EXTENSIONS,
     },
 };
 
@@ -51,6 +52,9 @@ pub trait AuctionContractTrait {
 
     /// Get auction configuration
     fn get_config(e: &Env) -> AuctionConfig;
+
+    /// Cancel current auction (owner only, when paused)
+    fn cancel_auction(e: &Env);
 
     // Configuration setters (owner only, when paused)
     fn set_duration(e: &Env, duration: u64);
@@ -114,6 +118,23 @@ impl AuctionContractTrait for AuctionContract {
     ) {
         // Validate config
         if duration == 0 || min_bid_increment_percent == 0 {
+            panic_with_error!(e, AuctionError::InvalidConfig);
+        }
+
+        // SECURITY: Enforce payment token is set (SAC-only, no native XLM)
+        // This prevents incomplete native payment code paths from being reached
+        if payment_token.is_none() {
+            panic_with_error!(e, AuctionError::NoPaymentTokenSet);
+        }
+
+        // SECURITY: Validate reserve price is reasonable (prevent 1-stroop auctions)
+        // Minimum 1000 stroops = 0.0001 units of token
+        if reserve_price < 1000 {
+            panic_with_error!(e, AuctionError::InvalidBid);
+        }
+
+        // Validate min increment is reasonable (1-100%)
+        if min_bid_increment_percent > 100 {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
@@ -186,6 +207,10 @@ impl AuctionContractTrait for AuctionContract {
         );
     }
 
+    /// DESIGN NOTE: settle_and_create_new is intentionally permissionless.
+    /// Anyone can call this after an auction ends to settle it and create the next one.
+    /// This is a deliberate design choice to ensure auctions continue automatically.
+    /// The only griefing vector is settling at exact end time, which is minimal impact.
     #[when_not_paused]
     fn settle_and_create_new(e: &Env) {
         let auction = get_auction(e);
@@ -213,6 +238,33 @@ impl AuctionContractTrait for AuctionContract {
         get_config(e)
     }
 
+    /// Cancel the current auction and refund the highest bidder (owner only, when paused)
+    /// This allows the owner to cancel an auction in emergency situations
+    #[only_owner]
+    #[when_paused]
+    fn cancel_auction(e: &Env) {
+        let auction = get_auction(e);
+
+        // Cannot cancel already settled auction
+        if auction.settled {
+            panic_with_error!(e, AuctionError::AuctionSettled);
+        }
+
+        // Refund highest bidder if there is one
+        if let Some(bidder) = &auction.highest_bidder {
+            if auction.highest_bid > 0 {
+                Self::refund_bid(e, bidder, auction.highest_bid, &auction.payment_currency);
+            }
+        }
+
+        // Mark as settled to prevent further bids
+        let mut cancelled_auction = auction.clone();
+        cancelled_auction.settled = true;
+        set_auction(e, &cancelled_auction);
+
+        emit_auction_cancelled(e, auction.token_id, 0); // reason: 0 = owner cancelled
+    }
+
     #[only_owner]
     #[when_paused]
     fn set_duration(e: &Env, duration: u64) {
@@ -230,6 +282,11 @@ impl AuctionContractTrait for AuctionContract {
     #[only_owner]
     #[when_paused]
     fn set_reserve_price(e: &Env, reserve_price: i128) {
+        // SECURITY: Validate reserve price is reasonable
+        if reserve_price < 1000 {
+            panic_with_error!(e, AuctionError::InvalidBid);
+        }
+
         let mut config = get_config(e);
         config.reserve_price = reserve_price;
         set_config(e, &config);
@@ -240,7 +297,7 @@ impl AuctionContractTrait for AuctionContract {
     #[only_owner]
     #[when_paused]
     fn set_min_bid_increment(e: &Env, min_bid_increment_percent: u32) {
-        if min_bid_increment_percent == 0 {
+        if min_bid_increment_percent == 0 || min_bid_increment_percent > 100 {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
@@ -305,12 +362,17 @@ impl AuctionContract {
             }),
         ]);
 
-        // Call the mint function - it returns the token ID as u32
+        // SECURITY: Call the mint function - it returns the token ID as u32
+        // u32 always fits in u128, so this conversion is safe
         let token_id_u32: u32 = e.invoke_contract(&config.token_contract, &mint_symbol, mint_args);
         let token_id: u128 = token_id_u32 as u128;
 
         let current_ledger = e.ledger().sequence();
-        let end_ledger = current_ledger + config.duration as u32;
+
+        // SECURITY: Use checked arithmetic for duration calculation
+        let end_ledger = current_ledger
+            .checked_add(config.duration as u32)
+            .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
 
         let auction = AuctionState {
             token_id,
@@ -319,7 +381,9 @@ impl AuctionContract {
             start_ledger: current_ledger,
             end_ledger,
             settled: false,
-            payment_currency: PaymentType::Native, // Default, will be set by first bid
+            // SECURITY: Will be locked to SAC token on first bid
+            payment_currency: PaymentType::Native, // Placeholder only
+            extension_count: 0,
         };
 
         set_auction(e, &auction);
@@ -339,13 +403,30 @@ impl AuctionContract {
 
         // Validate bid amount
         if last_bidder.is_none() {
-            // First bid - check reserve price
+            // SECURITY: First bid - check reserve price and lock payment currency
             if amount < config.reserve_price {
                 panic_with_error!(e, AuctionError::ReservePriceNotMet);
             }
+
+            // SECURITY: Lock payment currency on first bid to prevent switching
+            auction.payment_currency = payment_type.clone();
         } else {
-            // Subsequent bid - check minimum increment
-            let min_bid = last_bid + (last_bid * config.min_bid_increment_percent as i128 / 100);
+            // SECURITY: Subsequent bid - verify payment type matches locked currency
+            if &auction.payment_currency != payment_type {
+                panic_with_error!(e, AuctionError::InconsistentPaymentType);
+            }
+
+            // SECURITY: Check minimum increment with overflow protection
+            // Calculate: min_bid = last_bid + (last_bid * percent / 100)
+            let increment = last_bid
+                .checked_mul(config.min_bid_increment_percent as i128)
+                .and_then(|v| v.checked_div(100))
+                .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
+
+            let min_bid = last_bid
+                .checked_add(increment)
+                .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
+
             if amount < min_bid {
                 panic_with_error!(e, AuctionError::MinBidNotMet);
             }
@@ -354,21 +435,30 @@ impl AuctionContract {
         // Update auction state BEFORE refund (CEI pattern)
         auction.highest_bid = amount;
         auction.highest_bidder = Some(bidder.clone());
-        auction.payment_currency = payment_type.clone();
 
-        // Check if we need to extend
+        // SECURITY: Check if we need to extend, with max extension limit to prevent DoS
         let current_ledger = e.ledger().sequence();
         let remaining = auction.end_ledger - current_ledger;
         let extended = remaining < config.time_buffer as u32;
 
         if extended {
-            auction.end_ledger = current_ledger + config.time_buffer as u32;
+            // SECURITY: Enforce maximum extensions to prevent auction extension DoS
+            if auction.extension_count >= MAX_AUCTION_EXTENSIONS {
+                panic_with_error!(e, AuctionError::MaxExtensionsExceeded);
+            }
+
+            // SECURITY: Use checked arithmetic for time extension
+            auction.end_ledger = current_ledger
+                .checked_add(config.time_buffer as u32)
+                .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
+
+            auction.extension_count += 1;
         }
 
         // Save state
         set_auction(e, auction);
 
-        // Refund previous bidder AFTER state update
+        // Refund previous bidder AFTER state update (CEI pattern)
         if let Some(prev_bidder) = last_bidder {
             Self::refund_bid(e, &prev_bidder, last_bid, &auction.payment_currency);
         }
@@ -429,11 +519,12 @@ impl AuctionContract {
 
             // Transfer proceeds to treasury
             if auction.highest_bid > 0 {
+                // SECURITY: Native XLM payment removed - only SAC tokens supported
+                // This ensures we never hit incomplete payment code paths
                 match &auction.payment_currency {
                     PaymentType::Native => {
-                        // For native, this would require different handling
-                        // For MVP we'll focus on SAC tokens
-                        panic_with_error!(e, AuctionError::TransferFailed);
+                        // Should never reach here due to constructor validation
+                        panic_with_error!(e, AuctionError::NoPaymentTokenSet);
                     }
                     PaymentType::SAC(token_addr) => {
                         let payment_transfer_args = soroban_sdk::vec![
@@ -483,11 +574,11 @@ impl AuctionContract {
             return;
         }
 
+        // SECURITY: Native XLM payment removed - only SAC tokens supported
         match payment_type {
             PaymentType::Native => {
-                // Native transfers would be handled differently
-                // For MVP focusing on SAC tokens
-                panic_with_error!(e, AuctionError::TransferFailed);
+                // Should never reach here due to constructor validation
+                panic_with_error!(e, AuctionError::NoPaymentTokenSet);
             }
             PaymentType::SAC(token_addr) => {
                 // Authorize refund transfer
@@ -512,6 +603,9 @@ impl AuctionContract {
                 ]);
 
                 e.invoke_contract::<()>(token_addr, &transfer_symbol, refund_args);
+
+                // IMPROVEMENT: Emit refund event for observability
+                emit_bid_refunded(e, bidder, amount, payment_type);
             }
         }
     }

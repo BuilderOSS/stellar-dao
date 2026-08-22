@@ -32,4 +32,18 @@ pub enum AuctionError {
     CannotCreateAuction = 13,
     /// Unauthorized access
     Unauthorized = 14,
+    /// Arithmetic overflow in calculations
+    ArithmeticOverflow = 15,
+    /// Invalid bid amount (too low or unreasonable)
+    InvalidBid = 16,
+    /// Inconsistent payment type between bids
+    InconsistentPaymentType = 17,
+    /// Maximum auction extensions exceeded
+    MaxExtensionsExceeded = 18,
+    /// Contract not initialized properly
+    NotInitialized = 19,
+    /// Token ID exceeds valid range
+    TokenIdOverflow = 20,
+    /// External contract call failed
+    ExternalCallFailed = 21,
 }

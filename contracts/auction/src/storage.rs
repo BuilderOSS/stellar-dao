@@ -2,6 +2,13 @@ use soroban_sdk::{contracttype, panic_with_error, Address, Env};
 
 use crate::error::AuctionError;
 
+// Storage TTL constants - extend for ~30 days worth of ledgers (at 5s/ledger = 518,400 ledgers)
+const LEDGERS_TO_LIVE: u32 = 518_400;
+const MAX_TTL: u32 = 518_400;
+
+// Maximum number of time extensions allowed per auction to prevent DoS
+pub const MAX_AUCTION_EXTENSIONS: u32 = 10;
+
 #[derive(Clone, Debug)]
 #[contracttype]
 pub enum DataKey {
@@ -44,8 +51,10 @@ pub struct AuctionState {
     pub end_ledger: u32,
     /// Whether auction has been settled
     pub settled: bool,
-    /// Payment type for this auction
+    /// Payment type for this auction (locked on first bid)
     pub payment_currency: PaymentType,
+    /// Number of time extensions applied to this auction
+    pub extension_count: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -57,27 +66,39 @@ pub enum PaymentType {
     SAC(Address),
 }
 
-// Storage helpers
+// Storage helpers with TTL management
 pub fn get_config(e: &Env) -> AuctionConfig {
-    e.storage().instance().get(&DataKey::Config).unwrap()
+    // Extend TTL on read to prevent expiration
+    e.storage().instance().extend_ttl(LEDGERS_TO_LIVE, MAX_TTL);
+    e.storage()
+        .instance()
+        .get(&DataKey::Config)
+        .unwrap_or_else(|| panic_with_error!(e, AuctionError::NotInitialized))
 }
 
 pub fn set_config(e: &Env, config: &AuctionConfig) {
     e.storage().instance().set(&DataKey::Config, config);
+    e.storage().instance().extend_ttl(LEDGERS_TO_LIVE, MAX_TTL);
 }
 
 pub fn get_auction(e: &Env) -> AuctionState {
     if !is_launched(e) {
         panic_with_error!(e, AuctionError::NotLaunched);
     }
-    e.storage().instance().get(&DataKey::Auction).unwrap()
+    e.storage().instance().extend_ttl(LEDGERS_TO_LIVE, MAX_TTL);
+    e.storage()
+        .instance()
+        .get(&DataKey::Auction)
+        .unwrap_or_else(|| panic_with_error!(e, AuctionError::NotInitialized))
 }
 
 pub fn set_auction(e: &Env, auction: &AuctionState) {
     e.storage().instance().set(&DataKey::Auction, auction);
+    e.storage().instance().extend_ttl(LEDGERS_TO_LIVE, MAX_TTL);
 }
 
 pub fn is_launched(e: &Env) -> bool {
+    e.storage().instance().extend_ttl(LEDGERS_TO_LIVE, MAX_TTL);
     e.storage()
         .instance()
         .get(&DataKey::Launched)
@@ -86,4 +107,5 @@ pub fn is_launched(e: &Env) -> bool {
 
 pub fn set_launched(e: &Env, launched: bool) {
     e.storage().instance().set(&DataKey::Launched, &launched);
+    e.storage().instance().extend_ttl(LEDGERS_TO_LIVE, MAX_TTL);
 }

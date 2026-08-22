@@ -70,6 +70,23 @@ pub struct TreasuryUpdated {
     pub treasury: Address,
 }
 
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BidRefunded {
+    #[topic]
+    pub bidder: Address,
+    pub amount: i128,
+    pub payment_type: PaymentType,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuctionCancelled {
+    #[topic]
+    pub token_id: u128,
+    pub reason: u32,
+}
+
 // Event publishing helpers
 pub fn emit_auction_created(e: &Env, token_id: u128, start_ledger: u32, end_ledger: u32) {
     AuctionCreated {
@@ -147,6 +164,19 @@ pub fn emit_treasury_updated(e: &Env, treasury: &Address) {
         treasury: treasury.clone(),
     }
     .publish(e);
+}
+
+pub fn emit_bid_refunded(e: &Env, bidder: &Address, amount: i128, payment_type: &PaymentType) {
+    BidRefunded {
+        bidder: bidder.clone(),
+        amount,
+        payment_type: payment_type.clone(),
+    }
+    .publish(e);
+}
+
+pub fn emit_auction_cancelled(e: &Env, token_id: u128, reason: u32) {
+    AuctionCancelled { token_id, reason }.publish(e);
 }
 
 // Mercury indexing events removed - using contract events instead
