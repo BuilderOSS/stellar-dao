@@ -256,10 +256,18 @@ fn test_set_payment_token_when_paused() {
 
     auction.set_payment_token(&Some(new_payment_token.clone()));
     assert_eq!(auction.get_config().payment_token, Some(new_payment_token));
+}
 
-    // Can set to None
+#[test]
+#[should_panic(expected = "#11")] // NoPaymentTokenSet
+fn test_set_payment_token_rejects_none() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let (auction, _, _, _, _, _) = setup_with_payment_token(&e);
+
+    // SECURITY: Cannot set payment token to None
     auction.set_payment_token(&None);
-    assert_eq!(auction.get_config().payment_token, None);
 }
 
 #[test]

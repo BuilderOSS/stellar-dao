@@ -929,16 +929,18 @@ fn test_auction_time_extension() {
 }
 
 #[test]
-fn test_auction_no_bids_keeps_token() {
-    let (e, token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
+fn test_auction_no_bids_transfers_to_treasury() {
+    let (e, token, treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
 
     // Start auction
     auction.unpause(&owner);
 
     let auction_state = auction.get_auction();
+    let token_id = auction_state.token_id;
 
     // Token should exist (minted to auction contract)
     assert_eq!(token.balance(&auction.address), 1);
+    assert_eq!(token.balance(&treasury.address), 0);
 
     // Advance past auction end without bids
     e.ledger().set_sequence_number(auction_state.end_ledger + 1);
@@ -946,9 +948,15 @@ fn test_auction_no_bids_keeps_token() {
     // Settle auction
     auction.settle_and_create_new();
 
-    // Token remains with auction contract (no burn function)
-    // Plus a new token was minted for the new auction
-    assert_eq!(token.balance(&auction.address), 2);  // Old unsold token + new auction token
+    // IMPROVEMENT: Unsold token transferred to treasury for DAO governance use
+    assert_eq!(token.balance(&treasury.address), 1);
+    assert_eq!(token.owner_of(&(token_id as u32)), treasury.address);
+
+    // New auction token minted to auction contract
+    assert_eq!(token.balance(&auction.address), 1);
+
+    // Verify treasury can use the token for governance (has delegate set)
+    assert_eq!(token.get_delegate(&treasury.address), Some(treasury.address));
 }
 
 #[test]
@@ -1253,8 +1261,13 @@ fn test_auction_payment_token_setter() {
 
     let config = auction.get_config();
     assert_eq!(config.payment_token, Some(new_payment_token));
+}
 
-    // SECURITY FIX: Cannot set to None anymore (would fail in constructor)
-    // Setting to None via setter is still allowed but won't work for new auctions
-    // This test now just verifies the setter works, not that None is a valid operational state
+#[test]
+#[should_panic(expected = "Error(Contract, #11)")] // NoPaymentTokenSet
+fn test_auction_payment_token_setter_rejects_none() {
+    let (_e, _token, _treasury, auction, _owner, _payment_token_addr, _payment_token) = setup_auction();
+
+    // SECURITY FIX: Cannot set payment token to None
+    auction.set_payment_token(&None);
 }

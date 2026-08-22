@@ -321,6 +321,12 @@ impl AuctionContractTrait for AuctionContract {
     #[only_owner]
     #[when_paused]
     fn set_payment_token(e: &Env, payment_token: Option<Address>) {
+        // SECURITY: Require payment token to be set (matching constructor behavior)
+        // This prevents configuration errors that would break bidding functionality
+        if payment_token.is_none() {
+            panic_with_error!(e, AuctionError::NoPaymentTokenSet);
+        }
+
         let mut config = get_config(e);
         config.payment_token = payment_token.clone();
         set_config(e, &config);
@@ -563,8 +569,30 @@ impl AuctionContract {
                 &auction.payment_currency,
             );
         } else {
-            // No bids - token remains with auction contract (no burn function available)
-            // The token will simply stay in the auction contract's balance
+            // No bids - transfer token to treasury for DAO governance use
+            // The treasury can use these tokens for voting, redistribution via proposals, or hold them
+            let transfer_symbol = Symbol::new(e, "transfer");
+            let nft_transfer_args = soroban_sdk::vec![
+                e,
+                e.current_contract_address().to_val(),
+                config.treasury.to_val(),
+                (auction.token_id as u32).into_val(e)
+            ];
+
+            e.authorize_as_current_contract(soroban_sdk::vec![
+                e,
+                InvokerContractAuthEntry::Contract(SubContractInvocation {
+                    context: ContractContext {
+                        contract: config.token_contract.clone(),
+                        fn_name: transfer_symbol.clone(),
+                        args: nft_transfer_args.clone(),
+                    },
+                    sub_invocations: soroban_sdk::vec![e],
+                }),
+            ]);
+
+            e.invoke_contract::<()>(&config.token_contract, &transfer_symbol, nft_transfer_args);
+
             emit_auction_settled(e, auction.token_id, &None, 0, &auction.payment_currency);
         }
     }
