@@ -37,15 +37,8 @@ export function ProposalActionQueue() {
               border: isEditing ? '2px solid var(--accent-9)' : undefined,
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: '12px',
-              }}
-            >
-              <div style={{ flex: 1 }}>
+            <Stack gap="3">
+              <div>
                 {isEditing && (
                   <Badge style={{ marginBottom: '8px' }}>Currently editing</Badge>
                 )}
@@ -66,7 +59,7 @@ export function ProposalActionQueue() {
                   onClick={() => beginEdit(index)}
                   disabled={isEditing}
                 >
-                  Edit
+                  {isEditing ? 'Editing' : 'Edit'}
                 </Button>
                 <Button
                   type="button"
@@ -78,7 +71,7 @@ export function ProposalActionQueue() {
                   Remove
                 </Button>
               </div>
-            </div>
+            </Stack>
           </Card>
         );
       })}
