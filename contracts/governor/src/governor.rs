@@ -154,6 +154,81 @@ mod retroshade {
     }
 }
 
+// Standard contract events
+use soroban_sdk::contractevent;
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TreasuryChanged {
+    #[topic]
+    pub old_treasury: Address,
+    #[topic]
+    pub new_treasury: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenContractChanged {
+    #[topic]
+    pub old_token_contract: Address,
+    #[topic]
+    pub new_token_contract: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QueueDelayChanged {
+    #[topic]
+    pub caller: Address,
+    pub old_value: u32,
+    pub new_value: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VotingDelayChanged {
+    #[topic]
+    pub caller: Address,
+    pub old_value: u32,
+    pub new_value: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VotingPeriodChanged {
+    #[topic]
+    pub caller: Address,
+    pub old_value: u32,
+    pub new_value: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProposalThresholdChanged {
+    #[topic]
+    pub caller: Address,
+    pub old_value: u128,
+    pub new_value: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QuorumBpsChanged {
+    #[topic]
+    pub caller: Address,
+    pub old_value: u32,
+    pub new_value: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GovernorAuthorityChanged {
+    #[topic]
+    pub authority: Address,
+    pub old_enabled: bool,
+    pub enabled: bool,
+}
+
 // TTL constants for proposal storage
 // Proposals can stay active for voting_delay + voting_period + queue_delay
 // Using 60 days (518,400 ledgers) to safely cover max governance timeline
@@ -268,14 +343,11 @@ impl DaoGovernorContract {
             .set(&GovernorKey::Treasury, &treasury_contract);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (
-                Symbol::new(e, "treasury_changed"),
-                old_treasury_for_event.clone(),
-                treasury_contract.clone(),
-            ),
-            ()
-        );
+        TreasuryChanged {
+            old_treasury: old_treasury_for_event.clone(),
+            new_treasury: treasury_contract.clone(),
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::TreasuryChangedIndexed {
@@ -305,10 +377,12 @@ impl DaoGovernorContract {
             .set(&GovernorKey::QueueDelay, &queue_delay);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "queue_delay_changed"), caller.clone()),
-            (old_value, queue_delay)
-        );
+        QueueDelayChanged {
+            caller: caller.clone(),
+            old_value,
+            new_value: queue_delay,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -331,14 +405,11 @@ impl DaoGovernorContract {
         governor::set_token_contract(e, &token_contract);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (
-                Symbol::new(e, "token_contract_changed"),
-                old_token_contract.clone(),
-                token_contract.clone(),
-            ),
-            ()
-        );
+        TokenContractChanged {
+            old_token_contract: old_token_contract.clone(),
+            new_token_contract: token_contract.clone(),
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::TokenContractChangedIndexed {
@@ -360,10 +431,12 @@ impl DaoGovernorContract {
         governor::set_voting_delay(e, voting_delay);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "voting_delay_changed"), caller.clone()),
-            (old_value, voting_delay)
-        );
+        VotingDelayChanged {
+            caller: caller.clone(),
+            old_value,
+            new_value: voting_delay,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -386,10 +459,12 @@ impl DaoGovernorContract {
         governor::set_voting_period(e, voting_period);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "voting_period_changed"), caller.clone()),
-            (old_value, voting_period)
-        );
+        VotingPeriodChanged {
+            caller: caller.clone(),
+            old_value,
+            new_value: voting_period,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -426,10 +501,12 @@ impl DaoGovernorContract {
         governor::set_proposal_threshold(e, proposal_threshold);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "proposal_threshold_changed"), caller.clone()),
-            (old_value, proposal_threshold)
-        );
+        ProposalThresholdChanged {
+            caller: caller.clone(),
+            old_value,
+            new_value: proposal_threshold,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -457,10 +534,12 @@ impl DaoGovernorContract {
         governor::set_quorum(e, quorum_bps as u128);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "quorum_bps_changed"), caller.clone()),
-            (old_value, quorum_bps)
-        );
+        QuorumBpsChanged {
+            caller: caller.clone(),
+            old_value,
+            new_value: quorum_bps,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -506,10 +585,12 @@ impl DaoGovernorContract {
             .set(&GovernorKey::GovernorAuthority(authority.clone()), &enabled);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "governor_authority_changed"), authority.clone()),
-            (old_enabled_for_event, enabled)
-        );
+        GovernorAuthorityChanged {
+            authority: authority.clone(),
+            old_enabled: old_enabled_for_event,
+            enabled,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorAuthorityChangedIndexed {

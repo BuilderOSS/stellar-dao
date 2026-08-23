@@ -42,6 +42,28 @@ mod retroshade {
     }
 }
 
+// Standard contract events
+use soroban_sdk::contractevent;
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GovernorChanged {
+    #[topic]
+    pub old_governor: Address,
+    #[topic]
+    pub new_governor: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Execute {
+    #[topic]
+    pub governor: Address,
+    #[topic]
+    pub target: Address,
+    pub function: Symbol,
+}
+
 #[contracttype]
 enum TreasuryKey {
     Governor,
@@ -82,14 +104,11 @@ impl DaoTreasuryContract {
             .set(&TreasuryKey::Governor, &governor);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (
-                Symbol::new(e, "governor_changed"),
-                old_governor_for_event.clone(),
-                governor.clone(),
-            ),
-            ()
-        );
+        GovernorChanged {
+            old_governor: old_governor_for_event.clone(),
+            new_governor: governor.clone(),
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorChangedIndexed {
@@ -133,10 +152,12 @@ impl DaoTreasuryContract {
         let result = e.invoke_contract::<Val>(&target, &function, args.clone());
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "execute"), governor.clone(), target.clone()),
-            (function.clone(),)
-        );
+        Execute {
+            governor: governor.clone(),
+            target: target.clone(),
+            function: function.clone(),
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::TreasuryCallIndexed {

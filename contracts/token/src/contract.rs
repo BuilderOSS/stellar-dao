@@ -1,4 +1,4 @@
-use soroban_sdk::{contract, contractimpl, contracterror, contracttype, panic_with_error, Address, Env, String, Symbol};
+use soroban_sdk::{contract, contractimpl, contracterror, contracttype, panic_with_error, Address, Env, String};
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
@@ -87,6 +87,60 @@ mod retroshade {
     }
 }
 
+// Standard contract events
+use soroban_sdk::contractevent;
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MintAuthorityChanged {
+    #[topic]
+    pub authority: Address,
+    pub old_enabled: bool,
+    pub enabled: bool,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Mint {
+    #[topic]
+    pub minter: Address,
+    #[topic]
+    pub to: Address,
+    pub token_id: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchMint {
+    #[topic]
+    pub minter: Address,
+    #[topic]
+    pub to: Address,
+    pub amount: u32,
+    pub last_token_id: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Transfer {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub token_id: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Approve {
+    #[topic]
+    pub owner: Address,
+    #[topic]
+    pub spender: Address,
+    pub token_id: u32,
+    pub expiration_ledger: u32,
+}
+
 const MAX_BATCH_MINT: u32 = 100;
 
 // TTL constants for delegation storage
@@ -141,10 +195,12 @@ impl DaoTokenContract {
             .set(&TokenKey::MintAuthority(authority.clone()), &enabled);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "mint_authority_changed"), authority.clone()),
-            (old_enabled_for_event, enabled)
-        );
+        MintAuthorityChanged {
+            authority: authority.clone(),
+            old_enabled: old_enabled_for_event,
+            enabled,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::MintAuthorityChangedIndexed {
@@ -172,10 +228,12 @@ impl DaoTokenContract {
         let token_id = NonFungibleVotes::sequential_mint(e, to);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "mint"), minter.clone(), to.clone()),
-            (token_id,)
-        );
+        Mint {
+            minter: minter.clone(),
+            to: to.clone(),
+            token_id,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::TokenMintIndexed {
@@ -222,10 +280,13 @@ impl DaoTokenContract {
         }
 
         // Emit standard event for batch mint operation with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "batch_mint"), minter.clone(), to.clone()),
-            (amount, last_token_id)
-        );
+        BatchMint {
+            minter: minter.clone(),
+            to: to.clone(),
+            amount,
+            last_token_id,
+        }
+        .publish(e);
 
         last_token_id
     }
@@ -243,10 +304,12 @@ impl DaoTokenContract {
         NonFungibleVotes::transfer(e, from, to, token_id);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "transfer"), from.clone(), to.clone()),
-            (token_id,)
-        );
+        Transfer {
+            from: from.clone(),
+            to: to.clone(),
+            token_id,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::TokenTransferIndexed {
@@ -265,10 +328,12 @@ impl DaoTokenContract {
         NonFungibleVotes::transfer_from(e, spender, from, to, token_id);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "transfer"), from.clone(), to.clone()),
-            (token_id,)
-        );
+        Transfer {
+            from: from.clone(),
+            to: to.clone(),
+            token_id,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::TokenTransferIndexed {
@@ -292,10 +357,13 @@ impl DaoTokenContract {
         Base::approve(e, owner, spender, token_id, expiration_ledger);
 
         // Emit standard event with topics for efficient filtering
-        e.events().publish(
-            (Symbol::new(e, "approve"), owner.clone(), spender.clone()),
-            (token_id, expiration_ledger)
-        );
+        Approve {
+            owner: owner.clone(),
+            spender: spender.clone(),
+            token_id,
+            expiration_ledger,
+        }
+        .publish(e);
 
         #[cfg(feature = "mercury")]
         retroshade::ApprovalChangedIndexed {

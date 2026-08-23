@@ -168,36 +168,42 @@ pub struct AuctionSettled {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DurationUpdated {
     pub duration: u64,
+    pub changed_by: Address,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReservePriceUpdated {
     pub reserve_price: i128,
+    pub changed_by: Address,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MinBidIncrementUpdated {
     pub min_bid_increment_percent: u32,
+    pub changed_by: Address,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TimeBufferUpdated {
     pub time_buffer: u64,
+    pub changed_by: Address,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentTokenUpdated {
     pub payment_token: Option<Address>,
+    pub changed_by: Address,
 }
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TreasuryUpdated {
     pub treasury: Address,
+    pub changed_by: Address,
 }
 
 #[contractevent]
@@ -215,6 +221,7 @@ pub struct AuctionCancelled {
     #[topic]
     pub token_id: u128,
     pub reason: u32,
+    pub cancelled_by: Address,
 }
 
 // Event publishing helpers
@@ -325,7 +332,11 @@ pub fn emit_auction_settled(
 }
 
 pub fn emit_duration_updated(e: &Env, duration: u64, changed_by: &Address) {
-    DurationUpdated { duration }.publish(e);
+    DurationUpdated {
+        duration,
+        changed_by: changed_by.clone(),
+    }
+    .publish(e);
 
     #[cfg(feature = "mercury")]
     retroshade::DurationUpdatedIndexed {
@@ -338,7 +349,11 @@ pub fn emit_duration_updated(e: &Env, duration: u64, changed_by: &Address) {
 }
 
 pub fn emit_reserve_price_updated(e: &Env, reserve_price: i128, changed_by: &Address) {
-    ReservePriceUpdated { reserve_price }.publish(e);
+    ReservePriceUpdated {
+        reserve_price,
+        changed_by: changed_by.clone(),
+    }
+    .publish(e);
 
     #[cfg(feature = "mercury")]
     retroshade::ReservePriceUpdatedIndexed {
@@ -353,6 +368,7 @@ pub fn emit_reserve_price_updated(e: &Env, reserve_price: i128, changed_by: &Add
 pub fn emit_min_bid_increment_updated(e: &Env, min_bid_increment_percent: u32, changed_by: &Address) {
     MinBidIncrementUpdated {
         min_bid_increment_percent,
+        changed_by: changed_by.clone(),
     }
     .publish(e);
 
@@ -367,7 +383,11 @@ pub fn emit_min_bid_increment_updated(e: &Env, min_bid_increment_percent: u32, c
 }
 
 pub fn emit_time_buffer_updated(e: &Env, time_buffer: u64, changed_by: &Address) {
-    TimeBufferUpdated { time_buffer }.publish(e);
+    TimeBufferUpdated {
+        time_buffer,
+        changed_by: changed_by.clone(),
+    }
+    .publish(e);
 
     #[cfg(feature = "mercury")]
     retroshade::TimeBufferUpdatedIndexed {
@@ -382,6 +402,7 @@ pub fn emit_time_buffer_updated(e: &Env, time_buffer: u64, changed_by: &Address)
 pub fn emit_payment_token_updated(e: &Env, payment_token: &Option<Address>, changed_by: &Address) {
     PaymentTokenUpdated {
         payment_token: payment_token.clone(),
+        changed_by: changed_by.clone(),
     }
     .publish(e);
 
@@ -398,6 +419,7 @@ pub fn emit_payment_token_updated(e: &Env, payment_token: &Option<Address>, chan
 pub fn emit_treasury_updated(e: &Env, treasury: &Address, changed_by: &Address) {
     TreasuryUpdated {
         treasury: treasury.clone(),
+        changed_by: changed_by.clone(),
     }
     .publish(e);
 
@@ -431,7 +453,12 @@ pub fn emit_bid_refunded(e: &Env, bidder: &Address, amount: i128, payment_type: 
 }
 
 pub fn emit_auction_cancelled(e: &Env, token_id: u128, reason: u32, cancelled_by: &Address) {
-    AuctionCancelled { token_id, reason }.publish(e);
+    AuctionCancelled {
+        token_id,
+        reason,
+        cancelled_by: cancelled_by.clone(),
+    }
+    .publish(e);
 
     #[cfg(feature = "mercury")]
     retroshade::AuctionCancelledIndexed {
