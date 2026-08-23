@@ -1,6 +1,6 @@
 extern crate std;
 
-use auction::{AuctionContract, AuctionContractClient};
+use auction::{DaoAuctionContract, DaoAuctionContractClient};
 use governor::{DaoGovernorContract, DaoGovernorContractClient};
 use soroban_sdk::{
     contract, contractimpl, symbol_short,
@@ -785,7 +785,7 @@ fn setup_auction() -> (
     Env,
     DaoTokenContractClient<'static>,
     DaoTreasuryContractClient<'static>,
-    AuctionContractClient<'static>,
+    DaoAuctionContractClient<'static>,
     Address,  // owner
     Address,  // payment token
     StellarAssetClient<'static>,  // payment token client
@@ -820,7 +820,7 @@ fn setup_auction() -> (
 
     // Deploy auction contract
     let auction_id = e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner.clone(),
             token_id.clone(),
@@ -832,7 +832,7 @@ fn setup_auction() -> (
             Some(payment_token.clone()),  // payment token
         ),
     );
-    let auction = AuctionContractClient::new(&e, &auction_id);
+    let auction = DaoAuctionContractClient::new(&e, &auction_id);
 
     e.mock_all_auths();
 

@@ -4,12 +4,12 @@ extern crate std;
 
 use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
-use crate::contract::{AuctionContract, AuctionContractClient};
+use crate::contract::{DaoAuctionContract, DaoAuctionContractClient};
 
 fn setup_auction_contract(
     e: &Env,
 ) -> (
-    AuctionContractClient<'static>,
+    DaoAuctionContractClient<'static>,
     Address,
     Address,
     Address,
@@ -22,7 +22,7 @@ fn setup_auction_contract(
     let payment_token = Address::generate(e); // SECURITY FIX: Always require payment token
 
     let auction_address = e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner.clone(),
             token_contract.clone(),
@@ -34,7 +34,7 @@ fn setup_auction_contract(
             Some(payment_token.clone()), // SECURITY FIX: SAC-only
         ),
     );
-    let auction = AuctionContractClient::new(e, &auction_address);
+    let auction = DaoAuctionContractClient::new(e, &auction_address);
 
     (auction, owner, treasury, token_contract, auction_address, payment_token)
 }
@@ -42,7 +42,7 @@ fn setup_auction_contract(
 fn setup_with_payment_token(
     e: &Env,
 ) -> (
-    AuctionContractClient<'static>,
+    DaoAuctionContractClient<'static>,
     Address,
     Address,
     Address,
@@ -55,7 +55,7 @@ fn setup_with_payment_token(
     let payment_token = Address::generate(e);
 
     let auction_address = e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner.clone(),
             token_contract.clone(),
@@ -67,7 +67,7 @@ fn setup_with_payment_token(
             Some(payment_token.clone()),
         ),
     );
-    let auction = AuctionContractClient::new(e, &auction_address);
+    let auction = DaoAuctionContractClient::new(e, &auction_address);
 
     (
         auction,
@@ -119,7 +119,7 @@ fn test_constructor_rejects_zero_duration() {
     let token_contract = Address::generate(&e);
 
     e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner,
             token_contract,
@@ -142,7 +142,7 @@ fn test_constructor_rejects_zero_min_bid_increment() {
     let token_contract = Address::generate(&e);
 
     e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner,
             token_contract,
@@ -402,7 +402,7 @@ fn test_constructor_requires_payment_token() {
 
     // SECURITY: Constructor should reject None payment token
     e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner,
             token_contract,
@@ -427,7 +427,7 @@ fn test_constructor_rejects_low_reserve_price() {
 
     // SECURITY: Reserve price must be >= 1000
     e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner,
             token_contract,
@@ -452,7 +452,7 @@ fn test_constructor_rejects_high_min_increment() {
 
     // SECURITY: Min increment must be <= 100%
     e.register(
-        AuctionContract,
+        DaoAuctionContract,
         (
             owner,
             token_contract,

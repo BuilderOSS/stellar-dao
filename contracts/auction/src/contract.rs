@@ -24,10 +24,10 @@ use crate::{
 use crate::events::emit_auction_initialized;
 
 #[contract]
-pub struct AuctionContract;
+pub struct DaoAuctionContract;
 
 #[contracttrait]
-pub trait AuctionContractTrait {
+pub trait DaoAuctionContractTrait {
     /// Initialize the auction contract
     fn __constructor(
         e: &Env,
@@ -69,7 +69,7 @@ pub trait AuctionContractTrait {
 }
 
 #[contractimpl(contracttrait)]
-impl Pausable for AuctionContract {
+impl Pausable for DaoAuctionContract {
     fn pause(e: &Env, caller: Address) {
         caller.require_auth();
         let owner = ownable::get_owner(e).unwrap();
@@ -104,10 +104,10 @@ impl Pausable for AuctionContract {
 }
 
 #[contractimpl(contracttrait)]
-impl Ownable for AuctionContract {}
+impl Ownable for DaoAuctionContract {}
 
 #[contractimpl]
-impl AuctionContractTrait for AuctionContract {
+impl DaoAuctionContractTrait for DaoAuctionContract {
     fn __constructor(
         e: &Env,
         owner: Address,
@@ -376,7 +376,7 @@ impl AuctionContractTrait for AuctionContract {
 }
 
 // Internal implementation
-impl AuctionContract {
+impl DaoAuctionContract {
     fn create_auction(e: &Env) {
         let config = get_config(e);
 
