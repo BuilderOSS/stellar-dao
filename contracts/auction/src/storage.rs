@@ -9,6 +9,18 @@ const MAX_TTL: u32 = 518_400;
 // Maximum number of time extensions allowed per auction to prevent DoS
 pub const MAX_AUCTION_EXTENSIONS: u32 = 10;
 
+// Validation constants
+/// Minimum reserve price in stroops (0.0001 token units)
+/// Prevents dust auctions and ensures meaningful bids
+pub const MIN_RESERVE_PRICE: i128 = 1000;
+
+/// Maximum bid increment percentage (100 = 100%)
+/// Prevents unreasonable increment requirements
+pub const MAX_BID_INCREMENT_PERCENT: u32 = 100;
+
+/// Percentage denominator for bid increment calculations
+pub const PERCENT_DENOMINATOR: i128 = 100;
+
 #[derive(Clone, Debug)]
 #[contracttype]
 pub enum DataKey {

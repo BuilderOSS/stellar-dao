@@ -18,6 +18,11 @@ pub const BPS_ROUNDING_ADJUSTMENT: u128 = BPS_DENOMINATOR - 1; // 9,999 for ceil
 // Non-queued proposals (Pending, Active, Succeeded, Defeated) can stay forever
 pub const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14 * 24 * 3600)
 
+// Validation constants
+/// Minimum queue delay of 1 day (86400 seconds)
+/// Ensures time for review before execution
+pub const MIN_QUEUE_DELAY: u32 = 86400; // 1 day in seconds
+
 #[contracttype]
 pub enum GovernorKey {
     Treasury,

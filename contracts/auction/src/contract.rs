@@ -16,7 +16,8 @@ use crate::{
     },
     storage::{
         get_auction, get_config, is_launched, set_auction, set_config, set_launched,
-        AuctionConfig, AuctionState, PaymentType, MAX_AUCTION_EXTENSIONS,
+        AuctionConfig, AuctionState, PaymentType, MAX_AUCTION_EXTENSIONS, MAX_BID_INCREMENT_PERCENT,
+        MIN_RESERVE_PRICE, PERCENT_DENOMINATOR,
     },
 };
 
@@ -131,13 +132,12 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
         }
 
         // SECURITY: Validate reserve price is reasonable (prevent 1-stroop auctions)
-        // Minimum 1000 stroops = 0.0001 units of token
-        if reserve_price < 1000 {
+        if reserve_price < MIN_RESERVE_PRICE {
             panic_with_error!(e, AuctionError::InvalidBid);
         }
 
         // Validate min increment is reasonable (1-100%)
-        if min_bid_increment_percent > 100 {
+        if min_bid_increment_percent > MAX_BID_INCREMENT_PERCENT {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
@@ -303,7 +303,7 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
     #[when_paused]
     fn set_reserve_price(e: &Env, reserve_price: i128) {
         // SECURITY: Validate reserve price is reasonable
-        if reserve_price < 1000 {
+        if reserve_price < MIN_RESERVE_PRICE {
             panic_with_error!(e, AuctionError::InvalidBid);
         }
 
@@ -319,7 +319,7 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
     #[only_owner]
     #[when_paused]
     fn set_min_bid_increment(e: &Env, min_bid_increment_percent: u32) {
-        if min_bid_increment_percent == 0 || min_bid_increment_percent > 100 {
+        if min_bid_increment_percent == 0 || min_bid_increment_percent > MAX_BID_INCREMENT_PERCENT {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
@@ -453,10 +453,10 @@ impl DaoAuctionContract {
             }
 
             // SECURITY: Check minimum increment with overflow protection
-            // Calculate: min_bid = last_bid + (last_bid * percent / 100)
+            // Calculate: min_bid = last_bid + (last_bid * percent / PERCENT_DENOMINATOR)
             let increment = last_bid
                 .checked_mul(config.min_bid_increment_percent as i128)
-                .and_then(|v| v.checked_div(100))
+                .and_then(|v| v.checked_div(PERCENT_DENOMINATOR))
                 .unwrap_or_else(|| panic_with_error!(e, AuctionError::ArithmeticOverflow));
 
             let min_bid = last_bid

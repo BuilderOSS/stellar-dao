@@ -118,8 +118,7 @@ impl DaoGovernorContract {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
 
-        // Enforce minimum queue delay of 1 day (86400 seconds) for security
-        const MIN_QUEUE_DELAY: u32 = 86400; // 1 day in seconds
+        // Enforce minimum queue delay for security
         if queue_delay < MIN_QUEUE_DELAY {
             panic_with_error!(e, CustomGovernorError::InvalidQueueDelay);
         }
