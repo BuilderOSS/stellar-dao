@@ -237,7 +237,7 @@ fn batch_mint_large_amount() {
 }
 
 #[test]
-#[should_panic(expected = "invalid batch mint amount")]
+#[should_panic(expected = "Error(Contract, #1101)")]
 fn batch_mint_fails_with_zero_amount() {
     let (e, client, owner) = setup();
     let alice = Address::generate(&e);
@@ -247,7 +247,7 @@ fn batch_mint_fails_with_zero_amount() {
 }
 
 #[test]
-#[should_panic(expected = "invalid batch mint amount")]
+#[should_panic(expected = "Error(Contract, #1101)")]
 fn batch_mint_fails_above_max() {
     let (e, client, owner) = setup();
     let alice = Address::generate(&e);

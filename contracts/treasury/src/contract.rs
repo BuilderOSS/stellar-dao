@@ -74,9 +74,22 @@ impl DaoTreasuryContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_governor = Self::governor(e);
+
+        let old_governor_for_event = Self::governor(e);
+
         e.storage()
             .instance()
             .set(&TreasuryKey::Governor, &governor);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (
+                Symbol::new(e, "governor_changed"),
+                old_governor_for_event.clone(),
+                governor.clone(),
+            ),
+            ()
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorChangedIndexed {
@@ -118,6 +131,12 @@ impl DaoTreasuryContract {
         ]);
 
         let result = e.invoke_contract::<Val>(&target, &function, args.clone());
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "execute"), governor.clone(), target.clone()),
+            (function.clone(),)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::TreasuryCallIndexed {

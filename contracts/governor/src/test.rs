@@ -448,10 +448,27 @@ fn authorized_governor_can_set_voting_period() {
 
 #[test]
 fn authorized_governor_can_set_proposal_threshold() {
-    let (e, _token, _treasury, governor, _target, owner) = setup();
+    let (e, token, _treasury, governor, _target, owner) = setup();
     let authorized_addr = Address::generate(&e);
 
     governor.set_governor_authority(&authorized_addr, &true);
+
+    // Mint some tokens so total supply > 0 (required for validation)
+    let user1 = Address::generate(&e);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    token.mint(&owner, &user1);
+    // Total supply is now 10
+
+    // Advance ledger so checkpoint reflects minted tokens
+    e.ledger().set_sequence_number(101);
 
     e.mock_auths(&[MockAuth {
         address: &authorized_addr,
@@ -499,23 +516,26 @@ fn authorized_governor_can_set_queue_delay() {
 
     governor.set_governor_authority(&authorized_addr, &true);
 
+    // Use minimum queue delay of 1 day (86400 seconds)
+    let new_queue_delay = 86400u32;
+
     e.mock_auths(&[MockAuth {
         address: &authorized_addr,
         invoke: &MockAuthInvoke {
             contract: &governor.address,
             fn_name: "set_queue_delay",
-            args: (&authorized_addr, &500u32).into_val(&e),
+            args: (&authorized_addr, &new_queue_delay).into_val(&e),
             sub_invokes: &[],
         },
     }]);
 
-    governor.set_queue_delay(&authorized_addr, &500);
+    governor.set_queue_delay(&authorized_addr, &new_queue_delay);
 
     let _ = owner;
 }
 
 #[test]
-#[should_panic(expected = "governor authority required")]
+#[should_panic(expected = "Error(Contract, #1504)")]
 fn unauthorized_cannot_set_voting_delay() {
     let (e, _token, _treasury, governor, _target, _owner) = setup();
     let unauthorized = Address::generate(&e);
@@ -534,7 +554,7 @@ fn unauthorized_cannot_set_voting_delay() {
 }
 
 #[test]
-#[should_panic(expected = "governor authority required")]
+#[should_panic(expected = "Error(Contract, #1504)")]
 fn unauthorized_cannot_set_voting_period() {
     let (e, _token, _treasury, governor, _target, _owner) = setup();
     let unauthorized = Address::generate(&e);
@@ -553,7 +573,7 @@ fn unauthorized_cannot_set_voting_period() {
 }
 
 #[test]
-#[should_panic(expected = "governor authority required")]
+#[should_panic(expected = "Error(Contract, #1504)")]
 fn unauthorized_cannot_set_proposal_threshold() {
     let (e, _token, _treasury, governor, _target, _owner) = setup();
     let unauthorized = Address::generate(&e);
@@ -572,7 +592,7 @@ fn unauthorized_cannot_set_proposal_threshold() {
 }
 
 #[test]
-#[should_panic(expected = "governor authority required")]
+#[should_panic(expected = "Error(Contract, #1504)")]
 fn unauthorized_cannot_set_quorum_bps() {
     let (e, _token, _treasury, governor, _target, _owner) = setup();
     let unauthorized = Address::generate(&e);
@@ -591,7 +611,7 @@ fn unauthorized_cannot_set_quorum_bps() {
 }
 
 #[test]
-#[should_panic(expected = "governor authority required")]
+#[should_panic(expected = "Error(Contract, #1504)")]
 fn unauthorized_cannot_set_queue_delay() {
     let (e, _token, _treasury, governor, _target, _owner) = setup();
     let unauthorized = Address::generate(&e);
@@ -757,7 +777,7 @@ fn cast_vote_fails_with_zero_weight() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #5004)")]
+#[should_panic(expected = "HostError: Error(Contract, #1501)")]
 fn set_proposal_threshold_zero_fails() {
     let (_e, _token, _treasury, governor, _target, owner) = setup();
 
@@ -766,7 +786,7 @@ fn set_proposal_threshold_zero_fails() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #5004)")]
+#[should_panic(expected = "HostError: Error(Contract, #1502)")]
 fn set_quorum_bps_zero_fails() {
     let (_e, _token, _treasury, governor, _target, owner) = setup();
 
@@ -775,7 +795,7 @@ fn set_quorum_bps_zero_fails() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #5004)")]
+#[should_panic(expected = "HostError: Error(Contract, #1502)")]
 fn set_quorum_bps_above_max_fails() {
     let (_e, _token, _treasury, governor, _target, owner) = setup();
 

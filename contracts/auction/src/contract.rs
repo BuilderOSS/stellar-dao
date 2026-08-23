@@ -20,6 +20,9 @@ use crate::{
     },
 };
 
+#[cfg(feature = "mercury")]
+use crate::events::emit_auction_initialized;
+
 #[contract]
 pub struct AuctionContract;
 
@@ -146,18 +149,31 @@ impl AuctionContractTrait for AuctionContract {
 
         // Store config
         let config = AuctionConfig {
-            token_contract,
-            treasury,
+            token_contract: token_contract.clone(),
+            treasury: treasury.clone(),
             duration,
             reserve_price,
             min_bid_increment_percent,
             time_buffer,
-            payment_token,
+            payment_token: payment_token.clone(),
         };
         set_config(e, &config);
 
         // Not launched yet
         set_launched(e, false);
+
+        #[cfg(feature = "mercury")]
+        emit_auction_initialized(
+            e,
+            &owner,
+            &token_contract,
+            &treasury,
+            duration,
+            reserve_price,
+            min_bid_increment_percent,
+            time_buffer,
+            &payment_token,
+        );
     }
 
     #[when_not_paused]
@@ -257,12 +273,14 @@ impl AuctionContractTrait for AuctionContract {
             }
         }
 
+        let owner = ownable::get_owner(e).unwrap();
+
         // Mark as settled to prevent further bids
         let mut cancelled_auction = auction.clone();
         cancelled_auction.settled = true;
         set_auction(e, &cancelled_auction);
 
-        emit_auction_cancelled(e, auction.token_id, 0); // reason: 0 = owner cancelled
+        emit_auction_cancelled(e, auction.token_id, 0, &owner); // reason: 0 = owner cancelled
     }
 
     #[only_owner]
@@ -272,11 +290,13 @@ impl AuctionContractTrait for AuctionContract {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
+        let owner = ownable::get_owner(e).unwrap();
+
         let mut config = get_config(e);
         config.duration = duration;
         set_config(e, &config);
 
-        emit_duration_updated(e, duration);
+        emit_duration_updated(e, duration, &owner);
     }
 
     #[only_owner]
@@ -287,11 +307,13 @@ impl AuctionContractTrait for AuctionContract {
             panic_with_error!(e, AuctionError::InvalidBid);
         }
 
+        let owner = ownable::get_owner(e).unwrap();
+
         let mut config = get_config(e);
         config.reserve_price = reserve_price;
         set_config(e, &config);
 
-        emit_reserve_price_updated(e, reserve_price);
+        emit_reserve_price_updated(e, reserve_price, &owner);
     }
 
     #[only_owner]
@@ -301,21 +323,25 @@ impl AuctionContractTrait for AuctionContract {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
+        let owner = ownable::get_owner(e).unwrap();
+
         let mut config = get_config(e);
         config.min_bid_increment_percent = min_bid_increment_percent;
         set_config(e, &config);
 
-        emit_min_bid_increment_updated(e, min_bid_increment_percent);
+        emit_min_bid_increment_updated(e, min_bid_increment_percent, &owner);
     }
 
     #[only_owner]
     #[when_paused]
     fn set_time_buffer(e: &Env, time_buffer: u64) {
+        let owner = ownable::get_owner(e).unwrap();
+
         let mut config = get_config(e);
         config.time_buffer = time_buffer;
         set_config(e, &config);
 
-        emit_time_buffer_updated(e, time_buffer);
+        emit_time_buffer_updated(e, time_buffer, &owner);
     }
 
     #[only_owner]
@@ -327,21 +353,25 @@ impl AuctionContractTrait for AuctionContract {
             panic_with_error!(e, AuctionError::NoPaymentTokenSet);
         }
 
+        let owner = ownable::get_owner(e).unwrap();
+
         let mut config = get_config(e);
         config.payment_token = payment_token.clone();
         set_config(e, &config);
 
-        emit_payment_token_updated(e, &payment_token);
+        emit_payment_token_updated(e, &payment_token, &owner);
     }
 
     #[only_owner]
     #[when_paused]
     fn set_treasury(e: &Env, treasury: Address) {
+        let owner = ownable::get_owner(e).unwrap();
+
         let mut config = get_config(e);
         config.treasury = treasury.clone();
         set_config(e, &config);
 
-        emit_treasury_updated(e, &treasury);
+        emit_treasury_updated(e, &treasury, &owner);
     }
 }
 

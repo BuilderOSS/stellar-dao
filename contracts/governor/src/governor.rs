@@ -2,8 +2,8 @@ use core::convert::TryInto;
 
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
-    contract, contractimpl, contracttype, panic_with_error, vec, Address, BytesN, Env, IntoVal,
-    String, Symbol, Val, Vec,
+    contract, contractimpl, contracterror, contracttype, panic_with_error, vec, Address, BytesN,
+    Env, IntoVal, String, Symbol, Val, Vec,
 };
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_governance::{
@@ -15,6 +15,24 @@ use stellar_governance::{
 };
 use stellar_macros::only_owner;
 
+// Custom errors for governor contract-specific validations
+// Using 1000+ range to avoid conflicts with stellar_governance library errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum CustomGovernorError {
+    /// Queue delay below minimum (must be >= 1 day)
+    InvalidQueueDelay = 1500,
+    /// Proposal threshold exceeds total token supply
+    InvalidProposalThreshold = 1501,
+    /// Quorum basis points invalid (must be <= 10000)
+    InvalidQuorumBps = 1502,
+    /// Owner not set in contract storage
+    OwnerNotSet = 1503,
+    /// Caller is not authorized to perform this action
+    UnauthorizedCaller = 1504,
+}
+
 #[cfg(feature = "mercury")]
 mod retroshade {
     use super::*;
@@ -24,7 +42,6 @@ mod retroshade {
     #[derive(Retroshade)]
     #[contracttype]
     pub struct ProposalCreatedIndexed {
-        pub proposal_number: u32,
         pub proposal_id: BytesN<32>,
         pub proposer: Address,
         pub description: String,
@@ -158,7 +175,6 @@ const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14 * 2
 enum GovernorKey {
     Treasury,
     QueueDelay,
-    ProposalNumber,
     Proposal(BytesN<32>),
     GovernorAuthority(Address),
 }
@@ -204,7 +220,7 @@ impl DaoGovernorContract {
         proposal_threshold: u128,
         quorum_bps: u32,
     ) {
-        assert!(quorum_bps <= 10_000);
+        assert!(quorum_bps <= BPS_DENOMINATOR as u32);
         set_owner(e, &owner);
         governor::set_name(e, String::from_str(e, "MvpDaoGovernor"));
         governor::set_version(e, String::from_str(e, "1.0.0"));
@@ -244,9 +260,22 @@ impl DaoGovernorContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_treasury = Self::treasury(e);
+
+        let old_treasury_for_event = Self::treasury(e);
+
         e.storage()
             .instance()
             .set(&GovernorKey::Treasury, &treasury_contract);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (
+                Symbol::new(e, "treasury_changed"),
+                old_treasury_for_event.clone(),
+                treasury_contract.clone(),
+            ),
+            ()
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::TreasuryChangedIndexed {
@@ -263,12 +292,23 @@ impl DaoGovernorContract {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
 
-        #[cfg(feature = "mercury")]
+        // Enforce minimum queue delay of 1 day (86400 seconds) for security
+        const MIN_QUEUE_DELAY: u32 = 86400; // 1 day in seconds
+        if queue_delay < MIN_QUEUE_DELAY {
+            panic_with_error!(e, CustomGovernorError::InvalidQueueDelay);
+        }
+
         let old_value = Self::queue_delay(e);
 
         e.storage()
             .instance()
             .set(&GovernorKey::QueueDelay, &queue_delay);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "queue_delay_changed"), caller.clone()),
+            (old_value, queue_delay)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -286,9 +326,19 @@ impl DaoGovernorContract {
     pub fn set_token_contract(e: &Env, token_contract: Address) {
         #[cfg(feature = "mercury")]
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
-        #[cfg(feature = "mercury")]
+
         let old_token_contract = governor::get_token_contract(e);
         governor::set_token_contract(e, &token_contract);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (
+                Symbol::new(e, "token_contract_changed"),
+                old_token_contract.clone(),
+                token_contract.clone(),
+            ),
+            ()
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::TokenContractChangedIndexed {
@@ -305,10 +355,15 @@ impl DaoGovernorContract {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
 
-        #[cfg(feature = "mercury")]
         let old_value = Self::voting_delay(e);
 
         governor::set_voting_delay(e, voting_delay);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "voting_delay_changed"), caller.clone()),
+            (old_value, voting_delay)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -326,10 +381,15 @@ impl DaoGovernorContract {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
 
-        #[cfg(feature = "mercury")]
         let old_value = Self::voting_period(e);
 
         governor::set_voting_period(e, voting_period);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "voting_period_changed"), caller.clone()),
+            (old_value, voting_period)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -349,13 +409,27 @@ impl DaoGovernorContract {
 
         // Prevent setting threshold to zero (would allow spam proposals)
         if proposal_threshold == 0 {
-            panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error
+            panic_with_error!(e, CustomGovernorError::InvalidProposalThreshold);
         }
 
-        #[cfg(feature = "mercury")]
+        // Validate threshold doesn't exceed total supply (would lock governance)
+        // Only check if tokens exist (total_supply > 0)
+        let token = governor::get_token_contract(e);
+        let total_supply = VotesClient::new(e, &token)
+            .get_total_supply_at_checkpoint(&e.ledger().sequence().saturating_sub(1));
+        if total_supply > 0 && proposal_threshold > total_supply {
+            panic_with_error!(e, CustomGovernorError::InvalidProposalThreshold);
+        }
+
         let old_value = governor::get_proposal_threshold(e);
 
         governor::set_proposal_threshold(e, proposal_threshold);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "proposal_threshold_changed"), caller.clone()),
+            (old_value, proposal_threshold)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
@@ -374,19 +448,24 @@ impl DaoGovernorContract {
         Self::ensure_governor_authority(e, &caller);
 
         // Validate quorum is in valid range (1 to 10000 basis points)
-        if quorum_bps == 0 || quorum_bps > 10_000 {
-            panic_with_error!(e, GovernorError::InvalidProposalLength); // Reuse error
+        if quorum_bps == 0 || quorum_bps > BPS_DENOMINATOR as u32 {
+            panic_with_error!(e, CustomGovernorError::InvalidQuorumBps);
         }
 
-        #[cfg(feature = "mercury")]
-        let old_value = Self::quorum_bps(e) as u128;
+        let old_value = Self::quorum_bps(e);
 
         governor::set_quorum(e, quorum_bps as u128);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "quorum_bps_changed"), caller.clone()),
+            (old_value, quorum_bps)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::ParameterChangedIndexed {
             parameter: Symbol::new(e, "quorum_bps"),
-            old_value,
+            old_value: old_value as u128,
             new_value: quorum_bps as u128,
             changed_by: caller.clone(),
             ledger: e.ledger().sequence(),
@@ -419,9 +498,18 @@ impl DaoGovernorContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_enabled = Self::governor_authority(e, authority.clone());
+
+        let old_enabled_for_event = Self::governor_authority(e, authority.clone());
+
         e.storage()
             .instance()
             .set(&GovernorKey::GovernorAuthority(authority.clone()), &enabled);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "governor_authority_changed"), authority.clone()),
+            (old_enabled_for_event, enabled)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::GovernorAuthorityChangedIndexed {
@@ -444,14 +532,14 @@ impl DaoGovernorContract {
 
     fn ensure_governor_authority(e: &Env, caller: &Address) {
         let Some(owner) = stellar_access::ownable::get_owner(e) else {
-            panic!("owner not set");
+            panic_with_error!(e, CustomGovernorError::OwnerNotSet);
         };
 
         if caller == &owner || Self::governor_authority(e, caller.clone()) {
             return;
         }
 
-        panic!("governor authority required");
+        panic_with_error!(e, CustomGovernorError::UnauthorizedCaller);
     }
 
     fn proposal_key(proposal_id: &BytesN<32>) -> GovernorKey {
@@ -681,22 +769,6 @@ impl Governor for DaoGovernorContract {
             panic_with_error!(e, GovernorError::ProposalAlreadyExists);
         }
 
-        #[cfg(feature = "mercury")]
-        let proposal_number = {
-            let current = e
-                .storage()
-                .instance()
-                .get(&GovernorKey::ProposalNumber)
-                .unwrap_or(0_u32);
-            let next = current
-                .checked_add(1)
-                .unwrap_or_else(|| panic_with_error!(e, GovernorError::MathOverflow));
-            e.storage()
-                .instance()
-                .set(&GovernorKey::ProposalNumber, &next);
-            next
-        };
-
         let now = e.ledger().timestamp();
         let vote_start = now
             .checked_add(Self::voting_delay(e) as u64)
@@ -733,7 +805,6 @@ impl Governor for DaoGovernorContract {
 
         #[cfg(feature = "mercury")]
         retroshade::ProposalCreatedIndexed {
-            proposal_number,
             proposal_id: proposal_id.clone(),
             proposer: proposer.clone(),
             description: description.clone(),

@@ -1,8 +1,20 @@
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, contracterror, contracttype, panic_with_error, Address, Env, String, Symbol};
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum TokenError {
+    /// Batch mint amount is invalid (must be 1-100)
+    InvalidBatchMintAmount = 1101,
+    /// Owner not set in contract storage
+    OwnerNotSet = 1102,
+    /// Minter is not authorized to mint tokens
+    MintAuthorityNotAllowed = 1103,
+}
 
 #[cfg(feature = "mercury")]
 mod retroshade {
@@ -121,9 +133,18 @@ impl DaoTokenContract {
         let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
         #[cfg(feature = "mercury")]
         let old_enabled = Self::mint_authority(e, authority.clone());
+
+        let old_enabled_for_event = Self::mint_authority(e, authority.clone());
+
         e.storage()
             .instance()
             .set(&TokenKey::MintAuthority(authority.clone()), &enabled);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "mint_authority_changed"), authority.clone()),
+            (old_enabled_for_event, enabled)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::MintAuthorityChangedIndexed {
@@ -150,6 +171,12 @@ impl DaoTokenContract {
         Self::ensure_self_delegate(e, to);
         let token_id = NonFungibleVotes::sequential_mint(e, to);
 
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "mint"), minter.clone(), to.clone()),
+            (token_id,)
+        );
+
         #[cfg(feature = "mercury")]
         retroshade::TokenMintIndexed {
             minter: minter.clone(),
@@ -165,7 +192,7 @@ impl DaoTokenContract {
 
     pub fn batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32) -> u32 {
         if amount == 0 || amount > MAX_BATCH_MINT {
-            panic!("invalid batch mint amount");
+            panic_with_error!(e, TokenError::InvalidBatchMintAmount);
         }
 
         minter.require_auth();
@@ -194,6 +221,12 @@ impl DaoTokenContract {
             .emit(e);
         }
 
+        // Emit standard event for batch mint operation with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "batch_mint"), minter.clone(), to.clone()),
+            (amount, last_token_id)
+        );
+
         last_token_id
     }
 
@@ -208,6 +241,12 @@ impl DaoTokenContract {
     pub fn transfer(e: &Env, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer(e, from, to, token_id);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "transfer"), from.clone(), to.clone()),
+            (token_id,)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::TokenTransferIndexed {
@@ -224,6 +263,12 @@ impl DaoTokenContract {
     pub fn transfer_from(e: &Env, spender: &Address, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer_from(e, spender, from, to, token_id);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "transfer"), from.clone(), to.clone()),
+            (token_id,)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::TokenTransferIndexed {
@@ -245,6 +290,12 @@ impl DaoTokenContract {
         expiration_ledger: u32,
     ) {
         Base::approve(e, owner, spender, token_id, expiration_ledger);
+
+        // Emit standard event with topics for efficient filtering
+        e.events().publish(
+            (Symbol::new(e, "approve"), owner.clone(), spender.clone()),
+            (token_id, expiration_ledger)
+        );
 
         #[cfg(feature = "mercury")]
         retroshade::ApprovalChangedIndexed {
@@ -315,14 +366,14 @@ impl DaoTokenContract {
 
     fn ensure_mint_authority(e: &Env, minter: &Address) {
         let Some(owner) = stellar_access::ownable::get_owner(e) else {
-            panic!("owner not set");
+            panic_with_error!(e, TokenError::OwnerNotSet);
         };
 
         if minter == &owner || Self::mint_authority(e, minter.clone()) {
             return;
         }
 
-        panic!("mint authority not allowed");
+        panic_with_error!(e, TokenError::MintAuthorityNotAllowed);
     }
 }
 

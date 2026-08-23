@@ -111,7 +111,7 @@ fn test_constructor_with_payment_token() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+#[should_panic(expected = "Error(Contract, #1208)")] // InvalidConfig
 fn test_constructor_rejects_zero_duration() {
     let e = Env::default();
     let owner = Address::generate(&e);
@@ -134,7 +134,7 @@ fn test_constructor_rejects_zero_duration() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+#[should_panic(expected = "Error(Contract, #1208)")] // InvalidConfig
 fn test_constructor_rejects_zero_min_bid_increment() {
     let e = Env::default();
     let owner = Address::generate(&e);
@@ -194,7 +194,7 @@ fn test_set_duration_when_paused() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+#[should_panic(expected = "Error(Contract, #1208)")] // InvalidConfig
 fn test_set_duration_rejects_zero() {
     let e = Env::default();
     e.mock_all_auths();
@@ -226,7 +226,7 @@ fn test_set_min_bid_increment_when_paused() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")] // InvalidConfig
+#[should_panic(expected = "Error(Contract, #1208)")] // InvalidConfig
 fn test_set_min_bid_increment_rejects_zero() {
     let e = Env::default();
     e.mock_all_auths();
@@ -259,7 +259,7 @@ fn test_set_payment_token_when_paused() {
 }
 
 #[test]
-#[should_panic(expected = "#11")] // NoPaymentTokenSet
+#[should_panic(expected = "#1211")] // NoPaymentTokenSet
 fn test_set_payment_token_rejects_none() {
     let e = Env::default();
     e.mock_all_auths();
@@ -319,7 +319,7 @@ fn test_get_config() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #12)")] // NotLaunched
+#[should_panic(expected = "Error(Contract, #1212)")] // NotLaunched
 fn test_get_auction_fails_before_launch() {
     let e = Env::default();
     let (auction, _, _, _, _, _) = setup_auction_contract(&e);
@@ -393,7 +393,7 @@ fn test_config_setters_work_when_paused() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "#11")]
+#[should_panic(expected = "#1211")]
 fn test_constructor_requires_payment_token() {
     let e = Env::default();
     let owner = Address::generate(&e);
@@ -417,7 +417,7 @@ fn test_constructor_requires_payment_token() {
 }
 
 #[test]
-#[should_panic(expected = "#16")]
+#[should_panic(expected = "#1216")]
 fn test_constructor_rejects_low_reserve_price() {
     let e = Env::default();
     let owner = Address::generate(&e);
@@ -442,7 +442,7 @@ fn test_constructor_rejects_low_reserve_price() {
 }
 
 #[test]
-#[should_panic(expected = "#8")]
+#[should_panic(expected = "#1208")]
 fn test_constructor_rejects_high_min_increment() {
     let e = Env::default();
     let owner = Address::generate(&e);
@@ -467,7 +467,7 @@ fn test_constructor_rejects_high_min_increment() {
 }
 
 #[test]
-#[should_panic(expected = "#16")]
+#[should_panic(expected = "#1216")]
 fn test_set_reserve_price_rejects_low_value() {
     let e = Env::default();
     e.mock_all_auths();
@@ -479,7 +479,7 @@ fn test_set_reserve_price_rejects_low_value() {
 }
 
 #[test]
-#[should_panic(expected = "#8")]
+#[should_panic(expected = "#1208")]
 fn test_set_min_increment_rejects_high_value() {
     let e = Env::default();
     e.mock_all_auths();
