@@ -1,8 +1,11 @@
 #![no_std]
 
-mod governor;
+mod contract;
+mod error;
+mod events;
+mod storage;
 
-pub use governor::*;
+pub use contract::*;
 
 #[cfg(test)]
 mod test;
