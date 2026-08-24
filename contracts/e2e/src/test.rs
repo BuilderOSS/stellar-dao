@@ -102,8 +102,8 @@ fn setup() -> (
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            10_u32,
-            100_u32,
+            300_u32,
+            300_u32,
             300_u32,
             1_u128,
             1_000_u32,
@@ -211,21 +211,21 @@ fn dao_flow_executes_treasury_call() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
@@ -254,14 +254,14 @@ fn transfer_after_snapshot_does_not_change_vote_outcome() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &alice);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     // Transfer token after snapshot - bob receives token but had 0 power at snapshot
     token.transfer(&alice, &bob, &token_id);
 
     // Alice can still vote (had power at snapshot)
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "alice yes"), &alice);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     // Proposal succeeds with alice's vote
     assert_eq!(
         governor.proposal_state(&proposal_id),
@@ -291,21 +291,21 @@ fn dao_flow_mints_token_via_treasury_execution() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(token.balance(&recipient), 1);
@@ -342,21 +342,21 @@ fn sac_classic_asset_without_auth_requirement_can_be_received_held_and_transferr
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(asset_client.balance(&treasury.address), 0);
@@ -409,21 +409,21 @@ fn sac_classic_asset_with_auth_requirement_can_be_received_held_and_transferred_
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(asset_client.balance(&treasury.address), 0);
@@ -455,21 +455,21 @@ fn governance_token_can_be_received_held_and_transferred_via_proposal() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(token.balance(&treasury.address), 0);
@@ -501,21 +501,21 @@ fn dao_flow_batch_mints_tokens_via_treasury() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(token.balance(&recipient), 10);
@@ -537,12 +537,12 @@ fn governor_authority_can_modify_governance_parameters() {
     assert!(governor.governor_authority(&authorized_governor));
 
     // Authorized governor can modify voting delay
-    governor.set_voting_delay(&authorized_governor, &20);
-    assert_eq!(governor.voting_delay(), 20);
+    governor.set_voting_delay(&authorized_governor, &300);
+    assert_eq!(governor.voting_delay(), 300);
 
     // Authorized governor can modify voting period
-    governor.set_voting_period(&authorized_governor, &200);
-    assert_eq!(governor.voting_period(), 200);
+    governor.set_voting_period(&authorized_governor, &300);
+    assert_eq!(governor.voting_period(), 300);
 
     // Authorized governor can modify proposal threshold
     governor.set_proposal_threshold(&authorized_governor, &5);
@@ -552,8 +552,8 @@ fn governor_authority_can_modify_governance_parameters() {
     governor.set_quorum_bps(&authorized_governor, &2000);
     assert_eq!(governor.quorum_bps(), 2000);
 
-    // Authorized governor can modify queue delay (minimum 86400 seconds)
-    governor.set_queue_delay(&authorized_governor, &86400);
+    // Authorized governor can modify queue delay (minimum 300 seconds)
+    governor.set_queue_delay(&authorized_governor, &300);
 
     let _ = token;
     let _ = owner;
@@ -572,8 +572,8 @@ fn proposal_flow_with_modified_governance_parameters() {
 
     // Grant governor authority and modify parameters
     governor.set_governor_authority(&authorized_governor, &true);
-    governor.set_voting_delay(&authorized_governor, &5); // Shorter delay
-    governor.set_voting_period(&authorized_governor, &50); // Shorter period
+    governor.set_voting_delay(&authorized_governor, &300); // Five-minute delay
+    governor.set_voting_period(&authorized_governor, &300); // Five-minute period
     governor.set_proposal_threshold(&authorized_governor, &5); // Higher threshold
     governor.set_quorum_bps(&authorized_governor, &5000); // 50% quorum
 
@@ -589,22 +589,22 @@ fn proposal_flow_with_modified_governance_parameters() {
     // Propose with new threshold (needs 5 votes, proposer has 10)
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    // Vote starts after 5 seconds (new voting delay)
-    e.ledger().set_timestamp(2_006);
+    // Vote starts after 5 minutes (new voting delay)
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    // Vote ends after 50 seconds (new voting period)
-    e.ledger().set_timestamp(2_056);
+    // Vote ends after 5 minutes (new voting period)
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_356_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
 
-    e.ledger().set_timestamp(2_356);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
@@ -615,7 +615,7 @@ fn proposal_flow_with_modified_governance_parameters() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Context, InvalidAction)")]
+#[should_panic(expected = "Error(Contract, #5007)")]
 fn reentrancy_attack_is_prevented() {
     // NOTE: Soroban provides built-in reentrancy protection at the platform level
     // When a malicious contract attempts to re-enter during execution,
@@ -666,11 +666,11 @@ fn reentrancy_attack_is_prevented() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Vote on the proposal
-    e.ledger().set_timestamp(2_011); // After voting delay
+    e.ledger().set_timestamp(2_301); // After voting delay
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     // Wait for voting period to end
-    e.ledger().set_timestamp(2_111); // After voting period
+    e.ledger().set_timestamp(2_601); // After voting period
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
@@ -725,8 +725,8 @@ fn treasury_batch_mint_with_explicit_auth() {
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            10_u32,
-            100_u32,
+            300_u32,
+            300_u32,
             300_u32,
             1_u128,
             1_000_u32,
@@ -1392,17 +1392,17 @@ fn test_multi_action_proposal_atomicity() {
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
-    // Advance past voting delay (voting_delay is 10 seconds)
-    e.ledger().set_timestamp(2_011);
+    // Advance past voting delay (voting_delay is 300 seconds)
+    e.ledger().set_timestamp(2_301);
 
     // Vote
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &voter);
 
-    // Advance past voting period (voting_period is 100 seconds)
-    e.ledger().set_timestamp(2_111);
+    // Advance past voting period (voting_period is 300 seconds)
+    e.ledger().set_timestamp(2_601);
 
-    // Queue with ETA (queue_delay is 86400 seconds, so ETA is current + 86400)
-    let eta = 2_111 + 86400;
+    // Queue with ETA (queue_delay is 300 seconds, so ETA is current + 300)
+    let eta = 2_601 + 300;
     governor.queue(&targets, &functions, &args, &desc_hash, &eta, &proposer);
 
     // Advance to ETA
@@ -1457,8 +1457,8 @@ fn test_governor_treasury_bidirectional_verification() {
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            10_u32,
-            100_u32,
+            300_u32,
+            300_u32,
             300_u32,
             1_u128,
             1_000_u32,
@@ -1526,12 +1526,12 @@ fn test_auction_inconsistent_payment_type_rejection() {
 
 #[test]
 #[should_panic(expected = "Error(Contract, #1500)")] // CustomGovernorError::InvalidQueueDelay
-fn test_governor_queue_delay_minimum_86400() {
+fn test_governor_queue_delay_minimum_300() {
     let (_e, _token, _treasury, governor, _target, owner) = setup();
 
-    // Try to set queue_delay below minimum (1 day = 86400 seconds)
+    // Try to set queue_delay below minimum (5 minutes = 300 seconds)
     // This should panic with InvalidQueueDelay error
-    governor.set_queue_delay(&owner, &86399);
+    governor.set_queue_delay(&owner, &299);
 }
 
 #[test]

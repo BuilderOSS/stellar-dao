@@ -70,13 +70,13 @@ impl DaoGovernorContract {
     /// * `treasury_contract` - The treasury contract that executes approved proposals
     /// * `voting_delay` - Delay in seconds between proposal creation and vote start
     /// * `voting_period` - Duration in seconds that voting remains open
-    /// * `queue_delay` - Delay in seconds between approval and execution (minimum 1 day)
+    /// * `queue_delay` - Delay in seconds between approval and execution (minimum 5 minutes)
     /// * `proposal_threshold` - Minimum voting power required to create proposals
     /// * `quorum_bps` - Minimum participation in basis points (e.g., 2500 = 25%)
     ///
     /// # Panics
     ///
-    /// Panics if `quorum_bps` exceeds [`BPS_DENOMINATOR`] (10,000).
+    /// Panics if `quorum_bps` exceeds `BPS_DENOMINATOR` (10,000).
     ///
     /// # Events
     ///
@@ -93,6 +93,18 @@ impl DaoGovernorContract {
         quorum_bps: u32,
     ) {
         assert!(quorum_bps <= BPS_DENOMINATOR as u32);
+
+        // Validate time period minimums
+        if voting_delay < MIN_VOTING_DELAY {
+            panic_with_error!(e, CustomGovernorError::InvalidVotingDelay);
+        }
+        if voting_period < MIN_VOTING_PERIOD {
+            panic_with_error!(e, CustomGovernorError::InvalidVotingPeriod);
+        }
+        if queue_delay < MIN_QUEUE_DELAY {
+            panic_with_error!(e, CustomGovernorError::InvalidQueueDelay);
+        }
+
         set_owner(e, &owner);
 
         let name = String::from_str(e, "MvpDaoGovernor");
@@ -172,6 +184,10 @@ impl DaoGovernorContract {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
 
+        if voting_delay < MIN_VOTING_DELAY {
+            panic_with_error!(e, CustomGovernorError::InvalidVotingDelay);
+        }
+
         let old_value = Self::voting_delay(e);
         governor::set_voting_delay(e, voting_delay);
 
@@ -182,6 +198,10 @@ impl DaoGovernorContract {
     pub fn set_voting_period(e: &Env, caller: Address, voting_period: u32) {
         caller.require_auth();
         Self::ensure_governor_authority(e, &caller);
+
+        if voting_period < MIN_VOTING_PERIOD {
+            panic_with_error!(e, CustomGovernorError::InvalidVotingPeriod);
+        }
 
         let old_value = Self::voting_period(e);
         governor::set_voting_period(e, voting_period);

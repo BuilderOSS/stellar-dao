@@ -8,7 +8,7 @@
 //! ## Key Features
 //!
 //! - **Continuous Auctions**: New auctions start immediately after the previous one settles
-//! - **Flexible Payment**: Supports both native XLM and SAC tokens (payment type locked per auction)
+//! - **SAC Payment**: Requires a configured SAC payment token (payment type locked per auction)
 //! - **Time Extension**: Anti-sniping mechanism extends auction if bids come near the end
 //! - **Pausable**: Owner can pause for emergencies, configuration changes, or settlement
 //! - **Reserve Price**: Minimum bid requirement prevents low-value sales

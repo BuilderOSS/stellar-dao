@@ -48,6 +48,13 @@ pub const MAX_BID_INCREMENT_PERCENT: u32 = 100;
 /// `increment_amount = current_bid * min_bid_increment_percent / PERCENT_DENOMINATOR`
 pub const PERCENT_DENOMINATOR: i128 = 100;
 
+/// Minimum auction duration (5 minutes in seconds).
+///
+/// Enforces a minimum duration for each auction to ensure sufficient time
+/// for bidding activity. Set to 5 minutes for testing purposes. Production
+/// deployments may want longer durations for more competitive bidding.
+pub const MIN_AUCTION_DURATION: u64 = 300; // 5 minutes in seconds
+
 /// Storage keys for auction instance data.
 #[derive(Clone, Debug)]
 #[contracttype]
@@ -94,12 +101,10 @@ pub struct AuctionConfig {
     /// If a bid arrives within this window of the auction end, the end time extends
     /// by the buffer amount (up to [`MAX_AUCTION_EXTENSIONS`] times).
     pub time_buffer: u64,
-    /// Optional SAC token address for payments.
+    /// Configured SAC token address for payments.
     ///
-    /// - `None` = native XLM only
-    /// - `Some(address)` = allow both XLM and this SAC token (bidder chooses)
-    ///
-    /// Payment type locks on the first bid of each auction.
+    /// The constructor requires this value to be `Some`; native XLM payments are
+    /// not supported. Payment type locks on the first bid of each auction.
     pub payment_token: Option<Address>,
 }
 

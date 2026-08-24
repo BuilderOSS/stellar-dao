@@ -18,7 +18,7 @@ pub enum AuctionError {
     ReservePriceNotMet = 1206,
     /// Bid doesn't meet minimum increment
     MinBidNotMet = 1207,
-    /// Invalid configuration parameters
+    /// Invalid configuration parameters (e.g., duration < 5 minutes, zero increment)
     InvalidConfig = 1208,
     /// Token minting failed
     MintFailed = 1209,

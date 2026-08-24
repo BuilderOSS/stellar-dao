@@ -65,7 +65,21 @@ pub const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14
 
 // Validation constants
 
-/// Minimum queue delay (1 day in seconds).
+/// Minimum voting delay (5 minutes in seconds).
+///
+/// Enforces a minimum delay between proposal creation and vote start.
+/// Allows time for delegation changes before snapshot. The default minimum is
+/// five minutes.
+pub const MIN_VOTING_DELAY: u32 = 300;
+
+/// Minimum voting period (5 minutes in seconds).
+///
+/// Enforces a minimum duration for voting to remain open.
+/// Ensures sufficient time for community participation. The default minimum is
+/// five minutes.
+pub const MIN_VOTING_PERIOD: u32 = 300;
+
+/// Minimum queue delay (5 minutes in seconds).
 ///
 /// Enforces a minimum delay between proposal approval and execution to ensure
 /// sufficient time for:
@@ -73,9 +87,8 @@ pub const PROPOSAL_EXPIRATION_PERIOD: u64 = 1_209_600; // 14 days in seconds (14
 /// - Detection of malicious proposals
 /// - Emergency response if needed
 ///
-/// This is a critical security parameter - reducing it could enable rapid execution
-/// of harmful proposals before stakeholders can respond.
-pub const MIN_QUEUE_DELAY: u32 = 86400; // 1 day in seconds
+/// This is the default deployment minimum; callers can select a longer delay.
+pub const MIN_QUEUE_DELAY: u32 = 300; // 5 minutes in seconds
 
 /// Storage keys for governor-specific instance data.
 ///

@@ -15,7 +15,7 @@ use crate::{
     helpers::{create_auction, process_bid, refund_bid, settle_auction_internal},
     storage::{
         get_auction, get_config, is_launched, set_auction, set_config, set_launched, AuctionConfig,
-        AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_RESERVE_PRICE,
+        AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_AUCTION_DURATION, MIN_RESERVE_PRICE,
     },
 };
 
@@ -116,7 +116,7 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
         payment_token: Option<Address>,
     ) {
         // Validate config
-        if duration == 0 || min_bid_increment_percent == 0 {
+        if duration < MIN_AUCTION_DURATION || min_bid_increment_percent == 0 {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 
@@ -280,7 +280,7 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
     #[only_owner]
     #[when_paused]
     fn set_duration(e: &Env, duration: u64) {
-        if duration == 0 {
+        if duration < MIN_AUCTION_DURATION {
             panic_with_error!(e, AuctionError::InvalidConfig);
         }
 

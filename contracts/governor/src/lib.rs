@@ -12,7 +12,7 @@
 //!   Pending → Active → Succeeded/Defeated → Queued → Executed/Expired/Canceled
 //! - **Quorum System**: Basis-points (BPS) based quorum with ceiling division ensuring
 //!   minimum participation requirements are met
-//! - **Queue Delay**: Mandatory delay between approval and execution (minimum 1 day) for
+//! - **Queue Delay**: Mandatory five-minute delay between approval and execution for
 //!   transparency and security
 //! - **Flexible Authority**: Owner can grant proposal creation rights to other addresses
 //! - **Treasury Integration**: Approved proposals execute actions through a separate

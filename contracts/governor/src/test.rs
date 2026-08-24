@@ -98,9 +98,9 @@ fn setup() -> (
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            10_u32,
-            100_u32,
-            300_u32,
+            300_u32,    // voting_delay: 5 minutes
+            300_u32,    // voting_period: 5 minutes
+            300_u32,    // queue_delay: 5 minutes
             1_u128,
             1_000_u32,
         ),
@@ -148,21 +148,21 @@ fn full_governance_flow_executes_treasury_call() {
         ProposalState::Pending
     );
 
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
     );
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Queued);
 
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
@@ -206,14 +206,14 @@ fn execute_accepts_direct_target_calls() {
     let desc_hash = description_hash(&e, &description);
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 
     assert_eq!(target.get_value(), 42);
@@ -237,11 +237,11 @@ fn execute_fails_before_queue_delay_elapses() {
     let desc_hash = description_hash(&e, &description);
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
 
     e.ledger().set_timestamp(2_410);
@@ -266,14 +266,14 @@ fn execute_cannot_run_twice() {
     let desc_hash = description_hash(&e, &description);
 
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
 
     governor.queue(
-        &targets, &functions, &args, &desc_hash, &2_411_u32, &proposer,
+        &targets, &functions, &args, &desc_hash, &2_901_u32, &proposer,
     );
-    e.ledger().set_timestamp(2_411);
+    e.ledger().set_timestamp(2_901);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
     governor.execute(&targets, &functions, &args, &desc_hash, &proposer);
 }
@@ -302,8 +302,8 @@ fn quorum_uses_total_supply_bps() {
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            0_u32,
-            100_u32,
+            300_u32,
+            300_u32,
             300_u32,
             1_u128,
             3_000_u32,
@@ -344,8 +344,8 @@ fn set_treasury_requires_owner() {
             owner.clone(),
             token_id,
             treasury_id,
-            10_u32,
-            100_u32,
+            300_u32,
+            300_u32,
             300_u32,
             1_u128,
             1_000_u32,
@@ -412,13 +412,13 @@ fn authorized_governor_can_set_voting_delay() {
         invoke: &MockAuthInvoke {
             contract: &governor.address,
             fn_name: "set_voting_delay",
-            args: (&authorized_addr, &20u32).into_val(&e),
+            args: (&authorized_addr, &300u32).into_val(&e),
             sub_invokes: &[],
         },
     }]);
 
-    governor.set_voting_delay(&authorized_addr, &20);
-    assert_eq!(governor.voting_delay(), 20);
+    governor.set_voting_delay(&authorized_addr, &300);
+    assert_eq!(governor.voting_delay(), 300);
 
     let _ = owner;
 }
@@ -435,13 +435,13 @@ fn authorized_governor_can_set_voting_period() {
         invoke: &MockAuthInvoke {
             contract: &governor.address,
             fn_name: "set_voting_period",
-            args: (&authorized_addr, &200u32).into_val(&e),
+            args: (&authorized_addr, &300u32).into_val(&e),
             sub_invokes: &[],
         },
     }]);
 
-    governor.set_voting_period(&authorized_addr, &200);
-    assert_eq!(governor.voting_period(), 200);
+    governor.set_voting_period(&authorized_addr, &300);
+    assert_eq!(governor.voting_period(), 300);
 
     let _ = owner;
 }
@@ -516,8 +516,8 @@ fn authorized_governor_can_set_queue_delay() {
 
     governor.set_governor_authority(&authorized_addr, &true);
 
-    // Use minimum queue delay of 1 day (86400 seconds)
-    let new_queue_delay = 86400u32;
+    // Use the minimum queue delay of 5 minutes (300 seconds)
+    let new_queue_delay = 300u32;
 
     e.mock_auths(&[MockAuth {
         address: &authorized_addr,
@@ -642,13 +642,13 @@ fn owner_has_implicit_governor_authority() {
         invoke: &MockAuthInvoke {
             contract: &governor.address,
             fn_name: "set_voting_delay",
-            args: (&owner, &25u32).into_val(&e),
+            args: (&owner, &300u32).into_val(&e),
             sub_invokes: &[],
         },
     }]);
 
-    governor.set_voting_delay(&owner, &25);
-    assert_eq!(governor.voting_delay(), 25);
+    governor.set_voting_delay(&owner, &300);
+    assert_eq!(governor.voting_delay(), 300);
 }
 
 #[test]
@@ -734,15 +734,15 @@ fn proposal_state_transitions_with_large_timestamps() {
         ProposalState::Pending
     );
 
-    // Move past voting_delay (10 seconds)
-    e.ledger().set_timestamp(start_time + 11);
+    // Move past voting_delay (300 seconds)
+    e.ledger().set_timestamp(start_time + 301);
     assert_eq!(governor.proposal_state(&proposal_id), ProposalState::Active);
 
     // Cast vote
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
-    // Move past voting_period (100 seconds total from proposal)
-    e.ledger().set_timestamp(start_time + 111);
+    // Move past voting_period (300 seconds total from vote start)
+    e.ledger().set_timestamp(start_time + 601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
@@ -770,7 +770,7 @@ fn cast_vote_fails_with_zero_weight() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Move to voting period
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
 
     // Try to vote with zero voting power (should fail)
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &zero_voter);
@@ -823,11 +823,11 @@ fn queued_proposal_expires_after_14_days() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Advance time and vote
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     // Advance to after voting period (proposal now Succeeded)
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
@@ -886,11 +886,11 @@ fn queued_proposal_can_execute_before_expiration() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Advance time and vote
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     // Advance to after voting period
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
@@ -936,11 +936,11 @@ fn expired_proposal_cannot_be_executed() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Advance time and vote
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     // Advance to after voting period
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
@@ -1016,11 +1016,11 @@ fn execute_prevents_reentrancy_attack() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Advance time and vote for the proposal
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     // Advance to after voting period (proposal now Succeeded)
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded
@@ -1061,11 +1061,11 @@ fn execute_updates_state_before_external_calls() {
     let proposal_id = governor.propose(&targets, &functions, &args, &description, &proposer);
 
     // Advance time and vote
-    e.ledger().set_timestamp(2_011);
+    e.ledger().set_timestamp(2_301);
     governor.cast_vote(&proposal_id, &1, &String::from_str(&e, "yes"), &proposer);
 
     // Advance to after voting period
-    e.ledger().set_timestamp(2_111);
+    e.ledger().set_timestamp(2_601);
     assert_eq!(
         governor.proposal_state(&proposal_id),
         ProposalState::Succeeded

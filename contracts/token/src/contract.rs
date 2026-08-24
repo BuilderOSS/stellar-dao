@@ -137,7 +137,7 @@ impl DaoTokenContract {
     ///
     /// * `minter` - The address performing the mint (must be owner or have mint authority)
     /// * `to` - The address receiving all the newly minted tokens
-    /// * `amount` - Number of tokens to mint (must be between 1 and [`MAX_BATCH_MINT`])
+    /// * `amount` - Number of tokens to mint (must be between 1 and `MAX_BATCH_MINT`)
     ///
     /// # Returns
     ///
@@ -150,7 +150,7 @@ impl DaoTokenContract {
     /// # Panics
     ///
     /// Panics with `TokenError::InvalidBatchMintAmount` if `amount` is 0 or exceeds
-    /// [`MAX_BATCH_MINT`] (100).
+    /// `MAX_BATCH_MINT` (100).
     ///
     /// # Events
     ///

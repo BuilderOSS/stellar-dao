@@ -30,7 +30,7 @@ fn setup_auction_contract(
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            500_u64, // duration: 500 seconds
+            300_u64,                     // duration: 5 minutes (MIN_AUCTION_DURATION)
             1_000_0000_i128,
             10_u32,
             50_u64,                      // time_buffer: 50 seconds
@@ -104,7 +104,7 @@ fn test_constructor_initializes_correctly() {
     let config = auction.get_config();
     assert_eq!(config.token_contract, token_contract);
     assert_eq!(config.treasury, treasury);
-    assert_eq!(config.duration, 500);
+    assert_eq!(config.duration, 300);
     assert_eq!(config.reserve_price, 1_000_0000);
     assert_eq!(config.min_bid_increment_percent, 10);
     assert_eq!(config.time_buffer, 50);
@@ -417,7 +417,7 @@ fn test_constructor_requires_payment_token() {
             owner,
             token_contract,
             treasury,
-            100_u64,
+            300_u64,  // Must meet MIN_AUCTION_DURATION
             1_000_0000_i128,
             10_u32,
             10_u64,
@@ -442,7 +442,7 @@ fn test_constructor_rejects_low_reserve_price() {
             owner,
             token_contract,
             treasury,
-            100_u64,
+            300_u64,  // Must meet MIN_AUCTION_DURATION
             999_i128, // Too low
             10_u32,
             10_u64,

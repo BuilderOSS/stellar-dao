@@ -32,10 +32,10 @@ This contract implements a perpetual auction system that:
          │
     ┌────┴────┐
     │         │
-┌───▼───┐ ┌──▼────┐
+┌───▼───┐ ┌───▼────┐
 │ Token │ │Treasury│
-│       │ │       │
-└───────┘ └───────┘
+│       │ │        │
+└───────┘ └────────┘
 ```
 
 ## Usage
@@ -107,5 +107,5 @@ cargo test -- --nocapture
 
 ## References
 
-- Based on [Nouns DAO Auction House](https://github.com/ourzora/nouns-protocol)
+- Based on [Nouns Builder Auction House](https://github.com/BuilderOSS/nouns-protocol)
 - Uses [OpenZeppelin Stellar Contracts](https://github.com/OpenZeppelin/stellar-contracts)
