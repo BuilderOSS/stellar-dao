@@ -1,3 +1,18 @@
+//! Event definitions and emission helpers for the Auction contract.
+//!
+//! This module defines events for tracking the complete auction lifecycle including:
+//! - Contract initialization and configuration changes
+//! - Auction creation with new token IDs
+//! - Bid placement and refunds
+//! - Time extensions and settlement
+//! - Auction cancellation
+//!
+//! Like other contracts, events are emitted in dual format:
+//! 1. Standard Soroban events for on-chain indexing
+//! 2. Mercury-indexed events (when `mercury` feature is enabled) for enhanced querying
+//!
+//! All auction events include the relevant auction state for complete auditability.
+
 use soroban_sdk::{contractevent, Address, Env};
 
 use crate::storage::PaymentType;

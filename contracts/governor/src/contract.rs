@@ -29,11 +29,20 @@ use crate::events::{
 };
 use crate::storage::*;
 
+/// Main contract for DAO governance with timestamp-based voting.
+///
+/// This contract manages the complete proposal lifecycle from creation through execution,
+/// using block timestamps for voting periods rather than ledger sequences. It integrates
+/// with a Token contract for voting power and a Treasury contract for execution.
 #[contract]
 pub struct DaoGovernorContract;
 
 #[contractimpl]
 impl DaoGovernorContract {
+    /// Converts a ProposalState enum to a Symbol for Mercury indexing.
+    ///
+    /// Helper function used when emitting indexed events to convert the state enum
+    /// into a symbol that can be efficiently queried in the Mercury indexer.
     #[cfg(feature = "mercury")]
     fn proposal_state_symbol(e: &Env, state: ProposalState) -> Symbol {
         match state {
@@ -48,6 +57,30 @@ impl DaoGovernorContract {
         }
     }
 
+    /// Initializes the governor contract with governance parameters.
+    ///
+    /// Sets up all governance parameters including voting periods, quorum requirements,
+    /// and associated contracts. All parameters are configurable post-deployment by
+    /// authorized addresses.
+    ///
+    /// # Arguments
+    ///
+    /// * `owner` - The address that will own and control the contract
+    /// * `token_contract` - The governance token contract (must implement Votes trait)
+    /// * `treasury_contract` - The treasury contract that executes approved proposals
+    /// * `voting_delay` - Delay in seconds between proposal creation and vote start
+    /// * `voting_period` - Duration in seconds that voting remains open
+    /// * `queue_delay` - Delay in seconds between approval and execution (minimum 1 day)
+    /// * `proposal_threshold` - Minimum voting power required to create proposals
+    /// * `quorum_bps` - Minimum participation in basis points (e.g., 2500 = 25%)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `quorum_bps` exceeds [`BPS_DENOMINATOR`] (10,000).
+    ///
+    /// # Events
+    ///
+    /// Emits a `GovernorInitialized` event with all initialization parameters.
     pub fn __constructor(
         e: &Env,
         owner: Address,
@@ -223,6 +256,24 @@ impl DaoGovernorContract {
         governor::get_quorum(e, e.ledger().sequence()) as u32
     }
 
+    /// Grants or revokes governance authority for an address.
+    ///
+    /// Only the contract owner can call this function. Addresses with governor authority
+    /// can create proposals and modify governance parameters (voting delay, voting period,
+    /// proposal threshold, quorum). The owner always has implicit authority.
+    ///
+    /// # Arguments
+    ///
+    /// * `authority` - The address to grant or revoke authority
+    /// * `enabled` - `true` to grant authority, `false` to revoke it
+    ///
+    /// # Authorization
+    ///
+    /// Requires owner authentication (enforced by `#[only_owner]` macro).
+    ///
+    /// # Events
+    ///
+    /// Emits a `GovernorAuthorityChanged` event with old and new permission states.
     #[only_owner]
     pub fn set_governor_authority(e: &Env, authority: Address, enabled: bool) {
         let old_enabled = Self::governor_authority(e, authority.clone());
@@ -235,6 +286,16 @@ impl DaoGovernorContract {
         emit_governor_authority_changed(e, &authority, old_enabled, enabled, &changed_by);
     }
 
+    /// Checks if an address has governor authority.
+    ///
+    /// # Arguments
+    ///
+    /// * `authority` - The address to check
+    ///
+    /// # Returns
+    ///
+    /// `true` if the address has governor authority, `false` otherwise.
+    /// The owner always has implicit authority even if not explicitly set.
     pub fn governor_authority(e: &Env, authority: Address) -> bool {
         e.storage()
             .instance()
@@ -242,6 +303,18 @@ impl DaoGovernorContract {
             .unwrap_or(false)
     }
 
+    /// Validates that an address has governor authority.
+    ///
+    /// Authority is granted to:
+    /// 1. The contract owner (implicit authority)
+    /// 2. Any address explicitly granted authority via `set_governor_authority()`
+    ///
+    /// Used to gate sensitive operations like parameter changes and proposal creation.
+    ///
+    /// # Panics
+    ///
+    /// - Panics with `CustomGovernorError::OwnerNotSet` if the contract owner is not set
+    /// - Panics with `CustomGovernorError::UnauthorizedCaller` if the caller lacks authority
     fn ensure_governor_authority(e: &Env, caller: &Address) {
         let Some(owner) = stellar_access::ownable::get_owner(e) else {
             panic_with_error!(e, CustomGovernorError::OwnerNotSet);

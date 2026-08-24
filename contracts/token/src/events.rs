@@ -1,3 +1,16 @@
+//! Event definitions and emission helpers for the Token contract.
+//!
+//! This module defines two types of events:
+//!
+//! 1. **Standard Soroban Events** - Published via `contractevent` macro for on-chain indexing
+//! 2. **Mercury-Indexed Events** - Retroshade SDK events (when `mercury` feature is enabled)
+//!    for enhanced off-chain querying via Mercury data indexer
+//!
+//! Most NFT lifecycle events (Transfer, Mint, Approve) are emitted automatically by
+//! OpenZeppelin's Base and NonFungibleVotes implementations. This module only defines
+//! custom events that add information not included in the standard events, such as
+//! tracking the minter address and batch minting operations.
+
 use soroban_sdk::{contractevent, Address};
 
 #[cfg(feature = "mercury")]
@@ -84,6 +97,10 @@ mod retroshade {
 
 // Standard contract events
 
+/// Emitted when the token contract is initialized.
+///
+/// Contains the initial owner and token metadata. This event is emitted once
+/// during contract deployment via the `__constructor` function.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenInitialized {
@@ -94,6 +111,10 @@ pub struct TokenInitialized {
     pub symbol: String,
 }
 
+/// Emitted when minting authority is granted or revoked for an address.
+///
+/// Tracks changes to mint permissions, including who made the change (always the owner).
+/// The owner always has implicit minting authority regardless of this flag.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MintAuthorityChanged {
@@ -104,7 +125,12 @@ pub struct MintAuthorityChanged {
     pub changed_by: Address,
 }
 
-// Custom event to track minter information (OpenZeppelin's Mint event doesn't include minter)
+/// Custom event to track minter information during single token mints.
+///
+/// OpenZeppelin's standard Mint event doesn't include the minter address, only
+/// the recipient. This custom event supplements it by tracking who performed the mint,
+/// which is useful for auditing and analytics (e.g., distinguishing owner mints
+/// from auction contract mints).
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MintWithMinter {
@@ -115,6 +141,11 @@ pub struct MintWithMinter {
     pub token_id: u32,
 }
 
+/// Emitted when multiple tokens are minted in a single batch operation.
+///
+/// Supplements the individual Mint events (emitted per token) with a summary
+/// of the batch operation, including the total amount and final token ID.
+/// Useful for tracking bulk minting operations like initial distribution.
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BatchMint {
@@ -133,6 +164,9 @@ pub struct BatchMint {
 
 use soroban_sdk::{Env, String};
 
+/// Emits a TokenInitialized event in both standard and Mercury-indexed formats.
+///
+/// Called once during contract initialization to record the deployment parameters.
 pub fn emit_token_initialized(
     e: &Env,
     owner: &Address,

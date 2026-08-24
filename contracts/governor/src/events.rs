@@ -1,3 +1,18 @@
+//! Event definitions and emission helpers for the Governor contract.
+//!
+//! This module defines events for tracking the complete governance lifecycle including:
+//! - Contract initialization and parameter changes
+//! - Proposal creation, voting, queueing, and execution
+//! - Detailed action-by-action execution tracking (Mercury-indexed)
+//!
+//! Like other contracts, this module provides dual event emission:
+//! 1. Standard Soroban events for on-chain indexing
+//! 2. Mercury-indexed events (when `mercury` feature is enabled) for enhanced querying
+//!
+//! Many core governance events (ProposalCreated, VoteCast, etc.) are emitted by the
+//! stellar_governance library. Custom events here supplement those with additional
+//! metadata specific to this implementation (timestamp-based voting, detailed execution tracking).
+
 use soroban_sdk::{contractevent, Address};
 
 #[cfg(feature = "mercury")]

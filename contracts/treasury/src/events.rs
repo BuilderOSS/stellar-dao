@@ -1,3 +1,14 @@
+//! Event definitions and emission helpers for the Treasury contract.
+//!
+//! This module defines events for tracking treasury operations including:
+//! - Contract initialization
+//! - Governor address changes
+//! - Proposal action executions
+//!
+//! Events use the same dual-emission pattern as other contracts:
+//! 1. Standard Soroban events for on-chain indexing
+//! 2. Mercury-indexed events (when `mercury` feature is enabled) for enhanced querying
+
 use soroban_sdk::{contractevent, Address, Symbol};
 
 #[cfg(feature = "mercury")]
