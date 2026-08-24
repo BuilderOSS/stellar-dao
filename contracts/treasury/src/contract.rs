@@ -5,7 +5,7 @@ use soroban_sdk::{
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_macros::only_owner;
 
-use crate::events::*;
+use crate::events::{emit_execute, emit_governor_changed, emit_treasury_initialized};
 use crate::storage::*;
 
 #[contract]
@@ -19,45 +19,19 @@ impl DaoTreasuryContract {
             .instance()
             .set(&TreasuryKey::Governor, &governor);
 
-        #[cfg(feature = "mercury")]
-        retroshade::TreasuryInitializedIndexed {
-            owner,
-            governor,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_treasury_initialized(e, &owner, &governor);
     }
 
     #[only_owner]
     pub fn set_governor(e: &Env, governor: Address) {
-        #[cfg(feature = "mercury")]
-        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
-        #[cfg(feature = "mercury")]
         let old_governor = Self::governor(e);
-
-        let old_governor_for_event = Self::governor(e);
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
 
         e.storage()
             .instance()
             .set(&TreasuryKey::Governor, &governor);
 
-        // Emit standard event with topics for efficient filtering
-        GovernorChanged {
-            old_governor: old_governor_for_event.clone(),
-            new_governor: governor.clone(),
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::GovernorChangedIndexed {
-            old_governor,
-            new_governor: governor,
-            changed_by,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_governor_changed(e, &old_governor, &governor, &changed_by);
     }
 
     pub fn governor(e: &Env) -> Address {
@@ -90,24 +64,7 @@ impl DaoTreasuryContract {
 
         let result = e.invoke_contract::<Val>(&target, &function, args.clone());
 
-        // Emit standard event with topics for efficient filtering
-        Execute {
-            governor: governor.clone(),
-            target: target.clone(),
-            function: function.clone(),
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::TreasuryCallIndexed {
-            governor: governor.clone(),
-            target: target.clone(),
-            function: function.clone(),
-            args,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_execute(e, &governor, &target, &function, &args);
 
         result
     }
