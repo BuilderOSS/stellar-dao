@@ -1,4 +1,6 @@
-use soroban_sdk::{contract, contractimpl, contracttrait, panic_with_error, Address, Env, IntoVal, Symbol};
+use soroban_sdk::{
+    contract, contractimpl, contracttrait, panic_with_error, Address, Env, IntoVal, Symbol,
+};
 use stellar_access::ownable::{self, Ownable};
 use stellar_contract_utils::pausable::{self, Pausable};
 use stellar_macros::{only_owner, when_not_paused, when_paused};
@@ -12,8 +14,8 @@ use crate::{
     },
     helpers::{create_auction, process_bid, refund_bid, settle_auction_internal},
     storage::{
-        get_auction, get_config, is_launched, set_auction, set_config, set_launched,
-        AuctionConfig, AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_RESERVE_PRICE,
+        get_auction, get_config, is_launched, set_auction, set_config, set_launched, AuctionConfig,
+        AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_RESERVE_PRICE,
     },
 };
 
@@ -366,4 +368,3 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
         emit_treasury_updated(e, &treasury, &owner);
     }
 }
-

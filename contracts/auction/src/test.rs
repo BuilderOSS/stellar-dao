@@ -2,7 +2,10 @@
 
 extern crate std;
 
-use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    Address, Env,
+};
 
 use crate::contract::{DaoAuctionContract, DaoAuctionContractClient};
 
@@ -27,16 +30,23 @@ fn setup_auction_contract(
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            500_u64,              // duration: 500 seconds
+            500_u64, // duration: 500 seconds
             1_000_0000_i128,
             10_u32,
-            50_u64,               // time_buffer: 50 seconds
+            50_u64,                      // time_buffer: 50 seconds
             Some(payment_token.clone()), // SECURITY FIX: SAC-only
         ),
     );
     let auction = DaoAuctionContractClient::new(e, &auction_address);
 
-    (auction, owner, treasury, token_contract, auction_address, payment_token)
+    (
+        auction,
+        owner,
+        treasury,
+        token_contract,
+        auction_address,
+        payment_token,
+    )
 }
 
 fn setup_with_payment_token(
@@ -60,10 +70,10 @@ fn setup_with_payment_token(
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            500_u64,              // duration: 500 seconds
+            500_u64, // duration: 500 seconds
             1_000_0000_i128,
             10_u32,
-            50_u64,               // time_buffer: 50 seconds
+            50_u64, // time_buffer: 50 seconds
             Some(payment_token.clone()),
         ),
     );

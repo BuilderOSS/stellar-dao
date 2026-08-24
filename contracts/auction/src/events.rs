@@ -391,7 +391,11 @@ pub fn emit_reserve_price_updated(e: &Env, reserve_price: i128, changed_by: &Add
     .emit(e);
 }
 
-pub fn emit_min_bid_increment_updated(e: &Env, min_bid_increment_percent: u32, changed_by: &Address) {
+pub fn emit_min_bid_increment_updated(
+    e: &Env,
+    min_bid_increment_percent: u32,
+    changed_by: &Address,
+) {
     MinBidIncrementUpdated {
         min_bid_increment_percent,
         changed_by: changed_by.clone(),

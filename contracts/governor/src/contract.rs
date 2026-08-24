@@ -2,8 +2,8 @@ use core::convert::TryInto;
 
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
-    contract, contractimpl, panic_with_error, vec, Address, BytesN,
-    Env, IntoVal, String, Symbol, Val, Vec,
+    contract, contractimpl, panic_with_error, vec, Address, BytesN, Env, IntoVal, String, Symbol,
+    Val, Vec,
 };
 use stellar_access::ownable::{set_owner, Ownable};
 use stellar_governance::{
@@ -179,7 +179,14 @@ impl DaoGovernorContract {
         governor::set_proposal_threshold(e, proposal_threshold);
 
         let parameter = Symbol::new(e, "proposal_threshold");
-        emit_proposal_threshold_changed(e, &caller, old_value, proposal_threshold, &parameter, &caller);
+        emit_proposal_threshold_changed(
+            e,
+            &caller,
+            old_value,
+            proposal_threshold,
+            &parameter,
+            &caller,
+        );
     }
 
     pub fn set_quorum_bps(e: &Env, caller: Address, quorum_bps: u32) {

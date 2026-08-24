@@ -8,8 +8,7 @@ use crate::{
     events::{emit_auction_created, emit_auction_settled, emit_bid_placed, emit_bid_refunded},
     storage::{
         get_auction, get_config, set_auction, AuctionConfig, AuctionState, PaymentType,
-        MAX_AUCTION_EXTENSIONS, MAX_BID_INCREMENT_PERCENT, MIN_RESERVE_PRICE,
-        PERCENT_DENOMINATOR,
+        MAX_AUCTION_EXTENSIONS, PERCENT_DENOMINATOR,
     },
 };
 
@@ -219,11 +218,7 @@ pub(crate) fn settle_auction_internal(e: &Env) {
                         }),
                     ]);
 
-                    e.invoke_contract::<()>(
-                        token_addr,
-                        &transfer_symbol,
-                        payment_transfer_args,
-                    );
+                    e.invoke_contract::<()>(token_addr, &transfer_symbol, payment_transfer_args);
                 }
             }
         }

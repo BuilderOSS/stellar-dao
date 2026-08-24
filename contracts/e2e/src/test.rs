@@ -780,15 +780,14 @@ fn treasury_batch_mint_with_explicit_auth() {
 // AUCTION CONTRACT E2E TESTS
 // ============================================================================
 
-
 fn setup_auction() -> (
     Env,
     DaoTokenContractClient<'static>,
     DaoTreasuryContractClient<'static>,
     DaoAuctionContractClient<'static>,
-    Address,  // owner
-    Address,  // payment token
-    StellarAssetClient<'static>,  // payment token client
+    Address,                     // owner
+    Address,                     // payment token
+    StellarAssetClient<'static>, // payment token client
 ) {
     let e = Env::default();
     e.ledger().set_sequence_number(100);
@@ -825,11 +824,11 @@ fn setup_auction() -> (
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            500_u64,  // duration: 500 seconds
-            100_0000000_i128,  // reserve price: 100 USDC
-            10_u32,  // min bid increment: 10%
-            50_u64,  // time buffer: 50 seconds
-            Some(payment_token.clone()),  // payment token
+            500_u64,                     // duration: 500 seconds
+            100_0000000_i128,            // reserve price: 100 USDC
+            10_u32,                      // min bid increment: 10%
+            50_u64,                      // time buffer: 50 seconds
+            Some(payment_token.clone()), // payment token
         ),
     );
     let auction = DaoAuctionContractClient::new(&e, &auction_id);
@@ -839,7 +838,15 @@ fn setup_auction() -> (
     // Grant mint authority to auction contract
     token.set_mint_authority(&auction_id, &true);
 
-    (e, token, treasury, auction, owner, payment_token, payment_client)
+    (
+        e,
+        token,
+        treasury,
+        auction,
+        owner,
+        payment_token,
+        payment_client,
+    )
 }
 
 #[test]
@@ -924,7 +931,10 @@ fn test_auction_time_extension() {
     let config = auction.get_config();
 
     // End time should be extended by time_buffer
-    assert_eq!(auction_state.end_time, e.ledger().timestamp() + config.time_buffer);
+    assert_eq!(
+        auction_state.end_time,
+        e.ledger().timestamp() + config.time_buffer
+    );
     assert!(auction_state.end_time > original_end);
 }
 
@@ -956,7 +966,10 @@ fn test_auction_no_bids_transfers_to_treasury() {
     assert_eq!(token.balance(&auction.address), 1);
 
     // Verify treasury can use the token for governance (has delegate set)
-    assert_eq!(token.get_delegate(&treasury.address), Some(treasury.address));
+    assert_eq!(
+        token.get_delegate(&treasury.address),
+        Some(treasury.address)
+    );
 }
 
 #[test]
@@ -1020,7 +1033,7 @@ fn test_auction_multiple_consecutive_auctions() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1206)")]  // ReservePriceNotMet
+#[should_panic(expected = "Error(Contract, #1206)")] // ReservePriceNotMet
 fn test_auction_bid_below_reserve() {
     let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
 
@@ -1030,13 +1043,13 @@ fn test_auction_bid_below_reserve() {
     auction.unpause(&owner);
 
     let auction_state = auction.get_auction();
-    
+
     // Try to bid below reserve price (should panic)
     auction.create_bid(&bidder, &auction_state.token_id, &50_0000000);
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1207)")]  // MinBidNotMet
+#[should_panic(expected = "Error(Contract, #1207)")] // MinBidNotMet
 fn test_auction_bid_below_min_increment() {
     let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
 
@@ -1060,7 +1073,7 @@ fn test_auction_bid_below_min_increment() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1201)")]  // InvalidTokenId
+#[should_panic(expected = "Error(Contract, #1201)")] // InvalidTokenId
 fn test_auction_bid_wrong_token_id() {
     let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
 
@@ -1077,7 +1090,7 @@ fn test_auction_bid_wrong_token_id() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1202)")]  // AuctionOver
+#[should_panic(expected = "Error(Contract, #1202)")] // AuctionOver
 fn test_auction_bid_after_end() {
     let (e, _token, _treasury, auction, owner, _payment_token, payment_client) = setup_auction();
 
@@ -1097,7 +1110,7 @@ fn test_auction_bid_after_end() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1212)")]  // NotLaunched
+#[should_panic(expected = "Error(Contract, #1212)")] // NotLaunched
 fn test_auction_get_auction_before_launch() {
     let (_e, _token, _treasury, auction, _owner, _payment_token, _payment_client) = setup_auction();
 
@@ -1106,7 +1119,7 @@ fn test_auction_get_auction_before_launch() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1204)")]  // AuctionActive
+#[should_panic(expected = "Error(Contract, #1204)")] // AuctionActive
 fn test_auction_settle_while_active() {
     let (e, _token, _treasury, auction, owner, _payment_token, _payment_client) = setup_auction();
 
@@ -1249,7 +1262,8 @@ fn test_auction_settle_auction_vs_settle_and_create() {
 
 #[test]
 fn test_auction_payment_token_setter() {
-    let (e, _token, _treasury, auction, _owner, payment_token_addr, _payment_token) = setup_auction();
+    let (e, _token, _treasury, auction, _owner, payment_token_addr, _payment_token) =
+        setup_auction();
 
     // SECURITY FIX: Payment token is always required now
     let config = auction.get_config();
@@ -1266,7 +1280,8 @@ fn test_auction_payment_token_setter() {
 #[test]
 #[should_panic(expected = "Error(Contract, #1211)")] // NoPaymentTokenSet
 fn test_auction_payment_token_setter_rejects_none() {
-    let (_e, _token, _treasury, auction, _owner, _payment_token_addr, _payment_token) = setup_auction();
+    let (_e, _token, _treasury, auction, _owner, _payment_token_addr, _payment_token) =
+        setup_auction();
 
     // SECURITY FIX: Cannot set payment token to None
     auction.set_payment_token(&None);
@@ -1314,7 +1329,8 @@ fn test_auction_extension_dos_protection() {
 
 #[test]
 fn test_auction_payment_currency_locked_on_first_bid() {
-    let (e, _token, _treasury, auction, owner, _payment_token_addr, payment_client) = setup_auction();
+    let (e, _token, _treasury, auction, owner, _payment_token_addr, payment_client) =
+        setup_auction();
 
     let bidder = Address::generate(&e);
     payment_client.mint(&bidder, &1000_0000000);
@@ -1428,7 +1444,10 @@ fn test_governor_treasury_bidirectional_verification() {
 
     // Register treasury with a placeholder governor
     let placeholder_governor = Address::generate(&e);
-    let treasury_id = e.register(DaoTreasuryContract, (owner.clone(), placeholder_governor.clone()));
+    let treasury_id = e.register(
+        DaoTreasuryContract,
+        (owner.clone(), placeholder_governor.clone()),
+    );
     let treasury = DaoTreasuryContractClient::new(&e, &treasury_id);
 
     // Register governor with the treasury

@@ -1,13 +1,17 @@
 use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, String};
 use stellar_access::ownable::{set_owner, Ownable};
-use stellar_governance::votes::{emit_delegate_changed as emit_library_delegate_changed, get_delegate, Votes, VotesStorageKey};
+use stellar_governance::votes::{
+    emit_delegate_changed as emit_library_delegate_changed, get_delegate, Votes, VotesStorageKey,
+};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
 
 use crate::error::TokenError;
-use crate::events::{emit_batch_mint, emit_mint_authority_changed, emit_token_initialized, emit_token_mint};
 #[cfg(feature = "mercury")]
 use crate::events::{emit_approval_changed, emit_delegate_changed, emit_token_transfer};
+use crate::events::{
+    emit_batch_mint, emit_mint_authority_changed, emit_token_initialized, emit_token_mint,
+};
 use crate::storage::*;
 
 #[contract]
