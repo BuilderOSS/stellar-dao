@@ -1,111 +1,56 @@
-# DAO Auction Contract
+# Auction Contract
 
-A continuous auction contract for the Stellar DAO governance system, inspired by Nouns DAO.
+Perpetual NFT auctions for the DAO. Each auction sells one governance NFT, sends the winning payment to the treasury, and can create the next auction after settlement.
 
-## Overview
+## Behavior
 
-This contract implements a perpetual auction system that:
-- Mints governance NFTs at the start of each auction
-- Accepts bids in native XLM or configurable SAC tokens
-- Automatically settles and creates new auctions
-- Sends proceeds to the DAO treasury
-- Supports pausable operations with owner-controlled configuration
+- Payment uses the configured SAC token. Native XLM is not supported.
+- The first bid must meet `reserve_price`; later bids must meet the configured percentage increment.
+- A bid inside `time_buffer` extends the auction, up to the extension limit.
+- The contract starts paused. The owner unpauses it to launch the first auction.
+- Anyone can call `settle_and_create_new` after an auction ends.
+- Configuration changes are owner-only and require the contract to be paused.
 
-## Key Features
+## Constructor
 
-- **Continuous Auctions**: Automatically creates a new auction after settling the previous one
-- **Dual Currency**: Supports both native Stellar lumens (XLM) and SAC tokens for bidding
-- **Time Extension**: Extends auction duration if a bid is placed near the end
-- **Pausable**: Owner can pause auctions and update configuration
-- **Treasury Integration**: All proceeds automatically sent to the DAO treasury
-
-## Architecture
-
-```
-┌─────────────────┐
-│  Auction House  │
-│                 │
-│  - Mint NFT     │
-│  - Accept Bids  │
-│  - Settle       │
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    │         │
-┌───▼───┐ ┌───▼────┐
-│ Token │ │Treasury│
-│       │ │        │
-└───────┘ └────────┘
+```text
+__constructor(
+  owner,
+  token_contract,
+  treasury,
+  duration,
+  reserve_price,
+  min_bid_increment_percent,
+  time_buffer,
+  payment_token
+)
 ```
 
-## Usage
+`payment_token` must be `Some(Address)`. The minimum auction duration is 300 seconds. The reserve price must be at least 1,000 stroops, and the bid increment must be between 1% and 100%.
 
-### Initialize
-```rust
-auction.__constructor(
-    env,
-    owner,
-    token_contract,
-    treasury,
-    duration_in_seconds,
-    reserve_price,
-    min_bid_increment_percent,
-    time_buffer_in_seconds,
-    payment_token, // Option<Address>
-);
+## Main Methods
+
+- `pause(caller)` / `unpause(caller)` - stop or resume auction operations.
+- `create_bid(bidder, token_id, amount)` - place a bid using the configured SAC token.
+- `settle_and_create_new()` - settle the current auction and start the next one.
+- `settle_auction()` - settle without creating another auction.
+- `cancel_auction()` - cancel the active auction under the contract's cancellation rules.
+- `get_auction()` / `get_config()` - read current state and configuration.
+
+Configuration setters are `set_duration`, `set_reserve_price`, `set_min_bid_increment`, `set_time_buffer`, `set_payment_token`, and `set_treasury`.
+
+## Related Contracts
+
+```text
+Auction -> Token       mint the NFT
+Auction -> Treasury    deliver auction proceeds
 ```
 
-### Start Auctions
-```rust
-// Owner unpauses to start first auction
-auction.unpause();
-```
+## Tests
 
-### Place Bids
-```rust
-// Bid with native XLM
-auction.create_bid(token_id);
-
-// Bid with SAC token
-auction.create_bid_with_token(token_id, amount);
-```
-
-### Settle and Continue
-```rust
-// Anyone can settle once auction ends
-auction.settle_and_create_new();
-```
-
-## Configuration
-
-All configuration changes require the auction to be paused:
-
-- `set_duration(seconds)` - Set auction duration in seconds
-- `set_reserve_price(amount)` - Set minimum first bid
-- `set_min_bid_increment(percent)` - Set minimum bid increase (%)
-- `set_time_buffer(seconds)` - Set time extension buffer in seconds
-- `set_payment_token(token)` - Set accepted SAC token
-- `set_treasury(address)` - Set proceeds recipient
-
-## Security
-
-- Owner-only administrative functions
-- Pausable pattern for emergency stops
-- CEI pattern for state changes before external calls
-- Proper bid validation and refunds
-- Payment type consistency enforcement
-
-## Testing
+From the repository root:
 
 ```bash
-# Run unit tests
-cargo test
-
-# Run with logs
-cargo test -- --nocapture
+pnpm dao:test:unit
+pnpm dao:test:e2e
 ```
-
-## References
-
-- Based on [Nouns Builder Auction House](https://github.com/BuilderOSS/nouns-protocol)
-- Uses [OpenZeppelin Stellar Contracts](https://github.com/OpenZeppelin/stellar-contracts)
