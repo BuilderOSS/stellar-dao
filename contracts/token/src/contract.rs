@@ -1,6 +1,6 @@
 use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, String};
 use stellar_access::ownable::{set_owner, Ownable};
-use stellar_governance::votes::{emit_delegate_changed, get_delegate, Votes, VotesStorageKey};
+use stellar_governance::votes::{emit_delegate_changed as emit_library_delegate_changed, get_delegate, Votes, VotesStorageKey};
 use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
 
@@ -14,58 +14,21 @@ pub struct DaoTokenContract;
 #[contractimpl]
 impl DaoTokenContract {
     pub fn __constructor(e: &Env, owner: Address, uri: String, name: String, symbol: String) {
-        #[cfg(feature = "mercury")]
-        let uri_for_event = uri.clone();
-        #[cfg(feature = "mercury")]
-        let name_for_event = name.clone();
-        #[cfg(feature = "mercury")]
-        let symbol_for_event = symbol.clone();
-        Base::set_metadata(e, uri, name, symbol);
+        Base::set_metadata(e, uri.clone(), name.clone(), symbol.clone());
         set_owner(e, &owner);
-
-        #[cfg(feature = "mercury")]
-        retroshade::TokenInitializedIndexed {
-            owner,
-            uri: uri_for_event,
-            name: name_for_event,
-            symbol: symbol_for_event,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_token_initialized(e, &owner, &uri, &name, &symbol);
     }
 
     #[only_owner]
     pub fn set_mint_authority(e: &Env, authority: Address, enabled: bool) {
-        #[cfg(feature = "mercury")]
-        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
-        #[cfg(feature = "mercury")]
         let old_enabled = Self::mint_authority(e, authority.clone());
-
-        let old_enabled_for_event = Self::mint_authority(e, authority.clone());
+        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
 
         e.storage()
             .instance()
             .set(&TokenKey::MintAuthority(authority.clone()), &enabled);
 
-        // Emit standard event with topics for efficient filtering
-        MintAuthorityChanged {
-            authority: authority.clone(),
-            old_enabled: old_enabled_for_event,
-            enabled,
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::MintAuthorityChangedIndexed {
-            authority,
-            old_enabled,
-            enabled,
-            changed_by,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_mint_authority_changed(e, &authority, old_enabled, enabled, &changed_by);
     }
 
     pub fn mint_authority(e: &Env, authority: Address) -> bool {
@@ -80,25 +43,9 @@ impl DaoTokenContract {
         Self::ensure_mint_authority(e, minter);
         Self::ensure_self_delegate(e, to);
         let token_id = NonFungibleVotes::sequential_mint(e, to);
+        // Note: OpenZeppelin's NonFungibleVotes::sequential_mint() automatically emits standard Mint event
 
-        // Emit standard event with topics for efficient filtering
-        Mint {
-            minter: minter.clone(),
-            to: to.clone(),
-            token_id,
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::TokenMintIndexed {
-            minter: minter.clone(),
-            to: to.clone(),
-            token_id,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
-
+        emit_token_mint(e, minter, to, token_id);
         token_id
     }
 
@@ -113,35 +60,12 @@ impl DaoTokenContract {
 
         let mut last_token_id = 0;
 
-        #[cfg(feature = "mercury")]
-        let ledger = e.ledger().sequence();
-        #[cfg(feature = "mercury")]
-        let timestamp = e.ledger().timestamp();
-
         for _ in 0..amount {
             let token_id = NonFungibleVotes::sequential_mint(e, to);
             last_token_id = token_id;
-
-            #[cfg(feature = "mercury")]
-            retroshade::TokenMintIndexed {
-                minter: minter.clone(),
-                to: to.clone(),
-                token_id,
-                ledger,
-                timestamp,
-            }
-            .emit(e);
         }
 
-        // Emit standard event for batch mint operation with topics for efficient filtering
-        BatchMint {
-            minter: minter.clone(),
-            to: to.clone(),
-            amount,
-            last_token_id,
-        }
-        .publish(e);
-
+        emit_batch_mint(e, minter, to, amount, last_token_id);
         last_token_id
     }
 
@@ -156,49 +80,17 @@ impl DaoTokenContract {
     pub fn transfer(e: &Env, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer(e, from, to, token_id);
+        // Note: OpenZeppelin's NonFungibleVotes::transfer() automatically emits standard Transfer event
 
-        // Emit standard event with topics for efficient filtering
-        Transfer {
-            from: from.clone(),
-            to: to.clone(),
-            token_id,
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::TokenTransferIndexed {
-            operator: from.clone(),
-            from: from.clone(),
-            to: to.clone(),
-            token_id,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_token_transfer(e, from, from, to, token_id);
     }
 
     pub fn transfer_from(e: &Env, spender: &Address, from: &Address, to: &Address, token_id: u32) {
         Self::ensure_self_delegate(e, to);
         NonFungibleVotes::transfer_from(e, spender, from, to, token_id);
+        // Note: OpenZeppelin's NonFungibleVotes::transfer_from() automatically emits standard Transfer event
 
-        // Emit standard event with topics for efficient filtering
-        Transfer {
-            from: from.clone(),
-            to: to.clone(),
-            token_id,
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::TokenTransferIndexed {
-            operator: spender.clone(),
-            from: from.clone(),
-            to: to.clone(),
-            token_id,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_token_transfer(e, spender, from, to, token_id);
     }
 
     pub fn approve(
@@ -209,26 +101,9 @@ impl DaoTokenContract {
         expiration_ledger: u32,
     ) {
         Base::approve(e, owner, spender, token_id, expiration_ledger);
+        // Note: OpenZeppelin's Base::approve() automatically emits standard Approve event
 
-        // Emit standard event with topics for efficient filtering
-        Approve {
-            owner: owner.clone(),
-            spender: spender.clone(),
-            token_id,
-            expiration_ledger,
-        }
-        .publish(e);
-
-        #[cfg(feature = "mercury")]
-        retroshade::ApprovalChangedIndexed {
-            owner: owner.clone(),
-            spender: spender.clone(),
-            token_id,
-            expiration_ledger,
-            ledger: e.ledger().sequence(),
-            timestamp: e.ledger().timestamp(),
-        }
-        .emit(e);
+        emit_approval_changed(e, owner, spender, token_id, expiration_ledger);
     }
 
     /// Extends the TTL of delegation data to ensure it persists long-term
@@ -264,18 +139,10 @@ impl DaoTokenContract {
                 .set(&VotesStorageKey::Delegatee(account.clone()), account);
 
             // Emit standard delegation event (same as library)
-            emit_delegate_changed(e, account, None, account);
+            emit_library_delegate_changed(e, account, None, account);
 
-            // Emit Mercury indexing event
-            #[cfg(feature = "mercury")]
-            retroshade::DelegateChangedIndexed {
-                delegator: account.clone(),
-                from_delegate: None,
-                to_delegate: account.clone(),
-                ledger: e.ledger().sequence(),
-                timestamp: e.ledger().timestamp(),
-            }
-            .emit(e);
+            // Emit custom retroshade event
+            emit_delegate_changed(e, account, None, account);
 
             // Note: Vote movement happens automatically when transfer_voting_units()
             // is called by sequential_mint() or transfer(), which looks up the
