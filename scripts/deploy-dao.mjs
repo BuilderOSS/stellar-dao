@@ -29,6 +29,13 @@ const defaultDeployConfig = {
     queueDelay: 300,
     proposalThreshold: 1,
     quorumBps: 1000
+  },
+  auction: {
+    duration: 86400,
+    reservePrice: 1000000000,
+    minBidIncrementPercent: 10,
+    timeBuffer: 900,
+    paymentToken: ''
   }
 };
 
@@ -50,6 +57,32 @@ function loadDeployConfig(filePath) {
   }
 
   const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+  const requiredFields = [
+    ['network', parsed.network],
+    ['label', parsed.label],
+    ['adminAddress', parsed.adminAddress],
+    ['webBaseUrl', parsed.webBaseUrl],
+    ['rpcUrl', parsed.rpcUrl],
+    ['networkPassphrase', parsed.networkPassphrase],
+    ['token.name', parsed.token?.name],
+    ['token.symbol', parsed.token?.symbol],
+    ['token.description', parsed.token?.description],
+    ['governor.votingDelay', parsed.governor?.votingDelay],
+    ['governor.votingPeriod', parsed.governor?.votingPeriod],
+    ['governor.queueDelay', parsed.governor?.queueDelay],
+    ['governor.proposalThreshold', parsed.governor?.proposalThreshold],
+    ['governor.quorumBps', parsed.governor?.quorumBps],
+    ['auction.duration', parsed.auction?.duration],
+    ['auction.reservePrice', parsed.auction?.reservePrice],
+    ['auction.minBidIncrementPercent', parsed.auction?.minBidIncrementPercent],
+    ['auction.timeBuffer', parsed.auction?.timeBuffer],
+    ['auction.paymentToken', parsed.auction?.paymentToken]
+  ];
+  const missingField = requiredFields.find(([, value]) => value === undefined || value === null || value === '');
+  if (missingField) {
+    throw new Error(`Config ${filePath} must define ${missingField[0]}`);
+  }
+
   if (!['local', 'testnet', 'mainnet'].includes(parsed.network)) {
     throw new Error(`Config ${filePath} must define network as local, testnet, or mainnet`);
   }
@@ -59,10 +92,6 @@ function loadDeployConfig(filePath) {
   if (!parsed.rpcUrl || !parsed.networkPassphrase) {
     throw new Error(`Config ${filePath} must define rpcUrl and networkPassphrase`);
   }
-  if (!parsed.token?.description) {
-    throw new Error(`Config ${filePath} must define token.description`);
-  }
-
   return {
     ...defaultDeployConfig,
     ...parsed,
@@ -73,6 +102,10 @@ function loadDeployConfig(filePath) {
     governor: {
       ...defaultDeployConfig.governor,
       ...parsed.governor
+    },
+    auction: {
+      ...defaultDeployConfig.auction,
+      ...parsed.auction
     }
   };
 }
@@ -198,7 +231,8 @@ async function writeDeployArtifact(contracts, transactions) {
       rpcUrl,
       networkPassphrase,
       token: config.token,
-      governor: config.governor
+      governor: config.governor,
+      auction: config.auction
     },
     contracts,
     outputs: {
@@ -209,7 +243,7 @@ async function writeDeployArtifact(contracts, transactions) {
     }
   };
 
-  if (transactions && (transactions.token || transactions.governor || transactions.treasury)) {
+  if (transactions && (transactions.token || transactions.governor || transactions.treasury || transactions.auction)) {
     artifact.transactions = transactions;
   }
 
@@ -231,7 +265,7 @@ function cleanupTempConfig() {
 
 async function main() {
   try {
-    run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '--release', '--target', 'wasm32v1-none'], {
+    run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '-p', 'auction', '--release', '--target', 'wasm32v1-none'], {
       env: {
         ...process.env,
         SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2: '0'
@@ -243,6 +277,7 @@ async function main() {
     const token = contractId('token');
     const treasury = contractId('treasury');
     const governor = contractId('governor');
+    const auction = contractId('auction');
 
     const tokenDeploy = deployIfMissing('token', `dao-token-${networkName}`, [
       '--owner',
@@ -281,18 +316,31 @@ async function main() {
       String(config.governor.quorumBps)
     ]);
 
+    const auctionDeploy = deployIfMissing('auction', `dao-auction-${networkName}`, [
+      '--owner', adminAddress,
+      '--token_contract', token,
+      '--treasury', treasury,
+      '--duration', String(config.auction.duration),
+      '--reserve_price', String(config.auction.reservePrice),
+      '--min_bid_increment_percent', String(config.auction.minBidIncrementPercent),
+      '--time_buffer', String(config.auction.timeBuffer),
+      '--payment_token', config.auction.paymentToken
+    ]);
+
     const transactions = {
       token: tokenDeploy.txMetadata,
       treasury: treasuryDeploy.txMetadata,
-      governor: governorDeploy.txMetadata
+      governor: governorDeploy.txMetadata,
+      auction: auctionDeploy.txMetadata
     };
 
-    await writeDeployArtifact({ token, governor, treasury }, transactions);
+    await writeDeployArtifact({ token, governor, treasury, auction }, transactions);
 
     console.log(`Deployed ${networkName} DAO contracts:`);
     console.log(`TOKEN=${token}`);
     console.log(`GOVERNOR=${governor}`);
     console.log(`TREASURY=${treasury}`);
+    console.log(`AUCTION=${auction}`);
   } finally {
     cleanupTempConfig();
   }

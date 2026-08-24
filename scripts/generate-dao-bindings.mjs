@@ -20,6 +20,12 @@ const contracts = [
     wasmPath: `${buildDir}/treasury.wasm`,
     outputDir: 'packages/treasury-bindings',
     packageJsonName: '@dao-test-stellar/treasury-bindings'
+  },
+  {
+    packageName: 'auction',
+    wasmPath: `${buildDir}/auction.wasm`,
+    outputDir: 'packages/auction-bindings',
+    packageJsonName: '@dao-test-stellar/auction-bindings'
   }
 ];
 
@@ -76,13 +82,20 @@ function patchGeneratedBindings(packageName, outputDir) {
     );
   }
 
+  if (packageName === 'auction') {
+    content = content.replace(
+      'export class Client extends ContractClient {\n',
+      'export class Client extends ContractClient {\n  declare txFromJSON: any;\n'
+    );
+  }
+
   content = content.replace(/this\.txFromJSON<[^>]+>/g, '(this as any).txFromJSON');
   content = content.replace(/\(this as any\)\.txFromJSON>/g, '(this as any).txFromJSON');
 
   writeFileSync(indexPath, content);
 }
 
-run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '--release', '--target', 'wasm32v1-none'], {
+run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '-p', 'auction', '--release', '--target', 'wasm32v1-none'], {
   env: {
     ...process.env,
     SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2: '0'

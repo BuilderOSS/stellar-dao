@@ -71,11 +71,19 @@ export const DEPLOYMENTS = DEPLOYMENTS_DATA as Array<{
       proposalThreshold: number;
       quorumBps: number;
     };
+    auction: {
+      duration: number;
+      reservePrice: number;
+      minBidIncrementPercent: number;
+      timeBuffer: number;
+      paymentToken: string;
+    };
   };
   contracts: {
     token: string;
     governor: string;
     treasury: string;
+    auction: string;
   };
   outputs: {
     tokenBaseUri: string;
@@ -87,6 +95,7 @@ export const DEPLOYMENTS = DEPLOYMENTS_DATA as Array<{
     token?: { deployedAt: string; txHash?: string };
     governor?: { deployedAt: string; txHash?: string };
     treasury?: { deployedAt: string; txHash?: string };
+    auction?: { deployedAt: string; txHash?: string };
   };
   mercury?: {
     deployedAt: string;
@@ -94,6 +103,7 @@ export const DEPLOYMENTS = DEPLOYMENTS_DATA as Array<{
       token: { program_id: number; project: string };
       governor: { program_id: number; project: string };
       treasury: { program_id: number; project: string };
+      auction: { program_id: number; project: string };
     };
   };
   mercuryBaseUrl: string;

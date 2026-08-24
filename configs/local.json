@@ -16,5 +16,12 @@
     "queueDelay": 300,
     "proposalThreshold": 1,
     "quorumBps": 1000
+  },
+  "auction": {
+    "duration": 500,
+    "reservePrice": 1000000000,
+    "minBidIncrementPercent": 10,
+    "timeBuffer": 50,
+    "paymentToken": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
   }
 }

@@ -7,8 +7,8 @@
     "build": "pnpm --dir apps/web build",
     "lint": "pnpm --dir apps/web lint",
     "typecheck": "pnpm --dir apps/web typecheck",
-    "dao:build": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none",
-    "dao:build:mercury": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury --release --target wasm32v1-none --features mercury",
+    "dao:build": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury -p auction --release --target wasm32v1-none",
+    "dao:build:mercury": "SOROBAN_SDK_BUILD_SYSTEM_SUPPORTS_SPEC_SHAKING_V2=0 cargo build -p token -p governor -p treasury -p auction --release --target wasm32v1-none --features mercury",
     "dao:bindings": "node scripts/generate-dao-bindings.mjs",
     "dao:generate-config": "node scripts/generate-deployment-config.mjs",
     "dao:clean": "cargo clean",
@@ -25,8 +25,7 @@
     "mercury:deploy:local": "node scripts/deploy-dao-mercury.mjs configs/local.json",
     "mercury:deploy:testnet": "node scripts/deploy-dao-mercury.mjs configs/testnet.json",
     "dao:local:up": "node scripts/dao-local-up.mjs",
-    "dao:local:down": "node scripts/dao-local-down.mjs",
-    "dao:setup:local": "node scripts/dao-setup-local.mjs"
+    "dao:local:down": "node scripts/dao-local-down.mjs"
   },
   "workspaces": [
     "apps/*",

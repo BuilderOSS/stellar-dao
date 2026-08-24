@@ -33,7 +33,17 @@ function loadConfig(filePath) {
     throw new Error(`Config file not found: ${filePath}`);
   }
 
-  return JSON.parse(readFileSync(filePath, 'utf8'));
+  const config = JSON.parse(readFileSync(filePath, 'utf8'));
+  const requiredFields = [
+    ['network', config.network],
+    ['label', config.label]
+  ];
+  const missingField = requiredFields.find(([, value]) => value === undefined || value === null || value === '');
+  if (missingField) {
+    throw new Error(`Config ${filePath} must define ${missingField[0]}`);
+  }
+
+  return config;
 }
 
 function loadEnvValue(filePath, key) {
@@ -115,9 +125,16 @@ async function main() {
   run('pnpm', ['dao:build:mercury']);
 
   const deployed = JSON.parse(readFileSync(deployArtifactPath, 'utf8'));
+  const requiredContracts = ['token', 'governor', 'treasury', 'auction'];
+  const missingContract = requiredContracts.find((name) => deployed.contracts?.[name] === undefined);
+  if (missingContract) {
+    throw new Error(`Deploy artifact ${deployArtifactPath} must define contracts.${missingContract}`);
+  }
+
   const tokenId = deployed.contracts.token;
   const governorId = deployed.contracts.governor;
   const treasuryId = deployed.contracts.treasury;
+  const auctionId = deployed.contracts.auction;
 
   deployMercuryProgram(
     'target/wasm32v1-none/release/token.wasm',
@@ -136,13 +153,19 @@ async function main() {
     projectName(config.label, config.network, 'treasury'),
     treasuryId
   );
+  deployMercuryProgram(
+    'target/wasm32v1-none/release/auction.wasm',
+    projectName(config.label, config.network, 'auction'),
+    auctionId
+  );
 
   const programs = await listMercuryPrograms();
   const tokenProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'token'));
   const governorProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'governor'));
   const treasuryProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'treasury'));
+  const auctionProgram = programs.find((program) => program.project_name === projectName(config.label, config.network, 'auction'));
 
-  if (!tokenProgram || !governorProgram || !treasuryProgram) {
+  if (!tokenProgram || !governorProgram || !treasuryProgram || !auctionProgram) {
     throw new Error('Failed to read deployed Mercury program ids');
   }
 
@@ -155,7 +178,8 @@ async function main() {
         programs: {
           token: { program_id: tokenProgram.id, project: tokenProgram.project_name },
           governor: { program_id: governorProgram.id, project: governorProgram.project_name },
-          treasury: { program_id: treasuryProgram.id, project: treasuryProgram.project_name }
+          treasury: { program_id: treasuryProgram.id, project: treasuryProgram.project_name },
+          auction: { program_id: auctionProgram.id, project: auctionProgram.project_name }
         }
       }
     };
@@ -168,6 +192,7 @@ async function main() {
   console.log(`TOKEN: program_id=${tokenProgram.id}, project=${tokenProgram.project_name}`);
   console.log(`GOVERNOR: program_id=${governorProgram.id}, project=${governorProgram.project_name}`);
   console.log(`TREASURY: program_id=${treasuryProgram.id}, project=${treasuryProgram.project_name}`);
+  console.log(`AUCTION: program_id=${auctionProgram.id}, project=${auctionProgram.project_name}`);
 }
 
 await main();
