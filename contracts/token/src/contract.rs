@@ -5,7 +5,9 @@ use stellar_macros::only_owner;
 use stellar_tokens::non_fungible::{votes::NonFungibleVotes, Base};
 
 use crate::error::TokenError;
-use crate::events::*;
+use crate::events::{emit_batch_mint, emit_mint_authority_changed, emit_token_initialized, emit_token_mint};
+#[cfg(feature = "mercury")]
+use crate::events::{emit_approval_changed, emit_delegate_changed, emit_token_transfer};
 use crate::storage::*;
 
 #[contract]
@@ -82,6 +84,7 @@ impl DaoTokenContract {
         NonFungibleVotes::transfer(e, from, to, token_id);
         // Note: OpenZeppelin's NonFungibleVotes::transfer() automatically emits standard Transfer event
 
+        #[cfg(feature = "mercury")]
         emit_token_transfer(e, from, from, to, token_id);
     }
 
@@ -90,6 +93,7 @@ impl DaoTokenContract {
         NonFungibleVotes::transfer_from(e, spender, from, to, token_id);
         // Note: OpenZeppelin's NonFungibleVotes::transfer_from() automatically emits standard Transfer event
 
+        #[cfg(feature = "mercury")]
         emit_token_transfer(e, spender, from, to, token_id);
     }
 
@@ -103,6 +107,7 @@ impl DaoTokenContract {
         Base::approve(e, owner, spender, token_id, expiration_ledger);
         // Note: OpenZeppelin's Base::approve() automatically emits standard Approve event
 
+        #[cfg(feature = "mercury")]
         emit_approval_changed(e, owner, spender, token_id, expiration_ledger);
     }
 
@@ -142,6 +147,7 @@ impl DaoTokenContract {
             emit_library_delegate_changed(e, account, None, account);
 
             // Emit custom retroshade event
+            #[cfg(feature = "mercury")]
             emit_delegate_changed(e, account, None, account);
 
             // Note: Vote movement happens automatically when transfer_voting_units()

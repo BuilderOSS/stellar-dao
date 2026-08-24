@@ -227,7 +227,7 @@ pub fn emit_batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32, las
     .emit(e);
 }
 
-#[allow(unused_variables)]
+#[cfg(feature = "mercury")]
 pub fn emit_token_transfer(
     e: &Env,
     operator: &Address,
@@ -235,7 +235,6 @@ pub fn emit_token_transfer(
     to: &Address,
     token_id: u32,
 ) {
-    #[cfg(feature = "mercury")]
     retroshade::TokenTransferIndexed {
         operator: operator.clone(),
         from: from.clone(),
@@ -247,7 +246,7 @@ pub fn emit_token_transfer(
     .emit(e);
 }
 
-#[allow(unused_variables)]
+#[cfg(feature = "mercury")]
 pub fn emit_approval_changed(
     e: &Env,
     owner: &Address,
@@ -255,7 +254,6 @@ pub fn emit_approval_changed(
     token_id: u32,
     expiration_ledger: u32,
 ) {
-    #[cfg(feature = "mercury")]
     retroshade::ApprovalChangedIndexed {
         owner: owner.clone(),
         spender: spender.clone(),
@@ -267,14 +265,13 @@ pub fn emit_approval_changed(
     .emit(e);
 }
 
-#[allow(unused_variables)]
+#[cfg(feature = "mercury")]
 pub fn emit_delegate_changed(
     e: &Env,
     delegator: &Address,
     from_delegate: Option<Address>,
     to_delegate: &Address,
 ) {
-    #[cfg(feature = "mercury")]
     retroshade::DelegateChangedIndexed {
         delegator: delegator.clone(),
         from_delegate,
