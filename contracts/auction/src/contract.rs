@@ -6,9 +6,9 @@ use stellar_macros::{only_owner, when_not_paused, when_paused};
 use crate::{
     error::AuctionError,
     events::{
-        emit_auction_cancelled, emit_duration_updated, emit_min_bid_increment_updated,
-        emit_payment_token_updated, emit_reserve_price_updated, emit_time_buffer_updated,
-        emit_treasury_updated,
+        emit_auction_cancelled, emit_auction_initialized, emit_duration_updated,
+        emit_min_bid_increment_updated, emit_payment_token_updated, emit_reserve_price_updated,
+        emit_time_buffer_updated, emit_treasury_updated,
     },
     helpers::{create_auction, process_bid, refund_bid, settle_auction_internal},
     storage::{
@@ -16,9 +16,6 @@ use crate::{
         AuctionConfig, AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_RESERVE_PRICE,
     },
 };
-
-#[cfg(feature = "mercury")]
-use crate::events::emit_auction_initialized;
 
 #[contract]
 pub struct DaoAuctionContract;
@@ -158,7 +155,6 @@ impl DaoAuctionContractTrait for DaoAuctionContract {
         // Not launched yet
         set_launched(e, false);
 
-        #[cfg(feature = "mercury")]
         emit_auction_initialized(
             e,
             &owner,

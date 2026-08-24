@@ -134,6 +134,20 @@ mod retroshade {
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuctionInitialized {
+    #[topic]
+    pub owner: Address,
+    pub token_contract: Address,
+    pub treasury: Address,
+    pub duration: u64,
+    pub reserve_price: i128,
+    pub min_bid_increment_percent: u32,
+    pub time_buffer: u64,
+    pub payment_token: Option<Address>,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuctionCreated {
     #[topic]
     pub token_id: u128,
@@ -225,7 +239,6 @@ pub struct AuctionCancelled {
 }
 
 // Event publishing helpers
-#[cfg(feature = "mercury")]
 pub fn emit_auction_initialized(
     e: &Env,
     owner: &Address,
@@ -237,6 +250,19 @@ pub fn emit_auction_initialized(
     time_buffer: u64,
     payment_token: &Option<Address>,
 ) {
+    AuctionInitialized {
+        owner: owner.clone(),
+        token_contract: token_contract.clone(),
+        treasury: treasury.clone(),
+        duration,
+        reserve_price,
+        min_bid_increment_percent,
+        time_buffer,
+        payment_token: payment_token.clone(),
+    }
+    .publish(e);
+
+    #[cfg(feature = "mercury")]
     retroshade::AuctionInitializedIndexed {
         owner: owner.clone(),
         token_contract: token_contract.clone(),
