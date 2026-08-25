@@ -7,6 +7,27 @@ const VOTE_OPTIONS = [
   { label: 'Abstain', value: 2 }
 ];
 
+const VOTE_STYLES: Record<number, { border: string; background: string; color: string; accent: string }> = {
+  1: {
+    border: 'rgba(74, 222, 128, 0.52)',
+    background: 'rgba(10, 38, 24, 0.72)',
+    color: '#dcfce7',
+    accent: 'rgba(74, 222, 128, 0.82)'
+  },
+  0: {
+    border: 'rgba(248, 113, 113, 0.52)',
+    background: 'rgba(45, 12, 12, 0.72)',
+    color: '#fee2e2',
+    accent: 'rgba(248, 113, 113, 0.82)'
+  },
+  2: {
+    border: 'rgba(148, 163, 184, 0.48)',
+    background: 'rgba(30, 41, 59, 0.72)',
+    color: '#e2e8f0',
+    accent: 'rgba(148, 163, 184, 0.8)'
+  }
+};
+
 type CurrentVote = {
   label: string;
   reason: string;
@@ -28,6 +49,9 @@ type ProposalVotePanelProps = {
 };
 
 export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType, votingPower, votingPowerLoading, votingPowerError, unavailableReason, onVoteReasonChange, onSelectedVoteTypeChange, onVote, currentVote }: ProposalVotePanelProps) {
+  const selectedOption = selectedVoteType === null ? null : VOTE_OPTIONS.find((option) => option.value === selectedVoteType) ?? null;
+  const selectedVoteStyle = selectedVoteType === null ? null : VOTE_STYLES[selectedVoteType] ?? null;
+
   return (
     <Stack gap="3">
       <Text className="label">Your vote</Text>
@@ -55,14 +79,15 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
             <div role="radiogroup" aria-label="Vote type" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {VOTE_OPTIONS.map((option) => {
                 const selected = selectedVoteType === option.value;
+                const style = VOTE_STYLES[option.value];
                 return (
                   <label
                     key={option.value}
                     style={{
                       borderRadius: '8px',
-                      border: selected ? '1px solid rgba(147, 197, 253, 0.95)' : '1px solid rgba(160, 194, 225, 0.28)',
-                      background: selected ? 'rgba(37, 99, 235, 0.92)' : 'transparent',
-                      color: selected ? '#eff6ff' : 'inherit',
+                      border: selected ? `1px solid ${style.border}` : '1px solid rgba(160, 194, 225, 0.28)',
+                      background: selected ? style.background : 'transparent',
+                      color: selected ? style.color : 'inherit',
                       cursor: busy ? 'not-allowed' : 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -87,6 +112,21 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
               })}
             </div>
           </fieldset>
+          {selectedOption && selectedVoteStyle ? (
+            <Card
+              p="3"
+              style={{
+                borderColor: selectedVoteStyle.border,
+                background: `linear-gradient(180deg, ${selectedVoteStyle.background} 0%, rgba(9, 9, 10, 0.76) 100%)`
+              }}
+            >
+              <Stack gap="1">
+                <Text className="lede" style={{ margin: 0, fontSize: '0.84rem', color: selectedVoteStyle.color }}>
+                  {selectedOption.label} · {votingPower ?? '0'} voting power
+                </Text>
+              </Stack>
+            </Card>
+          ) : null}
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="button" onClick={() => selectedVoteType !== null ? onVote(selectedVoteType) : undefined} disabled={busy || selectedVoteType === null}>
               {busy ? 'Submitting...' : 'Submit vote'}
