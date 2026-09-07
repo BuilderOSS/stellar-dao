@@ -6,7 +6,7 @@
 //!
 //! ## Key Features
 //!
-//! - **Sequential NFT Minting**: Tokens are minted with sequential IDs starting from 1
+//! - **Sequential NFT Minting**: Tokens are minted with sequential IDs starting from 0
 //! - **Voting Power**: Each token represents voting power that can be delegated
 //! - **Auto-Delegation**: New token holders are automatically self-delegated for better UX
 //! - **Checkpoint System**: Voting power is tracked via historical checkpoints for proposals

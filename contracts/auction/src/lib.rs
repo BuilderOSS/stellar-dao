@@ -17,7 +17,7 @@
 //!
 //! ## Auction Lifecycle
 //!
-//! 1. **Launch**: Owner unpauses contract, creating the first auction with token ID 1
+//! 1. **Launch**: Owner unpauses contract, creating the first auction with token ID 0
 //! 2. **Bidding**: Users place bids (must exceed reserve + increment). Payment type
 //!    locks on first bid (all subsequent bids must use same currency)
 //! 3. **Time Extension**: If bid arrives within `time_buffer` of end, auction extends

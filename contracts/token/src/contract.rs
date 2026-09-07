@@ -91,7 +91,7 @@ impl DaoTokenContract {
 
     /// Mints a single NFT to the specified address.
     ///
-    /// The token is assigned a sequential ID (starting from 1) and the recipient
+    /// The token is assigned a sequential ID (starting from 0) and the recipient
     /// is automatically self-delegated if they don't have an existing delegation,
     /// ensuring they immediately receive voting power.
     ///
