@@ -5,6 +5,7 @@ This package owns the Goldsky pipeline source, generator, and tests.
 Env vars:
 - `NEXT_PUBLIC_DAO_NETWORK`
 - `NEXT_PUBLIC_DAO_LABEL`
+- `GOLDSKY_POSTGRES_SECRET`
 
 The generator will also read `packages/goldsky/.env` and `packages/goldsky/.env.local` when present.
 

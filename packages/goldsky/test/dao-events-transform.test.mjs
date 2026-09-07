@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { buildGoldskyPipelineYaml, resolveDeploymentSelection, writeGoldskyPipeline } from '../src/pipeline-generator.mjs';
+import { buildGoldskyPipelineYaml, resolveDeploymentSelection, resolvePostgresSecretName, writeGoldskyPipeline } from '../src/pipeline-generator.mjs';
 
 function loadInvoke() {
   const source = readFileSync(new URL('../src/activity-feed.script.js', import.meta.url), 'utf8');
@@ -88,12 +88,18 @@ test('deployment selection uses shared env names', () => {
   assert.match(selection.artifactPath, /deploys\/builder-testnet\.json$/);
 });
 
+test('postgres secret selection uses env with fallback', () => {
+  assert.equal(resolvePostgresSecretName({ GOLDSKY_POSTGRES_SECRET: 'MY_SECRET' }), 'MY_SECRET');
+  assert.equal(resolvePostgresSecretName({ DAO_POSTGRES: 'OLD_SECRET' }), 'OLD_SECRET');
+  assert.equal(resolvePostgresSecretName({}), 'DAO_POSTGRES');
+});
+
 test('pipeline generator renders the current deployment and script', () => {
   const deployment = JSON.parse(readFileSync(new URL('../../../deploys/builder-testnet.json', import.meta.url), 'utf8'));
   const template = readFileSync(new URL('../templates/dao-stellar-events.yaml.mustache', import.meta.url), 'utf8');
   const script = readFileSync(new URL('../src/activity-feed.script.js', import.meta.url), 'utf8');
 
-  const yaml = buildGoldskyPipelineYaml({ deployment, templateSource: template, scriptSource: script });
+  const yaml = buildGoldskyPipelineYaml({ deployment, secretName: 'MY_SECRET', templateSource: template, scriptSource: script });
 
   assert.match(yaml, /name: dao-stellar-events/);
   assert.match(yaml, /dataset_name: stellar_testnet\.events/);
@@ -104,7 +110,7 @@ test('pipeline generator renders the current deployment and script', () => {
   assert.match(yaml, /CCWTJATDBQN5H2M4RFTCB7Z3SHEMVZUXEB6YA7CHO5QME6AS55IUMEHI/);
   assert.match(yaml, /CCPNKK3XDYHX57MNAUSWNRHDZKDOIG7DOGV43I4N3LJ74KK7TVZLXVW2/);
   assert.match(yaml, /CBHISFJ2I27W7LWUYE3MX5ZS732BPVKPJ2BTO3ASSYAPEBSV7YZYD66E/);
-  assert.match(yaml, /secret_name: DAO_POSTGRES/);
+  assert.match(yaml, /secret_name: MY_SECRET/);
 });
 
 test('writeGoldskyPipeline writes a file from env selection', () => {
@@ -112,13 +118,15 @@ test('writeGoldskyPipeline writes a file from env selection', () => {
   const result = writeGoldskyPipeline({
     env: {
       NEXT_PUBLIC_DAO_NETWORK: 'testnet',
-      NEXT_PUBLIC_DAO_LABEL: 'builder'
+      NEXT_PUBLIC_DAO_LABEL: 'builder',
+      GOLDSKY_POSTGRES_SECRET: 'MY_SECRET'
     },
     outputPath
   });
 
   assert.equal(result.selection.network, 'testnet');
   assert.equal(result.selection.label, 'builder');
+  assert.equal(result.secretName, 'MY_SECRET');
   assert.equal(result.outputPath, outputPath);
   assert.match(readFileSync(outputPath, 'utf8'), /name: dao-stellar-events/);
 });

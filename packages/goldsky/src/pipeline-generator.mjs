@@ -32,6 +32,11 @@ export function resolveDeploymentSelection(env = process.env) {
   return { network, label, artifactPath };
 }
 
+export function resolvePostgresSecretName(env = process.env) {
+  const merged = loadPackageEnv(env);
+  return merged.GOLDSKY_POSTGRES_SECRET || merged.DAO_POSTGRES || 'DAO_POSTGRES';
+}
+
 export function loadDeploymentArtifact(selection = resolveDeploymentSelection()) {
   if (!existsSync(selection.artifactPath)) {
     throw new Error(`Deployment artifact not found: ${selection.artifactPath}`);
@@ -64,7 +69,7 @@ function formatContractIdList(contracts) {
     .join('\n');
 }
 
-export function buildGoldskyPipelineYaml({ deployment, templateSource, scriptSource }) {
+export function buildGoldskyPipelineYaml({ deployment, secretName, templateSource, scriptSource }) {
   const template = templateSource ?? readFileSync(defaultTemplatePath, 'utf8');
   const script = scriptSource ?? readFileSync(defaultScriptPath, 'utf8');
 
@@ -75,17 +80,19 @@ export function buildGoldskyPipelineYaml({ deployment, templateSource, scriptSou
     DATASET_NAME: `stellar_${deployment.network}.events`,
     CONTRACT_ROLE_CASES: formatContractRoleCases(deployment.contracts),
     CONTRACT_ID_LIST: formatContractIdList(deployment.contracts),
-    ACTIVITY_SCRIPT: indentBlock(script, 6)
+    ACTIVITY_SCRIPT: indentBlock(script, 6),
+    POSTGRES_SECRET_NAME: secretName || 'DAO_POSTGRES'
   });
 }
 
 export function writeGoldskyPipeline({ env = process.env, outputPath = defaultOutputPath } = {}) {
   const selection = resolveDeploymentSelection(env);
   const deployment = loadDeploymentArtifact(selection);
-  const yaml = buildGoldskyPipelineYaml({ deployment });
+  const secretName = resolvePostgresSecretName(env);
+  const yaml = buildGoldskyPipelineYaml({ deployment, secretName });
 
   mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, `${yaml.trimEnd()}\n`);
 
-  return { selection, deployment, outputPath, yaml };
+  return { selection, deployment, secretName, outputPath, yaml };
 }
