@@ -7,7 +7,7 @@ const moduleDir = dirname(fileURLToPath(import.meta.url));
 export const packageRoot = resolve(moduleDir, '..');
 export const repoRoot = resolve(packageRoot, '..', '..');
 export const defaultTemplatePath = join(packageRoot, 'templates', 'dao-stellar-events.yaml.mustache');
-export const defaultScriptPath = join(packageRoot, 'templates', 'activity-feed.script.js');
+export const defaultScriptPath = join(packageRoot, 'src', 'activity-feed.script.js');
 export const defaultOutputPath = join(packageRoot, 'pipelines', 'dao-stellar-events.yaml');
 export const defaultEnvPaths = [join(packageRoot, '.env'), join(packageRoot, '.env.local')];
 

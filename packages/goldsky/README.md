@@ -12,4 +12,4 @@ Commands:
 - `pnpm --dir packages/goldsky generate`
 - `pnpm --dir packages/goldsky test`
 
-The generator reads `deploys/<label>-<network>.json`, inlines the Goldsky script, and writes `packages/goldsky/pipelines/dao-stellar-events.yaml`.
+The generator reads `deploys/<label>-<network>.json`, inlines `packages/goldsky/src/activity-feed.script.js`, and writes `packages/goldsky/pipelines/dao-stellar-events.yaml`.
