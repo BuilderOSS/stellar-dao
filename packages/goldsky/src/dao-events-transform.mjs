@@ -136,6 +136,7 @@ export function normalizeGoldskyEventRow(row) {
     deployment_id: row.deployment_id ?? null,
     contract_instance_id: row.contract_instance_id ?? null,
     contract_id: String(contractId),
+    contract_role: row.contract_role ?? null,
     event_type: row.event_type ?? row.event_name ?? null,
     event_name: row.event_name ?? row.event_type ?? null,
     topics: row.topics ?? null,
@@ -177,6 +178,8 @@ export function buildActivityFeedRow(row) {
   return {
     activity_id: row.event_id ?? row.id ?? null,
     deployment_id: row.deployment_id ?? null,
+    contract_id: row.contract_id ?? null,
+    contract_role: row.contract_role ?? null,
     kind,
     title,
     summary: buildSummary(eventName, row),

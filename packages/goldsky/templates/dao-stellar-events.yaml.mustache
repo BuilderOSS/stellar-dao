@@ -1,0 +1,71 @@
+name: {{PIPELINE_NAME}}
+resource_size: {{RESOURCE_SIZE}}
+description: {{DESCRIPTION}}
+
+sources:
+  stellar_events:
+    type: dataset
+    dataset_name: {{DATASET_NAME}}
+    version: 1.2.0
+    start_at: latest
+
+transforms:
+  dao_events:
+    type: sql
+    primary_key: id
+    sql: |
+      SELECT
+        id,
+        contract_id,
+        CASE contract_id
+{{CONTRACT_ROLE_CASES}}
+          ELSE 'unknown'
+        END AS contract_role,
+        topics,
+        data,
+        transaction_hash,
+        transaction_successful,
+        ledger_sequence,
+        ledger_hash,
+        ledger_closed_at,
+        transaction_index,
+        operation_index,
+        event_index,
+        operation_type,
+        _gs_op
+      FROM stellar_events
+      WHERE contract_id IN (
+{{CONTRACT_ID_LIST}}
+      )
+
+  activity_feed:
+    type: script
+    from: dao_events
+    language: typescript
+    primary_key: activity_id
+    schema:
+      activity_id: string
+      deployment_id: string
+      contract_id: string
+      contract_role: string
+      kind: string
+      title: string
+      summary: string
+      proposal_id: string
+      proposal_number: string
+      actor: string
+      addresses: string
+      ledger_sequence: int64
+      timestamp: string
+      transaction_hash: string
+    script: |
+{{ACTIVITY_SCRIPT}}
+
+sinks:
+  postgres_output:
+    type: postgres
+    from: activity_feed
+    schema: app
+    table: activity_feed
+    secret_name: DAO_POSTGRES
+    primary_key: activity_id

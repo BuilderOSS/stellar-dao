@@ -1,6 +1,6 @@
 name: dao-stellar-events
 resource_size: s
-description: Index the current testnet DAO deployment with Goldsky Turbo
+description: Index the testnet DAO deployment with Goldsky Turbo
 
 sources:
   stellar_events:
@@ -17,6 +17,13 @@ transforms:
       SELECT
         id,
         contract_id,
+        CASE contract_id
+          WHEN 'CBGLIC3VDPNSXRQTHIHADJVL3WVM54ZIO7FV23SDC3DQTTDLO2NMYUK7' THEN 'token'
+          WHEN 'CCWTJATDBQN5H2M4RFTCB7Z3SHEMVZUXEB6YA7CHO5QME6AS55IUMEHI' THEN 'governor'
+          WHEN 'CCPNKK3XDYHX57MNAUSWNRHDZKDOIG7DOGV43I4N3LJ74KK7TVZLXVW2' THEN 'treasury'
+          WHEN 'CBHISFJ2I27W7LWUYE3MX5ZS732BPVKPJ2BTO3ASSYAPEBSV7YZYD66E' THEN 'auction'
+          ELSE 'unknown'
+        END AS contract_role,
         topics,
         data,
         transaction_hash,
@@ -45,6 +52,8 @@ transforms:
     schema:
       activity_id: string
       deployment_id: string
+      contract_id: string
+      contract_role: string
       kind: string
       title: string
       summary: string
@@ -63,10 +72,13 @@ transforms:
             if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
               return row[key];
             }
+            if (row.payload && row.payload[key] !== undefined && row.payload[key] !== null && row.payload[key] !== '') {
+              return row.payload[key];
+            }
           }
           return undefined;
         }
-
+      
         function unique(values) {
           var seen = {};
           var out = [];
@@ -80,16 +92,17 @@ transforms:
           }
           return out;
         }
-
+      
         var eventName = data.event_name || data.event_type;
         if (!eventName) {
           return null;
         }
-
+      
         var kindMap = {
           TokenInitialized: 'token.initialized',
           MintWithMinter: 'token.mint',
           BatchMint: 'token.batch_mint',
+          MintAuthorityChanged: 'token.mint_authority_changed',
           GovernorInitialized: 'governance.initialized',
           ProposalQueued: 'governance.proposal_queued',
           TreasuryChanged: 'governance.treasury_changed',
@@ -99,6 +112,7 @@ transforms:
           VotingPeriodChanged: 'governance.voting_period_changed',
           ProposalThresholdChanged: 'governance.proposal_threshold_changed',
           QuorumBpsChanged: 'governance.quorum_bps_changed',
+          GovernorAuthorityChanged: 'governance.authority_changed',
           TreasuryInitialized: 'treasury.initialized',
           GovernorChanged: 'treasury.governor_changed',
           Execute: 'treasury.execute',
@@ -115,11 +129,12 @@ transforms:
           BidRefunded: 'auction.bid_refunded',
           AuctionCancelled: 'auction.cancelled'
         };
-
+      
         var titleMap = {
           TokenInitialized: 'Token initialized',
           MintWithMinter: 'Token minted',
           BatchMint: 'Batch mint completed',
+          MintAuthorityChanged: 'Mint authority changed',
           GovernorInitialized: 'Governor initialized',
           ProposalQueued: 'Proposal queued',
           TreasuryChanged: 'Treasury changed',
@@ -129,6 +144,7 @@ transforms:
           VotingPeriodChanged: 'Voting period updated',
           ProposalThresholdChanged: 'Proposal threshold updated',
           QuorumBpsChanged: 'Quorum updated',
+          GovernorAuthorityChanged: 'Governor authority changed',
           TreasuryInitialized: 'Treasury initialized',
           GovernorChanged: 'Governor changed',
           Execute: 'Treasury executed call',
@@ -145,7 +161,7 @@ transforms:
           BidRefunded: 'Bid refunded',
           AuctionCancelled: 'Auction cancelled'
         };
-
+      
         var addresses = unique([
           pick(data, ['actor']),
           pick(data, ['proposer']),
@@ -163,7 +179,7 @@ transforms:
           pick(data, ['token_contract_id']),
           pick(data, ['contract_id'])
         ]);
-
+      
         var summary;
         if (eventName === 'ProposalQueued') {
           summary = 'Proposal ' + (pick(data, ['proposal_id']) || '') + ' queued';
@@ -184,10 +200,12 @@ transforms:
         } else {
           summary = String(eventName).replace(/_/g, ' ');
         }
-
+      
         return {
           activity_id: data.id,
           deployment_id: data.deployment_id,
+          contract_id: data.contract_id,
+          contract_role: data.contract_role,
           kind: kindMap[eventName] || ('contract.' + String(eventName).toLowerCase()),
           title: titleMap[eventName] || String(eventName),
           summary: summary,

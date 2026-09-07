@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate": "node scripts/generate-pipeline.mjs",
     "test": "node --test test/*.test.mjs"
   }
 }
