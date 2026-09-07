@@ -6,6 +6,8 @@ Env vars:
 - `NEXT_PUBLIC_DAO_NETWORK`
 - `NEXT_PUBLIC_DAO_LABEL`
 
+The generator will also read `packages/goldsky/.env` and `packages/goldsky/.env.local` when present.
+
 Commands:
 - `pnpm --dir packages/goldsky generate`
 - `pnpm --dir packages/goldsky test`

@@ -6,5 +6,8 @@
   "scripts": {
     "generate": "node scripts/generate-pipeline.mjs",
     "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1"
   }
 }

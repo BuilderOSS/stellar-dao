@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse as parseDotEnv } from 'dotenv';
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 export const packageRoot = resolve(moduleDir, '..');
@@ -8,30 +9,7 @@ export const repoRoot = resolve(packageRoot, '..', '..');
 export const defaultTemplatePath = join(packageRoot, 'templates', 'dao-stellar-events.yaml.mustache');
 export const defaultScriptPath = join(packageRoot, 'templates', 'activity-feed.script.js');
 export const defaultOutputPath = join(packageRoot, 'pipelines', 'dao-stellar-events.yaml');
-export const defaultEnvPaths = [join(packageRoot, '.env.local'), join(packageRoot, '.env')];
-
-export function parseEnvFile(contents) {
-  const result = {};
-  for (const rawLine of contents.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) {
-      continue;
-    }
-
-    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-    if (!match) {
-      continue;
-    }
-
-    let value = match[2].trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-
-    result[match[1]] = value;
-  }
-  return result;
-}
+export const defaultEnvPaths = [join(packageRoot, '.env'), join(packageRoot, '.env.local')];
 
 export function loadPackageEnv(env = process.env, envPaths = defaultEnvPaths) {
   const fileEnv = {};
@@ -39,7 +17,7 @@ export function loadPackageEnv(env = process.env, envPaths = defaultEnvPaths) {
     if (!existsSync(envPath)) {
       continue;
     }
-    Object.assign(fileEnv, parseEnvFile(readFileSync(envPath, 'utf8')));
+    Object.assign(fileEnv, parseDotEnv(readFileSync(envPath, 'utf8')));
   }
 
   return { ...fileEnv, ...env };
