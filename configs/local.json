@@ -18,7 +18,7 @@
     "quorumBps": 1000
   },
   "auction": {
-    "duration": 500,
+    "duration": 300,
     "reservePrice": 1000000000,
     "minBidIncrementPercent": 10,
     "timeBuffer": 50,

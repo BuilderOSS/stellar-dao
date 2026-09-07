@@ -324,7 +324,7 @@ async function main() {
       '--reserve_price', String(config.auction.reservePrice),
       '--min_bid_increment_percent', String(config.auction.minBidIncrementPercent),
       '--time_buffer', String(config.auction.timeBuffer),
-      '--payment_token', config.auction.paymentToken
+      '--payment_token', JSON.stringify(config.auction.paymentToken)
     ]);
 
     const transactions = {

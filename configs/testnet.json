@@ -18,10 +18,10 @@
     "quorumBps": 1000
   },
   "auction": {
-    "duration": 86400,
+    "duration": 300,
     "reservePrice": 1000000000,
     "minBidIncrementPercent": 10,
     "timeBuffer": 900,
-    "paymentToken": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+    "paymentToken": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
   }
 }
