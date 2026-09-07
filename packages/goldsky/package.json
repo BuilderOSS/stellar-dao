@@ -1,0 +1,9 @@
+{
+  "version": "0.0.0",
+  "name": "@dao-test-stellar/goldsky",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
