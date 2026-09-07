@@ -1,24 +1,22 @@
-# Goldsky and Multi-DAO Data Architecture
+# Goldsky Multi-DAO Data Architecture
 
 ## Status
 
-Planning document. This describes the intended data architecture for replacing
-Mercury with Goldsky Turbo and an independently managed PostgreSQL database.
-It is intentionally designed for the current testing phase while preserving a
-path to a factory that deploys multiple DAOs.
+Target architecture for a multi-DAO indexer built on Goldsky Turbo and PostgreSQL.
+This doc is intentionally future-facing: it assumes a factory-driven platform,
+deployment-scoped identity, and standard Soroban events only.
 
 ## Goals
 
 The data layer should:
 
-- Stream Soroban data from the token, governor, treasury, and auction contracts.
-- Decode and normalize contract events for frontend use.
-- Preserve raw on-chain data for debugging, replay, and migration checks.
+- Stream standard Soroban events from the token, governor, treasury, and auction contracts.
+- Decode and normalize events in Turbo TypeScript transforms.
+- Preserve raw on-chain data for replay, debugging, and reconciliation.
 - Support multiple DAOs, networks, and redeployments without changing primary-key design.
-- Expose proposal numbers starting at `1` for each DAO deployment.
-- Provide stable, simple query shapes for the Next.js frontend.
-- Make duplicate delivery safe.
+- Expose proposal numbers starting at `1` per deployment.
 - Keep database schema ownership, migrations, views, and indexes under our control.
+- Make duplicate delivery safe.
 - Avoid coupling contract execution to the indexing provider.
 
 ## Non-Goals
@@ -28,8 +26,8 @@ This system is not intended to:
 - Replace on-chain contract state as the source of truth.
 - Make the frontend query raw chain events directly.
 - Use an in-memory stream transform as durable application state.
-- Infer relationships between contracts from addresses when the factory can emit an explicit deployment event.
-- Build a generalized analytics warehouse before the DAO product requires one.
+- Infer relationships between contracts from addresses when a factory can emit an explicit deployment event.
+- Build a generalized analytics warehouse before the platform requires one.
 
 ## Current Context
 
@@ -40,11 +38,8 @@ The repository contains four Soroban contracts:
 - `contracts/treasury`: governor-controlled contract calls.
 - `contracts/auction`: NFT auctions, bids, refunds, settlement, and cancellation.
 
-The current frontend reads Mercury tables through server-side helpers in
-`apps/web/src/lib/mercury.ts`. The contract events already include indexed
-forms for the main domain events. The future architecture should preserve the
-same contract independence: indexing is a read-side concern and must not be
-required for transactions to succeed.
+Goldsky indexes only standard Soroban events. Custom Mercury/retroshade payloads
+are intentionally out of scope for this architecture.
 
 ## Why Goldsky Turbo
 
@@ -72,9 +67,7 @@ sources:
 
 The event dataset provides generic Soroban event rows such as `id`,
 `contract_id`, `topics`, `data`, `transaction_hash`, transaction status, ledger
-sequence, and ledger timestamp. The source is not expected to understand this
-repository's custom Retroshade event structs automatically. Decoding therefore
-belongs in our pipeline transforms or in a separately maintained decoder.
+sequence, and ledger timestamp. Decoding belongs in Turbo transforms.
 
 Useful Goldsky references:
 
@@ -85,10 +78,9 @@ Useful Goldsky references:
 - [PostgreSQL sinks](https://docs.goldsky.com/turbo-pipelines/sinks/postgres.md)
 - [Delivery guarantees](https://docs.goldsky.com/turbo-pipelines/delivery-guarantees.md)
 
-## TypeScript and WebAssembly Transforms
+## Transform Layer
 
-Turbo supports TypeScript transforms compiled to WebAssembly and executed in a
-QuickJS-based sandbox. They are suitable for:
+Turbo supports TypeScript transforms compiled to WebAssembly. They are suitable for:
 
 - Parsing `topics` and `data` fields.
 - Decoding event names and arguments.
@@ -118,7 +110,7 @@ TypeScript can decode a proposal creation event, but it should not assign
 proposal number `1`, `2`, `3`, and so on. Proposal numbering belongs in a
 database view or persisted numbering table.
 
-## Recommended System Boundary
+## System Boundary
 
 ```text
 Stellar network
@@ -145,14 +137,10 @@ Next.js server/API routes
 Frontend
 ```
 
-Goldsky owns streaming ingestion. Our PostgreSQL instance owns application
-schema, migrations, constraints, views, and frontend query contracts.
+Goldsky owns streaming ingestion. PostgreSQL owns schema, migrations,
+constraints, views, and query contracts.
 
-The browser should never connect directly to the database. Next.js server
-routes or a dedicated API layer should query the database using a restricted
-application role.
-
-## Database Provider Decision
+## Database Provider
 
 The preferred production shape is a third-party PostgreSQL provider rather
 than Goldsky's hosted database.
@@ -175,7 +163,7 @@ Provider guidance:
 The provider is replaceable. The application should depend on PostgreSQL
 interfaces and migrations, not provider-specific APIs.
 
-## Database Roles and Schemas
+## Roles And Schemas
 
 Use separate roles:
 
@@ -193,13 +181,12 @@ chain      raw and normalized chain records
 governance proposals, actions, votes, lifecycle
 token      mints, transfers, delegation, members
 auction    auctions, bids, refunds, settlements
+treasury   treasury calls and execution traces
 app        frontend read models and API-facing views
 ```
 
-Goldsky can write to `chain`, `governance`, `token`, and `auction` tables. The
-`registry` and `app` schemas should be controlled by our migrations. In the
-testing phase, it is acceptable to use fewer physical schemas, but the logical
-ownership boundary should remain clear.
+Goldsky can write to `chain`, `governance`, `token`, `auction`, and `treasury` tables. The
+`registry` and `app` schemas should be controlled by our migrations.
 
 ## Multi-DAO Identity Model
 
@@ -267,7 +254,9 @@ Expected roles:
 
 ```text
 factory
+governor
 token
+treasury
 auction
 ```
 
@@ -282,8 +271,7 @@ unique (deployment_id, contract_id)
 
 ### `chain.raw_events`
 
-This is the immutable-ish event archive used for debugging, replay, and
-comparison during the Mercury migration.
+This is the immutable-ish event archive used for debugging and replay.
 
 ```text
 event_id                         text not null
@@ -333,8 +321,8 @@ operation_index
 event_index
 ```
 
-Keeping this layer makes it possible to change frontend projections without
-re-decoding the original Goldsky source.
+Keeping this layer makes it possible to change projections without re-decoding
+the original source.
 
 ## Domain Tables
 
@@ -372,8 +360,7 @@ Primary key:
 ```
 
 The contract's `proposal_id` remains canonical. `proposal_number` is a
-frontend convenience and must never replace the canonical ID in contract
-calls.
+frontend convenience and must never replace the canonical ID in contract calls.
 
 ### `governance.proposal_actions`
 
@@ -624,7 +611,7 @@ There are two valid implementations.
 
 ### View-based numbering
 
-Use this for the testing phase:
+Use this when a deployment-scoped numeric handle is useful:
 
 ```sql
 CREATE VIEW app.proposals AS
@@ -645,8 +632,8 @@ Advantages:
 
 ### Persisted numbering
 
-Use this when production URLs, notifications, or external references depend
-on proposal numbers remaining unchanged:
+Use this when production URLs, notifications, or external references depend on
+proposal numbers remaining unchanged:
 
 ```text
 governance.proposal_numbers
@@ -659,9 +646,9 @@ Add unique constraints on both `(deployment_id, proposal_id)` and
 `(deployment_id, proposal_number)`. Populate it through a controlled database
 job or migration process, not a stateless Turbo transform.
 
-## Frontend Read Models
+## Read Models
 
-The frontend should query stable read models rather than reconstructing domain
+Consumers should query stable read models rather than reconstructing domain
 objects from raw events.
 
 Recommended views:
@@ -731,8 +718,7 @@ timestamp
 transaction_hash
 ```
 
-This replaces the current Mercury-specific activity aggregation in the web
-application.
+This is the cross-contract activity shape used by application code.
 
 ## Turbo Pipeline Design
 
@@ -817,10 +803,10 @@ For the first version, it is acceptable to use separate pipelines or sinks for
 each normalized event family. The important property is that each output has a
 stable primary key and preserves the deployment scope.
 
-## Delivery and Idempotency
+## Delivery And Idempotency
 
-Turbo provides at-least-once delivery. A record can be delivered more than
-once after a sink write succeeds but before the source position is committed.
+Turbo provides at-least-once delivery. A record can be delivered more than once
+after a sink write succeeds but before the source position is committed.
 
 Every stream and sink must therefore have a stable primary key:
 
@@ -849,6 +835,15 @@ event containing:
 dao_id or dao_namespace
 creator
 token_contract_id
+governor_contract_id
+treasury_contract_id
+auction_contract_id
+network
+deployment_version
+created_ledger
+created_transaction
+factory_contract_id
+```
 
 The indexer should treat that event as the authoritative registration of a DAO
 deployment. It should not rely only on correlating four independent
@@ -868,83 +863,11 @@ After registration, all contract event streams can resolve their
 If the factory creates contracts in the same transaction, store the factory
 transaction hash and ledger as provenance on the deployment record.
 
-## Testing-Phase Scope
-
-Do not implement the complete platform architecture immediately. Preserve the
-future boundaries while keeping the first deployment small:
-
-1. Create one manual `daos` row.
-2. Create one `dao_deployments` row for the current testnet deployment.
-3. Register the four contract instances.
-4. Add `deployment_id` to all normalized records.
-5. Stream raw events into PostgreSQL.
-6. Decode only the events needed by the current frontend.
-7. Use a view for proposal numbers.
-8. Add frontend read views for proposals, members, and activity.
-9. Compare responses against Mercury before removing Mercury.
-
-This avoids premature factory work while preventing a single-DAO schema from
-becoming a migration blocker.
-
-## Migration Plan
-
-### Phase 1: Observe
-
-- Deploy a Turbo pipeline to a blackhole sink.
-- Inspect Stellar event rows and confirm `topics` and `data` encoding.
-- Record actual event volume and historical backfill requirements.
-
-### Phase 2: Archive
-
-- Provision Neon or Supabase PostgreSQL.
-- Add migrations for registry and raw event tables.
-- Create a restricted Goldsky writer role.
-- Stream raw events with stable primary keys.
-
-### Phase 3: Decode
-
-- Implement TypeScript/WASM event decoding.
-- Store decoded events without dropping raw payloads.
-- Add malformed-event tracking rather than silently discarding failures.
-
-### Phase 4: Project
-
-- Populate proposals, actions, votes, lifecycle, token, auction, and treasury tables.
-- Add current-state views and indexes.
-- Add proposal numbering scoped by deployment.
-
-### Phase 5: Migrate Frontend Reads
-
-- Replace Mercury API helpers with database-backed server queries.
-- Preserve response shapes initially to reduce UI changes.
-- Compare proposal, vote, member, token, and activity results against Mercury.
-
-### Phase 6: Retire Mercury
-
-- Keep raw event and reconciliation checks available.
-- Stop new Mercury reads.
-- Remove Mercury credentials and deployment steps after a verification period.
-
-## Open Decisions
-
-These decisions should be made before production implementation:
-
-- Neon or Supabase as the managed PostgreSQL provider.
-- Whether proposal numbers are view-derived or persisted.
-- Whether event decoding lives entirely in Turbo or partly in a versioned application worker.
-- The exact factory deployment event and DAO identity fields.
-- Whether `members` is a view or a persisted projection at launch.
-- The historical ledger from which each deployment should be backfilled.
-- Whether the frontend API will use raw SQL, an ORM, or a typed query layer.
-
 ## Recommended Decision
 
 Use Goldsky Turbo TypeScript transforms for per-event decoding and row
-normalization, and use a third-party PostgreSQL database for durable relational
-state and frontend read models.
+normalization, and use PostgreSQL for durable relational state and read models.
 
-Start with one manually registered DAO deployment, but include `dao_id`,
-`deployment_id`, and contract-instance identity in the schema now. Use a
-deployment-scoped PostgreSQL view for `proposal_number` during testing. Move to
-a persisted numbering table only when proposal numbers become externally
-referenced or production data needs stronger immutability guarantees.
+Include `dao_id`, `deployment_id`, and contract-instance identity in the schema
+now. Use a deployment-scoped PostgreSQL view for `proposal_number` until a
+persisted numbering table becomes necessary.
