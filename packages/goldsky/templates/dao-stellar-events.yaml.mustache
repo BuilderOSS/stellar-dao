@@ -7,15 +7,16 @@ sources:
     type: dataset
     dataset_name: {{DATASET_NAME}}
     version: 1.2.0
-    start_at: latest
+    start_at: {{START_AT}}
 
 transforms:
   dao_events:
     type: sql
-    primary_key: id
+    primary_key: event_id
     sql: |
       SELECT
-        id,
+        id AS event_id,
+        '{{DEPLOYMENT_ID}}' AS deployment_id,
         contract_id,
         CASE contract_id
 {{CONTRACT_ROLE_CASES}}
@@ -38,9 +39,90 @@ transforms:
 {{CONTRACT_ID_LIST}}
       )
 
-  activity_feed:
+  raw_events:
     type: script
     from: dao_events
+    language: typescript
+    primary_key: event_id
+    schema:
+      event_id: string
+      deployment_id: string
+      contract_id: string
+      contract_role: string
+      topics: string
+      data: string
+      transaction_hash: string
+      transaction_successful: boolean
+      ledger_sequence: int64
+      ledger_hash: string
+      ledger_closed_at: string
+      transaction_index: int64
+      operation_index: int64
+      event_index: int64
+      operation_type: string
+      _gs_op: string
+    script: |
+{{RAW_EVENTS_SCRIPT}}
+
+  decoded_events:
+    type: script
+    from: raw_events
+    language: typescript
+    primary_key: event_id
+    schema:
+      event_id: string
+      deployment_id: string
+      contract_id: string
+      contract_role: string
+      event_name: string
+      event_type: string
+      payload: string
+      proposal_id: string
+      proposal_number: string
+      actor: string
+      amount: string
+      token_id: string
+      bidder: string
+      minter: string
+      owner: string
+      from_address: string
+      to_address: string
+      changed_by: string
+      cancelled_by: string
+      executor: string
+      governor: string
+      treasury: string
+      new_treasury: string
+      new_governor: string
+      token_contract: string
+      token_contract_id: string
+      target: string
+      function: string
+      support: string
+      reason: string
+      state: string
+      eta: string
+      description: string
+      snapshot_ledger: string
+      vote_start_timestamp: string
+      deadline_ledger: string
+      action_count: string
+      transaction_hash: string
+      transaction_successful: boolean
+      ledger_sequence: int64
+      ledger_hash: string
+      ledger_closed_at: string
+      transaction_index: int64
+      operation_index: int64
+      event_index: int64
+      operation_type: string
+      _gs_op: string
+    script: |
+{{DECODED_EVENTS_SCRIPT}}
+
+  activity_feed:
+    type: script
+    from: decoded_events
     language: typescript
     primary_key: activity_id
     schema:
@@ -62,7 +144,23 @@ transforms:
 {{ACTIVITY_SCRIPT}}
 
 sinks:
-  postgres_output:
+  raw_events_output:
+    type: postgres
+    from: raw_events
+    schema: chain
+    table: raw_events
+    secret_name: {{POSTGRES_SECRET_NAME}}
+    primary_key: event_id
+
+  decoded_events_output:
+    type: postgres
+    from: decoded_events
+    schema: chain
+    table: decoded_events
+    secret_name: {{POSTGRES_SECRET_NAME}}
+    primary_key: event_id
+
+  activity_feed_output:
     type: postgres
     from: activity_feed
     schema: app

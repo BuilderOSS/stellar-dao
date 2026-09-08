@@ -90,12 +90,14 @@ export const DEPLOYMENTS = DEPLOYMENTS_DATA as Array<{
     identityName: string;
     saltSuffix: string | null;
     deployArtifactPath: string;
+    deploymentLedger: number | null;
   };
+  deploymentLedger?: number | null;
   transactions?: {
-    token?: { deployedAt: string; txHash?: string };
-    governor?: { deployedAt: string; txHash?: string };
-    treasury?: { deployedAt: string; txHash?: string };
-    auction?: { deployedAt: string; txHash?: string };
+    token?: { deployedAt: string; txHash?: string; ledger?: number };
+    governor?: { deployedAt: string; txHash?: string; ledger?: number };
+    treasury?: { deployedAt: string; txHash?: string; ledger?: number };
+    auction?: { deployedAt: string; txHash?: string; ledger?: number };
   };
   mercury?: {
     deployedAt: string;

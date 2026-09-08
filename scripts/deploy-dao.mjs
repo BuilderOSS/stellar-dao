@@ -167,6 +167,40 @@ function contractId(packageName) {
   ]).stdout.trim();
 }
 
+function fetchTransactionLedger(txHash) {
+  const result = runQuiet('stellar', [
+    'tx',
+    'fetch',
+    'result',
+    '--hash',
+    txHash,
+    '--network',
+    networkName,
+    '--output',
+    'json-formatted'
+  ]);
+
+  if (!result.ok) {
+    throw new Error(`Failed to fetch ledger for transaction ${txHash}: ${result.stderr || result.stdout}`);
+  }
+
+  const match = result.stdout.match(/Transaction Ledger:\s*(\d+)/i);
+  if (!match) {
+    throw new Error(`Could not parse ledger for transaction ${txHash}`);
+  }
+
+  return Number.parseInt(match[1], 10);
+}
+
+function enrichTransactionMetadata(metadata) {
+  if (!metadata?.txHash) {
+    return metadata ?? null;
+  }
+
+  const ledger = metadata.ledger ?? fetchTransactionLedger(metadata.txHash);
+  return { ...metadata, ledger };
+}
+
 function deployIfMissing(packageName, alias, initArgs) {
   const id = contractId(packageName);
   const exists = runQuiet('stellar', ['contract', 'fetch', '--id', id, '--network', networkName]);
@@ -221,9 +255,31 @@ async function writeDeployArtifact(contracts, transactions) {
     return;
   }
 
+  const existingArtifact = existsSync(deployArtifactPath)
+    ? JSON.parse(readFileSync(deployArtifactPath, 'utf8'))
+    : null;
+
+  const mergedTransactions = {
+    ...(existingArtifact?.transactions ?? {}),
+    ...(transactions ?? {})
+  };
+
+  const enrichedTransactions = Object.fromEntries(
+    Object.entries(mergedTransactions)
+      .filter(([, metadata]) => metadata)
+      .map(([key, metadata]) => [key, enrichTransactionMetadata(metadata)])
+  );
+
+  const deploymentLedger = Math.min(
+    ...Object.values(enrichedTransactions)
+      .map((metadata) => metadata?.ledger)
+      .filter((ledger) => Number.isFinite(ledger))
+  );
+
   const artifact = {
     network: networkName,
     label: config.label,
+    deploymentLedger: Number.isFinite(deploymentLedger) ? deploymentLedger : existingArtifact?.deploymentLedger ?? null,
     config: {
       label: config.label,
       adminAddress,
@@ -239,12 +295,13 @@ async function writeDeployArtifact(contracts, transactions) {
       tokenBaseUri,
       identityName,
       saltSuffix: saltSuffix || null,
-      deployArtifactPath
+      deployArtifactPath,
+      deploymentLedger: Number.isFinite(deploymentLedger) ? deploymentLedger : existingArtifact?.outputs?.deploymentLedger ?? null
     }
   };
 
-  if (transactions && (transactions.token || transactions.governor || transactions.treasury || transactions.auction)) {
-    artifact.transactions = transactions;
+  if (Object.keys(enrichedTransactions).length > 0) {
+    artifact.transactions = enrichedTransactions;
   }
 
   mkdirSync('deploys', { recursive: true });

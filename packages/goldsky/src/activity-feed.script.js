@@ -1,12 +1,32 @@
 function invoke(data) {
+  function parsePayload(value) {
+    if (typeof value === 'string') {
+      var trimmed = value.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          return parsePayload(JSON.parse(trimmed));
+        } catch {
+          return null;
+        }
+      }
+    }
+
+    if (value && typeof value === 'object') {
+      return value;
+    }
+
+    return null;
+  }
+
   function pick(row, keys) {
+    var payload = parsePayload(row.payload) || parsePayload(row.data);
     for (var i = 0; i < keys.length; i += 1) {
       var key = keys[i];
       if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
         return row[key];
       }
-      if (row.payload && row.payload[key] !== undefined && row.payload[key] !== null && row.payload[key] !== '') {
-        return row.payload[key];
+      if (payload && payload[key] !== undefined && payload[key] !== null && payload[key] !== '') {
+        return payload[key];
       }
     }
     return undefined;

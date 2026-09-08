@@ -10,7 +10,13 @@ function loadInvoke() {
   return new Function(`${source}\nreturn invoke;`)();
 }
 
+function loadDecodedInvoke() {
+  const source = readFileSync(new URL('../src/decoded-events.script.js', import.meta.url), 'utf8');
+  return new Function(`${source}\nreturn invoke;`)();
+}
+
 const invoke = loadInvoke();
+const decode = loadDecodedInvoke();
 
 test('buildActivityFeedRow maps governance events into feed rows', () => {
   const row = invoke({
@@ -42,6 +48,29 @@ test('buildActivityFeedRow maps governance events into feed rows', () => {
     timestamp: '2026-09-07T00:00:00Z',
     transaction_hash: 'tx-2'
   });
+});
+
+test('decode events exposes activity fields and payload', () => {
+  const row = decode({
+    event_id: 'evt-9',
+    deployment_id: 'builder-testnet',
+    contract_id: 'CCWTJATDBQN5H2M4RFTCB7Z3SHEMVZUXEB6YA7CHO5QME6AS55IUMEHI',
+    contract_role: 'governor',
+    data: JSON.stringify({
+      event_name: 'ProposalQueued',
+      proposal_id: 'proposal-9',
+      proposer: 'GPROPOSER',
+      eta: 12345
+    }),
+    ledger_sequence: 404,
+    transaction_hash: 'tx-9'
+  });
+
+  assert.equal(row.event_name, 'ProposalQueued');
+  assert.equal(row.proposal_id, 'proposal-9');
+  assert.equal(row.actor, 'GPROPOSER');
+  assert.equal(row.eta, 12345);
+  assert.match(row.payload, /ProposalQueued/);
 });
 
 test('buildActivityFeedRow maps auction events into feed rows', () => {
@@ -103,8 +132,16 @@ test('pipeline generator renders the current deployment and script', () => {
 
   assert.match(yaml, /name: dao-stellar-events/);
   assert.match(yaml, /dataset_name: stellar_testnet\.events/);
+  assert.match(yaml, /start_at: 4551728/);
+  assert.match(yaml, /'builder-testnet' AS deployment_id/);
+  assert.match(yaml, /schema: chain/);
+  assert.match(yaml, /table: raw_events/);
+  assert.match(yaml, /table: decoded_events/);
+  assert.match(yaml, /table: activity_feed/);
   assert.match(yaml, /contract_id/);
   assert.match(yaml, /contract_role/);
+  assert.match(yaml, /function invoke\(data\)/);
+  assert.match(yaml, /event_name: string/);
   assert.match(yaml, /function invoke\(data\)/);
   assert.match(yaml, /CBGLIC3VDPNSXRQTHIHADJVL3WVM54ZIO7FV23SDC3DQTTDLO2NMYUK7/);
   assert.match(yaml, /CCWTJATDBQN5H2M4RFTCB7Z3SHEMVZUXEB6YA7CHO5QME6AS55IUMEHI/);
