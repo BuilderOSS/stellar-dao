@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { Client as TokenClient } from '@dao-test-stellar/token-bindings';
+import { Client as TokenClient } from '@stellar-dao/token-bindings';
 import { Server } from '@stellar/stellar-sdk/rpc';
 import type { DaoNetworkConfig } from '@/lib/dao-config';
 

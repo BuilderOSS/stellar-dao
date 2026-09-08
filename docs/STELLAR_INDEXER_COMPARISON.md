@@ -1,7 +1,7 @@
 # Stellar Blockchain Indexing Options for DAO Factory
 
 **Date:** August 2026
-**Project:** DAO Test Stellar - Multi-DAO Factory Platform
+**Project:** Stellar DAO - Multi-DAO Factory Platform
 **Purpose:** Comprehensive evaluation of blockchain indexing solutions for production deployment
 
 ---
@@ -1090,5 +1090,5 @@ During our evaluation, we discovered a **critical bug in Mercury Retroshades**:
 
 **Document Version:** 1.0
 **Last Updated:** August 21, 2026
-**Prepared By:** DAO Test Stellar Team
+**Prepared By:** Stellar DAO Team
 **Status:** Ready for Team Review

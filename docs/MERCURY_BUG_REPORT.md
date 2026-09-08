@@ -1,7 +1,7 @@
 # Mercury Retroshade Critical Bug Report: Indexing Failed Transactions
 
 **Report Date:** 2026-08-21
-**Reporter:** DAO Test Stellar Project
+**Reporter:** Stellar DAO Project
 **Severity:** HIGH - Data Integrity Issue
 **Status:** UNRESOLVED
 
@@ -446,8 +446,8 @@ Ledger: 4244806 (failed), 4244804 (success)
 ## Contact
 
 For questions about this report or to discuss solutions:
-- GitHub: https://github.com/dan13ram/test-dao-stellar
-- Related Project: DAO Test Stellar (Soroban-based governance system)
+- GitHub: https://github.com/BuilderOSS/stellar-dao
+- Related Project: Stellar DAO (Soroban-based governance system)
 
 ---
 

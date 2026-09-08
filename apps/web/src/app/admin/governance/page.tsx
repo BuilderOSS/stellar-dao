@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
-import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
+import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';

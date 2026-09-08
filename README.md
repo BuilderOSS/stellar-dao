@@ -1,4 +1,4 @@
-# Test DAO on Stellar
+# Stellar DAO
 
 Single-DAO governance MVP on Stellar/Soroban with Rust contracts, generated TypeScript bindings, a Next.js web app, and optional Mercury read models.
 

@@ -1,5 +1,5 @@
 {
-  "name": "dao-test-stellar",
+  "name": "stellar-dao",
   "private": true,
   "packageManager": "pnpm@10.12.4",
   "scripts": {

@@ -22,13 +22,13 @@
       "@/*": [
         "./src/*"
       ],
-      "@dao-test-stellar/token-bindings": [
+      "@stellar-dao/token-bindings": [
         "../../packages/token-bindings/src/index.ts"
       ],
-      "@dao-test-stellar/governor-bindings": [
+      "@stellar-dao/governor-bindings": [
         "../../packages/governor-bindings/src/index.ts"
       ],
-      "@dao-test-stellar/treasury-bindings": [
+      "@stellar-dao/treasury-bindings": [
         "../../packages/treasury-bindings/src/index.ts"
       ]
     },

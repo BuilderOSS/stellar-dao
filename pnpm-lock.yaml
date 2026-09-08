@@ -13,18 +13,18 @@ importers:
       '@creit.tech/stellar-wallets-kit':
         specifier: ^2.5.0
         version: 2.5.0(@trezor/connect@9.7.3(@solana/sysvars@5.5.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(tslib@2.8.1)(typescript@5.9.3)(utf-8-validate@6.0.6)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)))(@types/react@19.2.17)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(near-api-js@5.1.1)(react@19.2.8)(tslib@2.8.1)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.2.8))(utf-8-validate@6.0.6)(zod@3.25.76)
-      '@dao-test-stellar/governor-bindings':
-        specifier: workspace:*
-        version: link:../../packages/governor-bindings
-      '@dao-test-stellar/token-bindings':
-        specifier: workspace:*
-        version: link:../../packages/token-bindings
-      '@dao-test-stellar/treasury-bindings':
-        specifier: workspace:*
-        version: link:../../packages/treasury-bindings
       '@noble/hashes':
         specifier: ^2.2.0
         version: 2.2.0
+      '@stellar-dao/governor-bindings':
+        specifier: workspace:*
+        version: link:../../packages/governor-bindings
+      '@stellar-dao/token-bindings':
+        specifier: workspace:*
+        version: link:../../packages/token-bindings
+      '@stellar-dao/treasury-bindings':
+        specifier: workspace:*
+        version: link:../../packages/treasury-bindings
       '@stellar/stellar-sdk':
         specifier: ^16.1.0
         version: 16.1.0

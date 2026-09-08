@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Client as GovernorClient } from '@dao-test-stellar/governor-bindings';
+import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getMercuryProposalDetail } from '@/lib/mercury';
 import { proposalIdToBuffer } from '@/lib/proposal-id';

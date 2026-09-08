@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
-import { Client as TokenClient } from '@dao-test-stellar/token-bindings';
+import { Client as TokenClient } from '@stellar-dao/token-bindings';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';

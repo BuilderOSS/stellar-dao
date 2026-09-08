@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Client as TokenClient } from '@dao-test-stellar/token-bindings';
+import { Client as TokenClient } from '@stellar-dao/token-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';

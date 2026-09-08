@@ -1,6 +1,6 @@
 {
   "version": "0.0.0",
-  "name": "@dao-test-stellar/goldsky",
+  "name": "@stellar-dao/goldsky",
   "private": true,
   "type": "module",
   "scripts": {
