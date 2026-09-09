@@ -289,21 +289,21 @@ export async function getGoldskyTokenInventory(params: {
 
   const query = `
     SELECT
-      address,
-      owned_token_count,
-      delegated_to,
-      voting_power,
-      last_activity_ledger
-    FROM token.members
+      token_id,
+      owner,
+      ledger_sequence,
+      timestamp,
+      transaction_hash
+    FROM token.inventory
     WHERE deployment_id = $3
-    ORDER BY owned_token_count DESC, address
+    ORDER BY token_id DESC
     LIMIT $1 OFFSET $2
   `;
 
   const [result, countResult, supplyResult] = await Promise.all([
     pool.query(query, [limit, offset, getDeploymentId()]),
-    pool.query('SELECT COUNT(*)::int AS total FROM token.members WHERE deployment_id = $1', [getDeploymentId()]),
-    pool.query('SELECT SUM(owned_token_count) as total_supply FROM token.members WHERE deployment_id = $1', [getDeploymentId()])
+    pool.query('SELECT COUNT(*)::int AS total FROM token.inventory WHERE deployment_id = $1', [getDeploymentId()]),
+    pool.query('SELECT COUNT(*)::bigint as total_supply FROM token.inventory WHERE deployment_id = $1', [getDeploymentId()])
   ]);
 
   // Get total supply
@@ -311,9 +311,40 @@ export async function getGoldskyTokenInventory(params: {
   const total = countResult.rows[0]?.total ?? 0;
 
   return {
-    items: result.rows,
+    items: result.rows.map((row: any) => ({
+      tokenId: Number(row.token_id),
+      owner: row.owner,
+      ledger: Number(row.ledger_sequence),
+      timestamp: row.timestamp ? Math.floor(new Date(row.timestamp).getTime() / 1000) : 0,
+      txHash: row.transaction_hash,
+      contractId: row.deployment_id
+    })),
     total,
     totalSupply,
+    limit,
+    offset,
+    hasMore: offset + result.rows.length < total,
+    generatedAt: new Date().toISOString()
+  };
+}
+
+export async function getGoldskyMemberList(params: { limit?: number; offset?: number } = {}) {
+  const { limit = 100, offset = 0 } = params;
+  const [result, countResult] = await Promise.all([
+    pool.query(`
+      SELECT address, owned_token_count, delegated_to, voting_power, last_activity_ledger
+      FROM token.members
+      WHERE deployment_id = $1
+      ORDER BY voting_power DESC, address
+      LIMIT $2 OFFSET $3
+    `, [getDeploymentId(), limit, offset]),
+    pool.query('SELECT COUNT(*)::int AS total FROM token.members WHERE deployment_id = $1', [getDeploymentId()])
+  ]);
+  const total = countResult.rows[0]?.total ?? 0;
+
+  return {
+    items: result.rows,
+    total,
     limit,
     offset,
     hasMore: offset + result.rows.length < total,

@@ -1,9 +1,10 @@
 export type TokenInventoryItem = {
-  address: string;
-  owned_token_count: string;
-  delegated_to: string | null;
-  voting_power: string;
-  last_activity_ledger: number;
+  tokenId: number;
+  owner: string;
+  ledger: number;
+  timestamp: number;
+  txHash: string;
+  contractId: string;
 };
 
 export type TokenInventoryResponse = {

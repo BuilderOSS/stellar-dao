@@ -7,6 +7,7 @@ import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGoldskyActivityFeed, useGoldskyHealth } from '@/lib/goldsky-queries';
 import { useTokenInventory } from '@/lib/token-queries';
+import { TokenCard } from '@/components/token/token-card';
 import { Grid, Stack } from 'styled-system/jsx';
 
 function formatTimestamp(timestamp: number) {
@@ -90,13 +91,7 @@ export default function Page() {
               <>
                 <div className="token-inventory-grid">
                    {tokenItems.map((token) => (
-                     <Card key={token.address} p="4">
-                       <Stack gap="2">
-                         <ShortId value={token.address} label="Member" />
-                         <Text>Tokens {token.owned_token_count}</Text>
-                         <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Voting power {token.voting_power}</Text>
-                       </Stack>
-                     </Card>
+                     <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
                   ))}
                 </div>
                 {canLoadMoreTokens ? (

@@ -3,11 +3,11 @@
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, ShortId, Text } from '@/components/ui';
-import { useGoldskyTokenInventory } from '@/lib/goldsky-queries';
+import { useGoldskyMemberList } from '@/lib/goldsky-queries';
 import { Grid, Stack } from 'styled-system/jsx';
 
 export default function MembersPage() {
-  const { data, error, isLoading, mutate } = useGoldskyTokenInventory(100);
+  const { data, error, isLoading, mutate } = useGoldskyMemberList(100);
   const rows = data?.items ?? [];
 
   return (

@@ -45,6 +45,24 @@ export type GoldskyTokenResponse = {
   message?: string;
 };
 
+export type GoldskyMemberItem = {
+  address: string;
+  owned_token_count: string;
+  delegated_to: string | null;
+  voting_power: string;
+  last_activity_ledger: number;
+};
+
+export type GoldskyMemberResponse = {
+  items: GoldskyMemberItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+  generatedAt: string;
+  message?: string;
+};
+
 export type GoldskyAuthority = {
   authority: string;
   enabled: boolean;
@@ -80,6 +98,10 @@ export function useGoldskyActivityFeed(limit = 12) {
 
 export function useGoldskyTokenInventory(limit = 100, offset = 0) {
   return useSWR<GoldskyTokenResponse>(`/api/tokens?limit=${limit}&offset=${offset}`, fetchJson, { keepPreviousData: true });
+}
+
+export function useGoldskyMemberList(limit = 100, offset = 0) {
+  return useSWR<GoldskyMemberResponse>(`/api/members?limit=${limit}&offset=${offset}`, fetchJson, { keepPreviousData: true });
 }
 
 export function useGoldskyMintAuthorities() {
