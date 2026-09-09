@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import { useState } from 'react';
+import { HStack } from 'styled-system/jsx';
+
 import { CopyIconButton, IconLinkButton, Text } from '@/components/ui';
 import { getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getExplorerAccountUrl, getExplorerContractUrl } from '@/lib/explorer-links';
-import { HStack } from 'styled-system/jsx';
 
 function shorten(value: string) {
   if (value.length <= 16) return value;
@@ -45,7 +46,11 @@ export function ShortId({ value, label, explorerUrl }: { value: string; label?: 
     <HStack gap="2" justify="space-between">
       <div style={{ minWidth: 0 }}>
         {label ? <Text className="label">{label}</Text> : null}
-        <Text className="mono" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={value}>
+        <Text
+          className="mono"
+          style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          title={value}
+        >
           {displayValue}
         </Text>
       </div>

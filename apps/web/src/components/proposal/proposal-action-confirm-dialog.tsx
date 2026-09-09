@@ -1,7 +1,8 @@
 'use client';
 
-import { Button, Card, Text } from '@/components/ui';
 import { Stack } from 'styled-system/jsx';
+
+import { Button, Card, Text } from '@/components/ui';
 
 type ProposalActionConfirmDialogProps = {
   open: boolean;

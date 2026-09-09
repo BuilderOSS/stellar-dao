@@ -1,7 +1,8 @@
 'use client';
 
-import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { Stack } from 'styled-system/jsx';
+
+import { Badge, Button, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 
 type AuthorityItem = {
   authority: string;
@@ -42,12 +43,20 @@ export function AuthorityPanel({
   return (
     <Card p="5">
       <Stack gap="3">
-        <div><Badge>{badge}</Badge></div>
+        <div>
+          <Badge>{badge}</Badge>
+        </div>
         <Heading style={{ fontSize: '1.2rem' }}>{title}</Heading>
-        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{description}</Text>
+        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+          {description}
+        </Text>
 
         {editable ? (
-          <Input value={value} onChange={(event) => onValueChange?.(event.target.value)} placeholder="Address or contract id" />
+          <Input
+            value={value}
+            onChange={(event) => onValueChange?.(event.target.value)}
+            placeholder="Address or contract id"
+          />
         ) : null}
 
         {editable ? (
@@ -62,14 +71,18 @@ export function AuthorityPanel({
         ) : null}
 
         {!items.length ? (
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{emptyLabel}</Text>
+          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {emptyLabel}
+          </Text>
         ) : (
           <Stack gap="2">
             {items.map((item) => (
               <Card key={item.authority} p="3">
                 <Stack gap="1">
                   <ShortId value={item.authority} label={item.source === 'owner' ? 'Owner' : 'Authority'} />
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Ledger {item.ledger ?? item.last_updated_ledger ?? '—'}</Text>
+                  <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>
+                    Ledger {item.ledger ?? item.last_updated_ledger ?? '—'}
+                  </Text>
                 </Stack>
               </Card>
             ))}

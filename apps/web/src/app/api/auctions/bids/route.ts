@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+
 import { getGoldskyAuctionBids } from '@/lib/goldsky';
 
 export async function GET(request: Request) {

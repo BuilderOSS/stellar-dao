@@ -1,7 +1,9 @@
-import { Card, Text } from '@/components/ui';
 import { Grid, Stack } from 'styled-system/jsx';
-import type { ProposalVoteItem } from './types';
+
+import { Card, Text } from '@/components/ui';
+
 import { ProposalQuorumProgress } from './proposal-quorum-progress';
+import type { ProposalVoteItem } from './types';
 
 type ProposalVoteSummaryProps = {
   votes: ProposalVoteItem[];
@@ -63,28 +65,42 @@ export function ProposalVoteSummary({ votes, quorumVotes }: ProposalVoteSummaryP
         <Text className="label">Vote summary</Text>
 
         {grouped.totalCount === 0 ? (
-          <Text className="lede" style={{ margin: 0 }}>No votes yet.</Text>
+          <Text className="lede" style={{ margin: 0 }}>
+            No votes yet.
+          </Text>
         ) : (
           <Grid columns={{ base: 1, md: 3 }} gap="3">
             <Card p="4">
               <Stack gap="1">
                 <Text className="label">For</Text>
-                <Text style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{formatWeight(grouped.forWeight)}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>{voteGroupLabel(grouped.forCount, grouped.forWeight)}</Text>
+                <Text style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+                  {formatWeight(grouped.forWeight)}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                  {voteGroupLabel(grouped.forCount, grouped.forWeight)}
+                </Text>
               </Stack>
             </Card>
             <Card p="4">
               <Stack gap="1">
                 <Text className="label">Against</Text>
-                <Text style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{formatWeight(grouped.againstWeight)}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>{voteGroupLabel(grouped.againstCount, grouped.againstWeight)}</Text>
+                <Text style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+                  {formatWeight(grouped.againstWeight)}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                  {voteGroupLabel(grouped.againstCount, grouped.againstWeight)}
+                </Text>
               </Stack>
             </Card>
             <Card p="4">
               <Stack gap="1">
                 <Text className="label">Abstain</Text>
-                <Text style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{formatWeight(grouped.abstainWeight)}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>{voteGroupLabel(grouped.abstainCount, grouped.abstainWeight)}</Text>
+                <Text style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+                  {formatWeight(grouped.abstainWeight)}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+                  {voteGroupLabel(grouped.abstainCount, grouped.abstainWeight)}
+                </Text>
               </Stack>
             </Card>
           </Grid>
@@ -92,7 +108,8 @@ export function ProposalVoteSummary({ votes, quorumVotes }: ProposalVoteSummaryP
 
         {grouped.totalCount > 0 ? (
           <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-            {grouped.totalCount} {grouped.totalCount === 1 ? 'vote' : 'votes'} cast • {formatWeight(grouped.totalVotes)} total voting power
+            {grouped.totalCount} {grouped.totalCount === 1 ? 'vote' : 'votes'} cast • {formatWeight(grouped.totalVotes)}{' '}
+            total voting power
           </Text>
         ) : null}
         <ProposalQuorumProgress

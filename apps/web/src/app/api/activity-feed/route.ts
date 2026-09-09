@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+
 import { getGoldskyActivityFeed } from '@/lib/goldsky';
 
 export const dynamic = 'force-dynamic';

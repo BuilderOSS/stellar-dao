@@ -1,23 +1,24 @@
 'use client';
 
-import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { type SignTransaction } from '@stellar/stellar-sdk/contract';
 import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
-import { DaoShell } from '@/components/dao-shell';
-import { PageSection } from '@/components/page-section';
+import { useState } from 'react';
+import { Grid, Stack } from 'styled-system/jsx';
+
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { DurationInput } from '@/components/admin/duration-input';
+import { DaoShell } from '@/components/dao-shell';
+import { PageSection } from '@/components/page-section';
 import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
-import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
-import { useGoldskyGovernorAuthorities } from '@/lib/goldsky-queries';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { formatDuration } from '@/lib/format-duration';
+import { useGoldskyGovernorAuthorities } from '@/lib/goldsky-queries';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { type SignTransaction } from '@stellar/stellar-sdk/contract';
-import { Grid, Stack } from 'styled-system/jsx';
 
 type Drafts = Partial<{
   votingDelay: string;
@@ -64,10 +65,22 @@ export default function GovernanceAdminPage() {
   const [busy, setBusy] = useState(false);
   const [activeAction, setActiveAction] = useState<GovernorSettingKey | ''>('');
   const tx = useTransactionFeedback(config.name);
-  const { data: settings, mutate: refreshSettings, error: settingsError, isLoading: settingsLoading } = useGovernorSettings(config, session.address || config.adminAddress);
-  const { data: governorAuthorities, error: authorityError, isLoading: authorityLoading, mutate: refreshAuthorities } = useGoldskyGovernorAuthorities();
+  const {
+    data: settings,
+    mutate: refreshSettings,
+    error: settingsError,
+    isLoading: settingsLoading
+  } = useGovernorSettings(config, session.address || config.adminAddress);
+  const {
+    data: governorAuthorities,
+    error: authorityError,
+    isLoading: authorityLoading,
+    mutate: refreshAuthorities
+  } = useGoldskyGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
-  const hasGovernanceAccess = Boolean(isOwner || governorAuthorities?.items.some((item) => item.authority === session.address));
+  const hasGovernanceAccess = Boolean(
+    isOwner || governorAuthorities?.items.some((item) => item.authority === session.address)
+  );
 
   async function getGovernor() {
     if (!session.address) {
@@ -91,7 +104,11 @@ export default function GovernanceAdminPage() {
     });
   }
 
-  async function submitGovernorUpdate(action: GovernorSettingKey, label: string, run: (governor: GovernorClient) => Promise<string>) {
+  async function submitGovernorUpdate(
+    action: GovernorSettingKey,
+    label: string,
+    run: (governor: GovernorClient) => Promise<string>
+  ) {
     if (!hasGovernanceAccess) {
       setFormMessage('Connect a governance authority wallet first.');
       return;
@@ -182,7 +199,10 @@ export default function GovernanceAdminPage() {
     }
 
     await submitGovernorUpdate('proposalThreshold', 'Proposal threshold', async (governor) => {
-      const assembled = await governor.set_proposal_threshold({ caller: session.address || '', proposal_threshold: value });
+      const assembled = await governor.set_proposal_threshold({
+        caller: session.address || '',
+        proposal_threshold: value
+      });
       const sent = await assembled.signAndSend();
       return sent.sendTransactionResponse?.hash ?? '';
     });
@@ -211,7 +231,11 @@ export default function GovernanceAdminPage() {
   if (!hasGovernanceAccess) {
     return (
       <DaoShell>
-        <PageSection eyebrow="Admin" title="Governance Admin" description="Governance settings and authority management.">
+        <PageSection
+          eyebrow="Admin"
+          title="Governance Admin"
+          description="Governance settings and authority management."
+        >
           <Callout
             variant="warning"
             badge="Access restricted"
@@ -220,10 +244,18 @@ export default function GovernanceAdminPage() {
           >
             {settings ? (
               <Stack gap="1">
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Voting delay: {settings.votingDelay}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Voting period: {settings.votingPeriod}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Proposal threshold: {settings.proposalThreshold.toString()}</Text>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Quorum: {settings.quorumBps} bps</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Voting delay: {settings.votingDelay}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Voting period: {settings.votingPeriod}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Proposal threshold: {settings.proposalThreshold.toString()}
+                </Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Quorum: {settings.quorumBps} bps
+                </Text>
               </Stack>
             ) : null}
           </Callout>
@@ -246,10 +278,18 @@ export default function GovernanceAdminPage() {
             <Stack gap="3">
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                 <Stack gap="3">
-                  <div><Badge>Live values</Badge></div>
+                  <div>
+                    <Badge>Live values</Badge>
+                  </div>
                   <Heading style={{ fontSize: '1.2rem' }}>Current governor settings</Heading>
                 </Stack>
-                <Button type="button" variant="outline" size="sm" onClick={() => void refreshSettings()} disabled={settingsLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshSettings()}
+                  disabled={settingsLoading}
+                >
                   {settingsLoading ? 'Refreshing...' : 'Refresh'}
                 </Button>
               </div>
@@ -262,7 +302,9 @@ export default function GovernanceAdminPage() {
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <Card p="5">
               <Stack gap="3">
-                <div><Badge>Voting delay</Badge></div>
+                <div>
+                  <Badge>Voting delay</Badge>
+                </div>
                 <DurationInput
                   id="voting-delay"
                   label="Voting delay"
@@ -274,7 +316,13 @@ export default function GovernanceAdminPage() {
                   <Button
                     type="button"
                     onClick={() => void applyVotingDelay()}
-                    disabled={busy || activeAction === 'votingDelay' || !settings || parseWholeNumber(drafts.votingDelay ?? String(settings.votingDelay)) === null || (drafts.votingDelay ?? String(settings.votingDelay)) === String(settings.votingDelay)}
+                    disabled={
+                      busy ||
+                      activeAction === 'votingDelay' ||
+                      !settings ||
+                      parseWholeNumber(drafts.votingDelay ?? String(settings.votingDelay)) === null ||
+                      (drafts.votingDelay ?? String(settings.votingDelay)) === String(settings.votingDelay)
+                    }
                   >
                     {busy && activeAction === 'votingDelay' ? 'Applying...' : 'Apply'}
                   </Button>
@@ -284,7 +332,9 @@ export default function GovernanceAdminPage() {
 
             <Card p="5">
               <Stack gap="3">
-                <div><Badge>Voting period</Badge></div>
+                <div>
+                  <Badge>Voting period</Badge>
+                </div>
                 <DurationInput
                   id="voting-period"
                   label="Voting period"
@@ -296,7 +346,13 @@ export default function GovernanceAdminPage() {
                   <Button
                     type="button"
                     onClick={() => void applyVotingPeriod()}
-                    disabled={busy || activeAction === 'votingPeriod' || !settings || parseWholeNumber(drafts.votingPeriod ?? String(settings.votingPeriod)) === null || (drafts.votingPeriod ?? String(settings.votingPeriod)) === String(settings.votingPeriod)}
+                    disabled={
+                      busy ||
+                      activeAction === 'votingPeriod' ||
+                      !settings ||
+                      parseWholeNumber(drafts.votingPeriod ?? String(settings.votingPeriod)) === null ||
+                      (drafts.votingPeriod ?? String(settings.votingPeriod)) === String(settings.votingPeriod)
+                    }
                   >
                     {busy && activeAction === 'votingPeriod' ? 'Applying...' : 'Apply'}
                   </Button>
@@ -306,8 +362,12 @@ export default function GovernanceAdminPage() {
 
             <Card p="5">
               <Stack gap="3">
-                <div><Badge>Proposal threshold</Badge></div>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.proposalThreshold?.toString() ?? '—'} votes</Text>
+                <div>
+                  <Badge>Proposal threshold</Badge>
+                </div>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Current: {settings?.proposalThreshold?.toString() ?? '—'} votes
+                </Text>
                 <Input
                   value={drafts.proposalThreshold ?? formatThreshold(settings?.proposalThreshold ?? 0n)}
                   type="number"
@@ -316,12 +376,22 @@ export default function GovernanceAdminPage() {
                   onChange={(event) => setDrafts((current) => ({ ...current, proposalThreshold: event.target.value }))}
                   placeholder="New proposal threshold"
                 />
-                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings ? 'Apply this change in a single transaction.' : 'Loading current value...'}</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>
+                  {settings ? 'Apply this change in a single transaction.' : 'Loading current value...'}
+                </Text>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <Button
                     type="button"
                     onClick={() => void applyProposalThreshold()}
-                    disabled={busy || activeAction === 'proposalThreshold' || !settings || parseBigIntValue(drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) === null || (drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) === formatThreshold(settings.proposalThreshold)}
+                    disabled={
+                      busy ||
+                      activeAction === 'proposalThreshold' ||
+                      !settings ||
+                      parseBigIntValue(drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) ===
+                        null ||
+                      (drafts.proposalThreshold ?? formatThreshold(settings.proposalThreshold)) ===
+                        formatThreshold(settings.proposalThreshold)
+                    }
                   >
                     {busy && activeAction === 'proposalThreshold' ? 'Applying...' : 'Apply'}
                   </Button>
@@ -331,8 +401,12 @@ export default function GovernanceAdminPage() {
 
             <Card p="5">
               <Stack gap="3">
-                <div><Badge>Quorum</Badge></div>
-                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>Current: {settings?.quorumBps ?? '—'} bps</Text>
+                <div>
+                  <Badge>Quorum</Badge>
+                </div>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Current: {settings?.quorumBps ?? '—'} bps
+                </Text>
                 <Input
                   value={drafts.quorumBps ?? String(settings?.quorumBps ?? '')}
                   type="number"
@@ -342,12 +416,20 @@ export default function GovernanceAdminPage() {
                   onChange={(event) => setDrafts((current) => ({ ...current, quorumBps: event.target.value }))}
                   placeholder="New quorum bps"
                 />
-                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{settings ? 'Apply this change in a single transaction.' : 'Loading current value...'}</Text>
+                <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>
+                  {settings ? 'Apply this change in a single transaction.' : 'Loading current value...'}
+                </Text>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <Button
                     type="button"
                     onClick={() => void applyQuorumBps()}
-                    disabled={busy || activeAction === 'quorumBps' || !settings || parseWholeNumber(drafts.quorumBps ?? String(settings.quorumBps)) === null || (drafts.quorumBps ?? String(settings.quorumBps)) === String(settings.quorumBps)}
+                    disabled={
+                      busy ||
+                      activeAction === 'quorumBps' ||
+                      !settings ||
+                      parseWholeNumber(drafts.quorumBps ?? String(settings.quorumBps)) === null ||
+                      (drafts.quorumBps ?? String(settings.quorumBps)) === String(settings.quorumBps)
+                    }
                   >
                     {busy && activeAction === 'quorumBps' ? 'Applying...' : 'Apply'}
                   </Button>

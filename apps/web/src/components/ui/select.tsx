@@ -1,6 +1,6 @@
-import { forwardRef, type ComponentPropsWithoutRef } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { ark } from '@ark-ui/react/factory';
+import { ChevronDown } from 'lucide-react';
+import { type ComponentPropsWithoutRef, forwardRef } from 'react';
 import { styled } from 'styled-system/jsx';
 import { select } from 'styled-system/recipes';
 

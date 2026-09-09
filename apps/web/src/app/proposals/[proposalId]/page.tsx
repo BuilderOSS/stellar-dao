@@ -1,32 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Grid, Stack } from 'styled-system/jsx';
+import useSWR from 'swr';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Button, Callout, Text } from '@/components/ui';
-import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { keccak256Bytes } from '@/lib/keccak';
-import { proposalIdToBuffer } from '@/lib/proposal-id';
-import { proposalActionMode } from '@/lib/proposal-state';
-import { encodeProposalCallArgs, type ProposalCallArgs } from '@/lib/proposal-call';
-import { waitForConfirmation } from '@/lib/transaction-confirmation';
-import { useTransactionFeedback } from '@/lib/transaction-feedback';
-import { useVotingPower } from '@/lib/voting-power';
-import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalActionPreview } from '@/components/proposal/proposal-action-preview';
+import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalOverview } from '@/components/proposal/proposal-overview';
 import { ProposalQueuePanel } from '@/components/proposal/proposal-queue-panel';
 import { ProposalVoteHistory } from '@/components/proposal/proposal-vote-history';
 import { ProposalVotePanel } from '@/components/proposal/proposal-vote-panel';
 import { ProposalVoteSummary } from '@/components/proposal/proposal-vote-summary';
 import type { ProposalDetail, ProposalVoteItem } from '@/components/proposal/types';
+import { Button, Callout } from '@/components/ui';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { keccak256Bytes } from '@/lib/keccak';
+import { encodeProposalCallArgs } from '@/lib/proposal-call';
+import { proposalIdToBuffer } from '@/lib/proposal-id';
+import { proposalActionMode } from '@/lib/proposal-state';
+import { waitForConfirmation } from '@/lib/transaction-confirmation';
+import { useTransactionFeedback } from '@/lib/transaction-feedback';
+import { useVotingPower } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { Grid, Stack } from 'styled-system/jsx';
-import useSWR from 'swr';
 
 type ProposalPageData = {
   detail: ProposalDetail;
@@ -35,7 +36,7 @@ type ProposalPageData = {
 
 const VOTE_FOR = 1;
 const VOTE_AGAINST = 0;
-const VOTE_ABSTAIN = 2;
+const _VOTE_ABSTAIN = 2;
 
 function descriptionHash(description: string) {
   return keccak256Bytes(description);
@@ -44,7 +45,9 @@ function descriptionHash(description: string) {
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(timestamp * 1000)
+    );
   } catch {
     return String(timestamp);
   }
@@ -115,10 +118,11 @@ export default function ProposalDetailPage() {
       rpcUrl: config.rpcUrl,
       networkPassphrase: config.passphrase,
       publicKey: session.address,
-      signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
-        networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
-        address: opts?.address ?? session.address
-      }))
+      signTransaction: async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) =>
+        StellarWalletsKit.signTransaction(xdr, {
+          networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+          address: opts?.address ?? session.address
+        })
     });
   }
 
@@ -265,20 +269,21 @@ export default function ProposalDetailPage() {
     }
   }
 
-  const currentVote = session.address ? votes.find((vote) => vote.voter === session.address) ?? null : null;
+  const currentVote = session.address ? (votes.find((vote) => vote.voter === session.address) ?? null) : null;
   const actionMode = proposalActionMode(detail?.state);
   const errorMessage = error instanceof Error ? error.message : '';
-  const voteUnavailableReason = actionMode !== 'vote'
-    ? ''
-    : !session.address
-    ? 'Connect a wallet to vote.'
-    : votingPowerLoading
-      ? 'Voting power is still loading.'
-      : votingPowerError
-        ? `Voting power could not be loaded: ${votingPowerError.message}`
-        : votingPower && votingPower.votes > 0n
-          ? ''
-          : 'No voting power at the proposal snapshot.';
+  const voteUnavailableReason =
+    actionMode !== 'vote'
+      ? ''
+      : !session.address
+        ? 'Connect a wallet to vote.'
+        : votingPowerLoading
+          ? 'Voting power is still loading.'
+          : votingPowerError
+            ? `Voting power could not be loaded: ${votingPowerError.message}`
+            : votingPower && votingPower.votes > 0n
+              ? ''
+              : 'No voting power at the proposal snapshot.';
   const canVote = Boolean(actionMode === 'vote' && !currentVote && !voteUnavailableReason);
 
   function voteLabelForSupport(support: number) {
@@ -291,7 +296,7 @@ export default function ProposalDetailPage() {
     <DaoShell>
       <PageSection
         eyebrow="Proposal detail"
-         title={detail ? `Proposal #${detail.proposalNumber}` : `Proposal ${shortenProposalId(proposalId)}`}
+        title={detail ? `Proposal #${detail.proposalNumber}` : `Proposal ${shortenProposalId(proposalId)}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">
@@ -314,19 +319,35 @@ export default function ProposalDetailPage() {
                     onVoteReasonChange={setVoteReason}
                     onSelectedVoteTypeChange={setSelectedVoteType}
                     onVote={(voteType) => void submitVote(voteType)}
-                    currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
+                    currentVote={
+                      currentVote
+                        ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason }
+                        : null
+                    }
                   />
                 ) : actionMode === 'queue' ? (
                   <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
                 ) : actionMode === 'execute' ? (
-                  <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
+                  <ProposalExecutePanel
+                    busy={busy}
+                    now={now}
+                    eta={detail.eta}
+                    onExecute={() => void executeProposal()}
+                  />
                 ) : null
               }
             />
           ) : null}
           {errorMessage ? <Callout variant="error" title={errorMessage} /> : null}
 
-          {detail ? <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} tokenContractId={config.tokenContractId} /> : null}
+          {detail ? (
+            <ProposalActionPreview
+              targets={detail.targets}
+              functions={detail.functions}
+              args={detail.args}
+              tokenContractId={config.tokenContractId}
+            />
+          ) : null}
 
           <Grid columns={{ base: 1, xl: 2 }} gap="4">
             <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
@@ -346,7 +367,9 @@ export default function ProposalDetailPage() {
             </Button>
           </div>
 
-          <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
+          <Link href="/proposals" style={{ color: 'inherit' }}>
+            Back to proposals
+          </Link>
         </Stack>
       </PageSection>
     </DaoShell>

@@ -9,6 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "panda:codegen": "panda codegen && panda cssgen"
   },
@@ -16,8 +18,8 @@
     "@creit.tech/stellar-wallets-kit": "^2.5.0",
     "@neondatabase/serverless": "^1.1.0",
     "@noble/hashes": "^2.2.0",
-    "@stellar-dao/governor-bindings": "workspace:*",
     "@stellar-dao/auction-bindings": "workspace:*",
+    "@stellar-dao/governor-bindings": "workspace:*",
     "@stellar-dao/token-bindings": "workspace:*",
     "@stellar-dao/treasury-bindings": "workspace:*",
     "@stellar/stellar-sdk": "^17.0.1",
@@ -35,9 +37,18 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "lucide-react": "^1.27.0",
+    "prettier": "^3.9.6",
     "typescript": "^5.8.0"
   }
 }

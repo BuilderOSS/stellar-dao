@@ -1,11 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { Grid, Stack } from 'styled-system/jsx';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Card, ShortId, Text } from '@/components/ui';
-import { buildTokenMetadata } from '@/lib/token-metadata';
 import { TOKEN_NAME } from '@/lib/token-config';
-import { Grid, Stack } from 'styled-system/jsx';
+import { buildTokenMetadata } from '@/lib/token-metadata';
 
 export default async function TokenPage({ params }: { params: Promise<{ tokenId: string }> }) {
   const { tokenId } = await params;
@@ -37,8 +38,12 @@ export default async function TokenPage({ params }: { params: Promise<{ tokenId:
             <Stack gap="2">
               <Text className="label">Metadata</Text>
               <ShortId value={String(resolvedTokenId)} label="Token" />
-              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{metadata.description}</Text>
-              <Link href={`/api/token/${resolvedTokenId}`} style={{ color: 'inherit' }}>View JSON metadata</Link>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                {metadata.description}
+              </Text>
+              <Link href={`/api/token/${resolvedTokenId}`} style={{ color: 'inherit' }}>
+                View JSON metadata
+              </Link>
             </Stack>
           </Card>
         </Grid>

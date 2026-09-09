@@ -1,6 +1,7 @@
-import { getExplorerTxUrl } from '@/lib/explorer-links';
-import type { DaoNetworkName } from '@/lib/dao-config';
 import { ArrowUpRight } from 'lucide-react';
+
+import type { DaoNetworkName } from '@/lib/dao-config';
+import { getExplorerTxUrl } from '@/lib/explorer-links';
 
 function shortenHash(value: string) {
   if (value.length <= 16) return value;

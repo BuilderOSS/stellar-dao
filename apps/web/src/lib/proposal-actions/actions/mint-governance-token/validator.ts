@@ -1,13 +1,11 @@
 // src/lib/proposal-actions/actions/mint-governance-token/validator.ts
 
 import { validateStellarAddress } from '@/lib/validate-address';
-import type { ValidationResult, FormContext } from '../../types';
+
+import type { FormContext, ValidationResult } from '../../types';
 import type { MintGovernanceTokenData } from './types';
 
-export function validateMintGovernanceToken(
-  data: MintGovernanceTokenData,
-  context: FormContext
-): ValidationResult {
+export function validateMintGovernanceToken(data: MintGovernanceTokenData, context: FormContext): ValidationResult {
   // Check mint authority first
   const treasuryHasMintAuthority = Boolean(
     context.config.treasuryContractId &&
@@ -17,14 +15,14 @@ export function validateMintGovernanceToken(
   if (context.mintAuthoritiesLoading) {
     return {
       valid: false,
-      message: 'Checking mint authority...',
+      message: 'Checking mint authority...'
     };
   }
 
   if (!treasuryHasMintAuthority) {
     return {
       valid: false,
-      message: 'Grant mint authority to the treasury before creating mint proposals.',
+      message: 'Grant mint authority to the treasury before creating mint proposals.'
     };
   }
 
@@ -50,7 +48,7 @@ export function validateMintGovernanceToken(
     return {
       valid: false,
       message: 'Please fix the errors below',
-      fields,
+      fields
     };
   }
 

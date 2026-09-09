@@ -2,8 +2,8 @@
 
 import type { ActionHandler } from '../../types';
 import { MintGovernanceTokenForm } from './component';
-import { validateMintGovernanceToken } from './validator';
 import type { MintGovernanceTokenData } from './types';
+import { validateMintGovernanceToken } from './validator';
 
 export const mintGovernanceTokenHandler: ActionHandler<MintGovernanceTokenData> = {
   type: 'mint-governance-token',
@@ -16,27 +16,27 @@ export const mintGovernanceTokenHandler: ActionHandler<MintGovernanceTokenData> 
 
   getDefaultValues: () => ({
     recipient: '',
-    amount: '1',
+    amount: '1'
   }),
 
   validate: validateMintGovernanceToken,
 
-  serialize: (data, context) => ({
+  serialize: (data, _context) => ({
     id: crypto.randomUUID(),
     type: 'mint-governance-token',
     recipient: data.recipient.trim(),
-    amount: '1', // Always 1 for single mint
+    amount: '1' // Always 1 for single mint
   }),
 
   deserialize: (action) => ({
     recipient: action.recipient || '',
-    amount: action.amount || '1',
+    amount: action.amount || '1'
   }),
 
   buildCallVector: (data, context) => ({
     target: context.tokenContractId,
     function: 'mint',
-    args: [context.treasuryAddress, data.recipient.trim()],
+    args: [context.treasuryAddress, data.recipient.trim()]
   }),
 
   checkPreconditions: (context) => {
@@ -45,27 +45,25 @@ export const mintGovernanceTokenHandler: ActionHandler<MintGovernanceTokenData> 
       return {
         canExecute: false,
         reason: 'Checking mint authority...',
-        loading: true,
+        loading: true
       };
     }
 
     // Check if treasury has mint authority
     const treasuryHasMintAuthority = Boolean(
       context.config.treasuryContractId &&
-      context.mintAuthorities?.some(
-        (item) => item.authority === context.config.treasuryContractId && item.enabled
-      )
+      context.mintAuthorities?.some((item) => item.authority === context.config.treasuryContractId && item.enabled)
     );
 
     if (!treasuryHasMintAuthority) {
       return {
         canExecute: false,
-        reason: 'Grant mint authority to the treasury before creating mint proposals.',
+        reason: 'Grant mint authority to the treasury before creating mint proposals.'
       };
     }
 
     return { canExecute: true };
   },
 
-  requiresMintAuthority: false,
+  requiresMintAuthority: false
 };

@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.12.4",
   "scripts": {
+    "prepare": "lefthook install",
     "dev": "pnpm --dir apps/web dev",
     "build": "pnpm --dir apps/web build",
     "lint": "pnpm --dir apps/web lint",
@@ -25,5 +26,8 @@
     "apps/*",
     "packages/*",
     "packages/*/*"
-  ]
+  ],
+  "devDependencies": {
+    "lefthook": "^2.1.12"
+  }
 }

@@ -1,5 +1,5 @@
-import type { ProposalMetadata } from '@/lib/proposal-metadata';
 import type { ProposalCallArgs } from '@/lib/proposal-call';
+import type { ProposalMetadata } from '@/lib/proposal-metadata';
 import type { ProposalState } from '@/lib/proposal-state';
 
 export type ProposalDetail = {

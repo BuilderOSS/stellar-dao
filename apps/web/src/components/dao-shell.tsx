@@ -1,17 +1,18 @@
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
-import type { Route } from 'next';
-import { usePathname } from 'next/navigation';
-import { useEffect, type ReactNode } from 'react';
 import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { KitEventType } from '@creit.tech/stellar-wallets-kit/types';
+import type { Route } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { type ReactNode, useEffect } from 'react';
+import { Grid, Stack } from 'styled-system/jsx';
+
 import { Badge, Button, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { Grid, Stack } from 'styled-system/jsx';
 
 const BASE_NAV_ITEMS: Array<{ href: Route; label: string }> = [
   { href: '/', label: 'Dashboard' },
@@ -67,9 +68,8 @@ async function validateWalletNetwork(
       address,
       status: 'Wallet network validation unavailable',
       walletNetworkPassphrase: '',
-      walletNetworkIssue: error instanceof Error
-        ? error.message
-        : 'This wallet cannot report its network, so the app cannot validate it.'
+      walletNetworkIssue:
+        error instanceof Error ? error.message : 'This wallet cannot report its network, so the app cannot validate it.'
     });
   }
 }
@@ -82,8 +82,10 @@ export function DaoShell({ children }: { children: ReactNode }) {
   const currentNetwork = getDaoNetworkConfig(network);
   const walletDisabled = Boolean(session.address && session.walletNetworkIssue);
   const adminNavItem: { href: Route; label: string } = { href: '/admin', label: 'Admin' };
-  const isAdmin = session.address && session.address === currentNetwork.adminAddress;
-  const navItems: Array<{ href: Route; label: string }> = session.address ? [...BASE_NAV_ITEMS, adminNavItem] : BASE_NAV_ITEMS;
+  const _isAdmin = session.address && session.address === currentNetwork.adminAddress;
+  const navItems: Array<{ href: Route; label: string }> = session.address
+    ? [...BASE_NAV_ITEMS, adminNavItem]
+    : BASE_NAV_ITEMS;
 
   useEffect(() => {
     StellarWalletsKit.init({ modules: defaultModules() });
@@ -94,7 +96,13 @@ export function DaoShell({ children }: { children: ReactNode }) {
     });
 
     const onDisconnect = StellarWalletsKit.on(KitEventType.DISCONNECT, () => {
-      updateSession({ address: '', status: 'Disconnected', syncedAt: '', walletNetworkPassphrase: '', walletNetworkIssue: '' });
+      updateSession({
+        address: '',
+        status: 'Disconnected',
+        syncedAt: '',
+        walletNetworkPassphrase: '',
+        walletNetworkIssue: ''
+      });
     });
 
     return () => {
@@ -125,7 +133,13 @@ export function DaoShell({ children }: { children: ReactNode }) {
     try {
       await StellarWalletsKit.disconnect();
     } finally {
-      updateSession({ address: '', status: 'Disconnected', syncedAt: '', walletNetworkPassphrase: '', walletNetworkIssue: '' });
+      updateSession({
+        address: '',
+        status: 'Disconnected',
+        syncedAt: '',
+        walletNetworkPassphrase: '',
+        walletNetworkIssue: ''
+      });
     }
   }
 
@@ -133,9 +147,19 @@ export function DaoShell({ children }: { children: ReactNode }) {
     <main className="page-shell">
       <Card p="6">
         <Stack gap="5">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '16px',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
             <Stack gap="3" style={{ minWidth: 0 }}>
-              <Text className="eyebrow" style={{ margin: 0 }}>DAO governance</Text>
+              <Text className="eyebrow" style={{ margin: 0 }}>
+                DAO governance
+              </Text>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start', minWidth: 0 }}>
                 <Image
                   src="/icon.svg"
@@ -162,7 +186,9 @@ export function DaoShell({ children }: { children: ReactNode }) {
             </Stack>
 
             <Grid columns={1} gap="3">
-              <Badge>{session.walletNetworkIssue ? 'Wallet invalid' : session.address ? 'Wallet connected' : 'Wallet idle'}</Badge>
+              <Badge>
+                {session.walletNetworkIssue ? 'Wallet invalid' : session.address ? 'Wallet connected' : 'Wallet idle'}
+              </Badge>
               <Badge>{session.status}</Badge>
               {session.address ? <ShortId value={session.address} /> : null}
             </Grid>
@@ -170,30 +196,38 @@ export function DaoShell({ children }: { children: ReactNode }) {
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             {navItems.map((item) => (
-              <NavLink key={item.href} href={item.href} label={item.label} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} />
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+              />
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '10px',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
             <Text className="lede" style={{ margin: 0, fontSize: '0.92rem' }}>
               RPC: {currentNetwork.rpcUrl}
             </Text>
-            <Button
-              type="button"
-              size="lg"
-              onClick={session.address ? disconnectWallet : connectWallet}
-            >
+            <Button type="button" size="lg" onClick={session.address ? disconnectWallet : connectWallet}>
               {session.address ? 'Disconnect wallet' : 'Connect wallet'}
             </Button>
           </div>
-
         </Stack>
       </Card>
 
       <div
         style={{
           position: 'relative',
-          pointerEvents: walletDisabled ? 'none' : undefined,
+          pointerEvents: walletDisabled ? 'none' : undefined
         }}
       >
         <div

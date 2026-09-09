@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Card, Heading, Text } from '@/components/ui';
 import { Stack } from 'styled-system/jsx';
+
+import { Card, Heading, Text } from '@/components/ui';
 
 export function PageSection({
   eyebrow,

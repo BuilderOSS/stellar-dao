@@ -9,7 +9,7 @@ type CopyIconButtonProps = {
 };
 
 export function CopyIconButton({ copied, onClick, label }: CopyIconButtonProps) {
-  const title = copied ? 'Copied' : label ?? 'Copy';
+  const title = copied ? 'Copied' : (label ?? 'Copy');
 
   return (
     <button

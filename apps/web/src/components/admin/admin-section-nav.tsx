@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import type { Route } from 'next';
-import { Badge } from '@/components/ui';
+import Link from 'next/link';
 
 const ITEMS: Array<{ href: Route; label: string }> = [
   { href: '/admin', label: 'Dashboard' },

@@ -1,8 +1,9 @@
+import { Stack } from 'styled-system/jsx';
+
 import { Badge, Card, ShortId, Text } from '@/components/ui';
-import { normalizeProposalCallArgs, type ProposalCallArg, type ProposalCallArgs } from '@/lib/proposal-call';
 import { getTreasuryAssets } from '@/lib/assets-config';
 import { getDefaultDaoNetwork } from '@/lib/dao-config';
-import { Stack } from 'styled-system/jsx';
+import { normalizeProposalCallArgs, type ProposalCallArg, type ProposalCallArgs } from '@/lib/proposal-call';
 
 type ProposalActionPreviewProps = {
   targets: string[];
@@ -33,7 +34,7 @@ function formatStroopsAmount(stroops: ProposalCallArg): string {
 function getAssetCodeFromContractId(contractId: string): string {
   const network = getDefaultDaoNetwork();
   const assets = getTreasuryAssets(network);
-  const asset = assets.find(a => a.contractId === contractId);
+  const asset = assets.find((a) => a.contractId === contractId);
   return asset?.code || 'tokens';
 }
 
@@ -41,7 +42,12 @@ function getAssetCodeFromContractId(contractId: string): string {
  * Detect if this is a SAC transfer by checking if it's NOT the token contract
  * and the function is 'transfer' with 3 args
  */
-function isSacTransfer(target: string, functionName: string, args: ProposalCallArg[], tokenContractId?: string): boolean {
+function isSacTransfer(
+  target: string,
+  functionName: string,
+  args: ProposalCallArg[],
+  tokenContractId?: string
+): boolean {
   return target !== tokenContractId && functionName === 'transfer' && args.length === 3;
 }
 
@@ -70,28 +76,48 @@ export function ProposalActionPreview({ targets, functions, args, tokenContractI
   return (
     <Card p="5">
       <Stack gap="3">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'center'
+          }}
+        >
           <Text className="label">Proposal actions</Text>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{functions.length} action{functions.length === 1 ? '' : 's'}</Text>
+          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {functions.length} action{functions.length === 1 ? '' : 's'}
+          </Text>
         </div>
 
         {!functions.length ? (
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>No actions are available for this proposal.</Text>
+          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+            No actions are available for this proposal.
+          </Text>
         ) : (
           <Stack gap="2">
             {functions.map((functionName, index) => {
               const actionArgs = normalizedArgs[index] ?? [];
               const target = targets[index] ?? '';
               return (
-                <Card key={`${functionName}:${index}`} p="4" style={{ border: '1px solid rgba(160, 194, 225, 0.18)', background: 'rgba(157, 179, 203, 0.06)' }}>
+                <Card
+                  key={`${functionName}:${index}`}
+                  p="4"
+                  style={{ border: '1px solid rgba(160, 194, 225, 0.18)', background: 'rgba(157, 179, 203, 0.06)' }}
+                >
                   <Stack gap="2">
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <Badge>{index + 1}</Badge>
                       <Badge>{functionName}</Badge>
                     </div>
-                    <Text style={{ margin: 0, fontWeight: 700 }}>{getActionTitle(target, functionName, actionArgs, tokenContractId)}</Text>
+                    <Text style={{ margin: 0, fontWeight: 700 }}>
+                      {getActionTitle(target, functionName, actionArgs, tokenContractId)}
+                    </Text>
                     <ShortId value={target} label="Target" />
-                    <Text className="lede" style={{ margin: 0, fontSize: '0.84rem' }}>Args: {actionArgs.map(formatArg).join(' | ') || '—'}</Text>
+                    <Text className="lede" style={{ margin: 0, fontSize: '0.84rem' }}>
+                      Args: {actionArgs.map(formatArg).join(' | ') || '—'}
+                    </Text>
                   </Stack>
                 </Card>
               );

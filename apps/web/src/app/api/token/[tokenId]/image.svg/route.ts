@@ -1,5 +1,5 @@
-import { buildTokenImageSvg } from '@/lib/token-metadata';
 import { TOKEN_NAME, TOKEN_SYMBOL } from '@/lib/token-config';
+import { buildTokenImageSvg } from '@/lib/token-metadata';
 
 export const dynamic = 'force-dynamic';
 

@@ -2,18 +2,17 @@
 
 'use client';
 
-import { useCallback, useState, Suspense } from 'react';
-import { getActionHandler } from '../registry';
-import { useActionFormContext } from '../context';
-import {
-  useProposalComposerStore,
-  selectValidationErrors,
-} from '@/stores/proposal-composer-store';
-import { ActionFormShell } from './action-form-shell';
-import { ActionErrorBoundary } from './action-error-boundary';
-import { Text } from '@/components/ui';
+import { Suspense, useCallback, useState } from 'react';
+
 import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
+import { Text } from '@/components/ui';
+import { selectValidationErrors, useProposalComposerStore } from '@/stores/proposal-composer-store';
+
+import { useActionFormContext } from '../context';
+import { getActionHandler } from '../registry';
 import type { ProposalActionType } from '../types';
+import { ActionErrorBoundary } from './action-error-boundary';
+import { ActionFormShell } from './action-form-shell';
 
 type ConfirmDialogState = {
   open: boolean;
@@ -68,9 +67,7 @@ export function ActionFormWrapper() {
       if (!editingState) return;
 
       const handler = getActionHandler(editingState.actionType);
-      const hasChanges =
-        JSON.stringify(editingState.draftData) !==
-        JSON.stringify(handler.getDefaultValues());
+      const hasChanges = JSON.stringify(editingState.draftData) !== JSON.stringify(handler.getDefaultValues());
 
       if (hasChanges) {
         setConfirmDialog({
@@ -82,7 +79,7 @@ export function ActionFormWrapper() {
             changeActionType(newType);
             setValidationErrors(null);
             setConfirmDialog(null);
-          },
+          }
         });
         return;
       }

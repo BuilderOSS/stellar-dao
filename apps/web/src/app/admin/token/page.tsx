@@ -1,19 +1,20 @@
 'use client';
 
-import { useState } from 'react';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { Client as TokenClient } from '@stellar-dao/token-bindings';
-import { DaoShell } from '@/components/dao-shell';
-import { PageSection } from '@/components/page-section';
+import { useState } from 'react';
+import { Stack } from 'styled-system/jsx';
+
 import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
+import { DaoShell } from '@/components/dao-shell';
+import { PageSection } from '@/components/page-section';
 import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGoldskyMintAuthorities } from '@/lib/goldsky-queries';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { Stack } from 'styled-system/jsx';
 
 export default function TokenAdminPage() {
   const session = useDaoSessionStore();
@@ -59,10 +60,11 @@ export default function TokenAdminPage() {
         rpcUrl: config.rpcUrl,
         networkPassphrase: config.passphrase,
         publicKey: session.address,
-        signTransaction: (async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => StellarWalletsKit.signTransaction(xdr, {
-          networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
-          address: opts?.address ?? session.address
-        }))
+        signTransaction: async (xdr: string, opts?: { networkPassphrase?: string; address?: string }) =>
+          StellarWalletsKit.signTransaction(xdr, {
+            networkPassphrase: opts?.networkPassphrase ?? config.passphrase,
+            address: opts?.address ?? session.address
+          })
       });
 
       const assembled = await client.batch_mint({ minter: session.address, to: recipient, amount: mintAmount });
@@ -95,13 +97,31 @@ export default function TokenAdminPage() {
 
           <Card p="5">
             <Stack gap="3">
-              <div><Badge>{hasMintAccess ? 'Mint enabled' : 'Read only'}</Badge></div>
+              <div>
+                <Badge>{hasMintAccess ? 'Mint enabled' : 'Read only'}</Badge>
+              </div>
               <Heading style={{ fontSize: '1.2rem' }}>Mint voting token</Heading>
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                {hasMintAccess ? 'Enter a recipient address and mint up to 20 tokens directly to that wallet.' : 'Only a mint authority or the owner can mint from this page.'}
+                {hasMintAccess
+                  ? 'Enter a recipient address and mint up to 20 tokens directly to that wallet.'
+                  : 'Only a mint authority or the owner can mint from this page.'}
               </Text>
-              <Input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" disabled={!hasMintAccess} />
-              <Input value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="1" max="20" step="1" placeholder="Amount (1-20)" disabled={!hasMintAccess} />
+              <Input
+                value={recipient}
+                onChange={(event) => setRecipient(event.target.value)}
+                placeholder="Recipient address"
+                disabled={!hasMintAccess}
+              />
+              <Input
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                type="number"
+                min="1"
+                max="20"
+                step="1"
+                placeholder="Amount (1-20)"
+                disabled={!hasMintAccess}
+              />
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Button type="button" onClick={handleMint} disabled={busy || !hasMintAccess}>
                   {busy ? 'Minting...' : 'Batch mint'}

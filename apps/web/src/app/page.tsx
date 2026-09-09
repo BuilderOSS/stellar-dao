@@ -1,19 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { Grid, Stack } from 'styled-system/jsx';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
+import { TokenCard } from '@/components/token/token-card';
 import { Badge, Button, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGoldskyActivityFeed, useGoldskyHealth } from '@/lib/goldsky-queries';
 import { useTokenInventory } from '@/lib/token-queries';
-import { TokenCard } from '@/components/token/token-card';
-import { Grid, Stack } from 'styled-system/jsx';
 
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(timestamp * 1000)
+    );
   } catch {
     return String(timestamp);
   }
@@ -27,8 +30,18 @@ export default function Page() {
   const config = getDaoNetworkConfig(network);
   const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
   const [tokenLimit, setTokenLimit] = useState(TOKEN_PAGE_SIZE);
-  const { data: goldskyHealth, error: goldskyHealthError, isLoading: goldskyHealthLoading, mutate: refreshHealth } = useGoldskyHealth();
-  const { data: activityFeed, error: activityError, isLoading: activityLoading, mutate: refreshFeed } = useGoldskyActivityFeed(activityLimit);
+  const {
+    data: goldskyHealth,
+    error: goldskyHealthError,
+    isLoading: goldskyHealthLoading,
+    mutate: refreshHealth
+  } = useGoldskyHealth();
+  const {
+    data: activityFeed,
+    error: activityError,
+    isLoading: activityLoading,
+    mutate: refreshFeed
+  } = useGoldskyActivityFeed(activityLimit);
   const { data: tokens, error: tokenError, isLoading: tokenLoading, mutate: refreshTokens } = useTokenInventory();
   const tokenItems = tokens?.items.slice(0, tokenLimit) ?? [];
   const canLoadMoreTokens = Boolean(tokens && tokens.items.length > tokenLimit);
@@ -84,25 +97,43 @@ export default function Page() {
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Badge>{tokenLoading ? 'Syncing' : `${tokens?.totalSupply ?? 0} live`}</Badge>
-                <Button type="button" variant="outline" size="sm" onClick={() => void refreshTokens()} disabled={tokenLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshTokens()}
+                  disabled={tokenLoading}
+                >
                   {tokenLoading ? 'Refreshing...' : 'Refresh tokens'}
                 </Button>
               </div>
             </div>
 
-            {tokenError ? <Text className="lede" style={{ margin: 0 }}>{tokenError.message}</Text> : null}
+            {tokenError ? (
+              <Text className="lede" style={{ margin: 0 }}>
+                {tokenError.message}
+              </Text>
+            ) : null}
             {!tokenLoading && !tokens?.items.length ? (
-              <Text className="lede" style={{ margin: 0 }}>No tokens indexed yet.</Text>
+              <Text className="lede" style={{ margin: 0 }}>
+                No tokens indexed yet.
+              </Text>
             ) : (
               <>
                 <div className="token-inventory-grid">
-                   {tokenItems.map((token) => (
-                     <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
+                  {tokenItems.map((token) => (
+                    <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />
                   ))}
                 </div>
                 {canLoadMoreTokens ? (
                   <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setTokenLimit((current) => current + TOKEN_PAGE_SIZE)} disabled={tokenLoading}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTokenLimit((current) => current + TOKEN_PAGE_SIZE)}
+                      disabled={tokenLoading}
+                    >
                       {tokenLoading ? 'Loading...' : 'Show more tokens'}
                     </Button>
                   </div>
@@ -133,8 +164,14 @@ export default function Page() {
                 <Text className="label">Goldsky index</Text>
                 <Heading style={{ fontSize: '1.35rem' }}>Indexer health</Heading>
               </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => void refreshHealth()} disabled={goldskyHealthLoading}>
-                  {goldskyHealthLoading ? 'Refreshing...' : 'Refresh status'}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void refreshHealth()}
+                disabled={goldskyHealthLoading}
+              >
+                {goldskyHealthLoading ? 'Refreshing...' : 'Refresh status'}
               </Button>
             </div>
 
@@ -143,9 +180,13 @@ export default function Page() {
                 <Card p="5">
                   <Stack gap="2">
                     <Text className="label">Goldsky PostgreSQL index</Text>
-                    <Heading style={{ fontSize: '1.2rem' }}>{goldskyHealth.status === 'healthy' ? 'Healthy' : 'Unavailable'}</Heading>
+                    <Heading style={{ fontSize: '1.2rem' }}>
+                      {goldskyHealth.status === 'healthy' ? 'Healthy' : 'Unavailable'}
+                    </Heading>
                     <div>
-                      <Badge>{goldskyHealth.latestLedger ? `Ledger ${goldskyHealth.latestLedger}` : 'No ledger data'}</Badge>
+                      <Badge>
+                        {goldskyHealth.latestLedger ? `Ledger ${goldskyHealth.latestLedger}` : 'No ledger data'}
+                      </Badge>
                     </div>
                     <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>
                       {goldskyHealth.totalEvents ?? 0} indexed events
@@ -153,8 +194,16 @@ export default function Page() {
                   </Stack>
                 </Card>
               ) : null}
-              {goldskyHealthLoading ? <Card p="5"><Text>Loading Goldsky status...</Text></Card> : null}
-              {goldskyHealthError ? <Card p="5"><Text>{goldskyHealthError.message}</Text></Card> : null}
+              {goldskyHealthLoading ? (
+                <Card p="5">
+                  <Text>Loading Goldsky status...</Text>
+                </Card>
+              ) : null}
+              {goldskyHealthError ? (
+                <Card p="5">
+                  <Text>{goldskyHealthError.message}</Text>
+                </Card>
+              ) : null}
             </Grid>
           </Stack>
         </Card>
@@ -168,14 +217,26 @@ export default function Page() {
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Badge>{activityLoading ? 'Syncing' : 'Live'}</Badge>
-                <Button type="button" variant="outline" size="sm" onClick={() => void refreshFeed()} disabled={activityLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshFeed()}
+                  disabled={activityLoading}
+                >
                   {activityLoading ? 'Refreshing...' : 'Refresh feed'}
                 </Button>
               </div>
             </div>
-            {activityError ? <Text className="lede" style={{ margin: 0 }}>{activityError.message}</Text> : null}
+            {activityError ? (
+              <Text className="lede" style={{ margin: 0 }}>
+                {activityError.message}
+              </Text>
+            ) : null}
             {!activityItems.length ? (
-              <Text className="lede" style={{ margin: 0 }}>No indexed activity yet.</Text>
+              <Text className="lede" style={{ margin: 0 }}>
+                No indexed activity yet.
+              </Text>
             ) : (
               <>
                 <Stack gap="0">
@@ -184,14 +245,17 @@ export default function Page() {
                       key={item.activity_id}
                       style={{
                         borderTop: index === 0 ? 'none' : '1px solid rgba(148, 163, 184, 0.18)',
-                        padding: '14px 0',
+                        padding: '14px 0'
                       }}
                     >
                       <Stack gap="1">
                         <Text style={{ margin: 0, fontWeight: 700 }}>{item.title}</Text>
-                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{item.summary}</Text>
+                        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                          {item.summary}
+                        </Text>
                         <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>
-                          {formatTimestamp(Number(item.timestamp ?? 0))} | Ledger {item.ledger_sequence} | {item.contract_role}
+                          {formatTimestamp(Number(item.timestamp ?? 0))} | Ledger {item.ledger_sequence} |{' '}
+                          {item.contract_role}
                         </Text>
                       </Stack>
                     </div>
@@ -199,7 +263,13 @@ export default function Page() {
                 </Stack>
                 {canLoadMoreActivity ? (
                   <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)} disabled={activityLoading}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)}
+                      disabled={activityLoading}
+                    >
                       {activityLoading ? 'Loading...' : 'Show more activity'}
                     </Button>
                   </div>
@@ -208,7 +278,6 @@ export default function Page() {
             )}
           </Stack>
         </Card>
-
       </PageSection>
     </DaoShell>
   );

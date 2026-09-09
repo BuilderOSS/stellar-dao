@@ -1,9 +1,11 @@
-import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
-import { AppToaster } from '@/components/app-toaster';
-import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import '../../styled-system/styles.css';
 import './globals.css';
+
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+
+import { AppToaster } from '@/components/app-toaster';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 
 const daoConfig = getDaoNetworkConfig(getDefaultDaoNetwork());
 

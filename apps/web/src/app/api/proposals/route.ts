@@ -1,10 +1,15 @@
-import { NextResponse } from 'next/server';
 import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
+import { NextResponse } from 'next/server';
+
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getGoldskyProposalList } from '@/lib/goldsky';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { parseProposalMetadata, type ProposalMetadata } from '@/lib/proposal-metadata';
-import { proposalStateFromLabel, proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
+import {
+  type ProposalState as ProposalStateValue,
+  proposalStateFromLabel,
+  proposalStateLabel
+} from '@/lib/proposal-state';
 
 type ProposalListItem = {
   proposalId: string;
@@ -31,7 +36,10 @@ export async function GET(request: Request) {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
 
   if (!config.governorContractId) {
-    return NextResponse.json({ items: [], generatedAt: new Date().toISOString(), message: 'Missing governor contract id' }, { status: 400 });
+    return NextResponse.json(
+      { items: [], generatedAt: new Date().toISOString(), message: 'Missing governor contract id' },
+      { status: 400 }
+    );
   }
 
   try {
@@ -44,31 +52,40 @@ export async function GET(request: Request) {
       publicKey: config.adminAddress
     });
 
-    const items = await Promise.all(proposalData.items.map(async (proposal: any): Promise<ProposalListItem> => {
-          const metadata = parseProposalMetadata(proposal.description ?? '');
-          let state: ProposalStateValue | null = null;
-          try {
-            state = await fetchProposalState(client, proposal.proposal_id);
-          } catch {
-             state = proposalStateFromLabel(proposal.state);
-          }
-          return {
-            proposalId: proposal.proposal_id,
-            proposalNumber: proposal.proposal_number,
-            metadata,
-            state,
-             stateLabel: state === null ? proposal.state ?? 'Unknown' : proposalStateLabel(state),
-             ledger: Number(proposal.created_ledger ?? 0),
-             timestamp: Number(proposal.created_timestamp ?? 0),
-            txHash: '',
-            contractId: config.governorContractId
-          };
-        }));
+    const items = await Promise.all(
+      proposalData.items.map(async (proposal: any): Promise<ProposalListItem> => {
+        const metadata = parseProposalMetadata(proposal.description ?? '');
+        let state: ProposalStateValue | null = null;
+        try {
+          state = await fetchProposalState(client, proposal.proposal_id);
+        } catch {
+          state = proposalStateFromLabel(proposal.state);
+        }
+        return {
+          proposalId: proposal.proposal_id,
+          proposalNumber: proposal.proposal_number,
+          metadata,
+          state,
+          stateLabel: state === null ? (proposal.state ?? 'Unknown') : proposalStateLabel(state),
+          ledger: Number(proposal.created_ledger ?? 0),
+          timestamp: Number(proposal.created_timestamp ?? 0),
+          txHash: '',
+          contractId: config.governorContractId
+        };
+      })
+    );
 
-    return NextResponse.json({ items, generatedAt: new Date().toISOString() }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { items, generatedAt: new Date().toISOString() },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   } catch (error) {
     return NextResponse.json(
-      { items: [], generatedAt: new Date().toISOString(), message: error instanceof Error ? error.message : 'Proposal list unavailable' },
+      {
+        items: [],
+        generatedAt: new Date().toISOString(),
+        message: error instanceof Error ? error.message : 'Proposal list unavailable'
+      },
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }

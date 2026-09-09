@@ -1,8 +1,9 @@
-import useSWR from 'swr';
-import { Contract, Address, TransactionBuilder, Networks, scValToNative } from '@stellar/stellar-sdk';
+import { Address, Contract, Networks, scValToNative, TransactionBuilder } from '@stellar/stellar-sdk';
 import { Server } from '@stellar/stellar-sdk/rpc';
-import type { DaoNetworkConfig } from '@/lib/dao-config';
+import useSWR from 'swr';
+
 import { getTreasuryAssets } from '@/lib/assets-config';
+import type { DaoNetworkConfig } from '@/lib/dao-config';
 
 export type AssetBalance = {
   assetCode: string;
@@ -14,9 +15,7 @@ export type AssetBalance = {
 type BalanceKey = readonly ['treasury-balances', string, string];
 
 async function fetchTreasuryBalances([, treasuryContractId, network]: BalanceKey): Promise<AssetBalance[]> {
-  const rpcUrl = network === 'testnet'
-    ? 'https://soroban-testnet.stellar.org'
-    : 'https://soroban-mainnet.stellar.org';
+  const rpcUrl = network === 'testnet' ? 'https://soroban-testnet.stellar.org' : 'https://soroban-mainnet.stellar.org';
 
   const server = new Server(rpcUrl);
   const balances: AssetBalance[] = [];
@@ -28,11 +27,12 @@ async function fetchTreasuryBalances([, treasuryContractId, network]: BalanceKey
   const treasuryAddress = new Address(treasuryContractId);
 
   // Determine network passphrase
-  const networkPassphrase = network === 'testnet'
-    ? Networks.TESTNET
-    : network === 'mainnet'
-    ? Networks.PUBLIC
-    : 'Standalone Network ; February 2017';
+  const networkPassphrase =
+    network === 'testnet'
+      ? Networks.TESTNET
+      : network === 'mainnet'
+        ? Networks.PUBLIC
+        : 'Standalone Network ; February 2017';
 
   // Query balance for each asset by invoking the SAC's balance function
   for (const asset of treasuryAssets) {
@@ -52,20 +52,17 @@ async function fetchTreasuryBalances([, treasuryContractId, network]: BalanceKey
       const tokenContract = new Contract(asset.contractId);
 
       // Build the balance function invocation
-      const balanceOperation = tokenContract.call(
-        'balance',
-        treasuryAddress.toScVal()
-      );
+      const balanceOperation = tokenContract.call('balance', treasuryAddress.toScVal());
 
       // Simulate the transaction to get the balance
       // Use a dummy source account for simulation
-      const dummyAccount = await server.getAccount(
-        'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
-      ).catch(() => ({
-        accountId: () => 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        sequenceNumber: () => '0',
-        incrementSequenceNumber: () => {}
-      }));
+      const dummyAccount = await server
+        .getAccount('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF')
+        .catch(() => ({
+          accountId: () => 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+          sequenceNumber: () => '0',
+          incrementSequenceNumber: () => {}
+        }));
 
       const builtTx = new TransactionBuilder(dummyAccount as any, {
         fee: '100',
@@ -86,9 +83,7 @@ async function fetchTreasuryBalances([, treasuryContractId, network]: BalanceKey
           const balanceValue = scValToNative(resultValue);
 
           // Convert to decimal string (assuming 7 decimal places for Stellar assets)
-          const balanceStr = typeof balanceValue === 'bigint'
-            ? (Number(balanceValue) / 10_000_000).toFixed(7)
-            : '0';
+          const balanceStr = typeof balanceValue === 'bigint' ? (Number(balanceValue) / 10_000_000).toFixed(7) : '0';
 
           balances.push({
             assetCode: asset.code,

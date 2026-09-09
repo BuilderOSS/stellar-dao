@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
+import { NextResponse } from 'next/server';
+
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getGoldskyProposalDetail } from '@/lib/goldsky';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
@@ -42,9 +43,10 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
       }
 
       const deadline = Number(proposal.deadline_ledger ?? deadlineTx.result);
-      const voteStart = proposal.vote_start_timestamp == null || Number(proposal.vote_start_timestamp) === 0
-        ? deadline - Number(votingPeriodTx.result)
-        : Number(proposal.vote_start_timestamp);
+      const voteStart =
+        proposal.vote_start_timestamp == null || Number(proposal.vote_start_timestamp) === 0
+          ? deadline - Number(votingPeriodTx.result)
+          : Number(proposal.vote_start_timestamp);
       const metadata = parseProposalMetadata(proposal.description ?? '');
       const payload = {
         proposalId: proposal.proposal_id,
@@ -53,22 +55,22 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         title: metadata.title,
         metadata,
         proposer: proposal.proposer || proposerTx.result,
-         vote_end: deadline,
-         vote_snapshot: Number(proposal.snapshot_ledger ?? snapshotTx.result),
-         vote_start: voteStart,
-         deadline,
-         eta: proposal.eta == null ? 0 : Number(proposal.eta),
+        vote_end: deadline,
+        vote_snapshot: Number(proposal.snapshot_ledger ?? snapshotTx.result),
+        vote_start: voteStart,
+        deadline,
+        eta: proposal.eta == null ? 0 : Number(proposal.eta),
         state: stateTx.result,
         label: proposalStateLabel(stateTx.result),
         quorumVotes,
-         ledger: Number(proposal.created_ledger ?? 0),
-         timestamp: Number(proposal.created_timestamp ?? 0),
-         for_votes: String(proposal.vote_summary?.for ?? 0),
-         against_votes: String(proposal.vote_summary?.against ?? 0),
-         abstain_votes: String(proposal.vote_summary?.abstain ?? 0),
-         targets: proposal.actions?.map((action: any) => action.target) ?? [],
-         functions: proposal.actions?.map((action: any) => action.function) ?? [],
-         args: proposal.actions?.map((action: any) => action.args) ?? []
+        ledger: Number(proposal.created_ledger ?? 0),
+        timestamp: Number(proposal.created_timestamp ?? 0),
+        for_votes: String(proposal.vote_summary?.for ?? 0),
+        against_votes: String(proposal.vote_summary?.against ?? 0),
+        abstain_votes: String(proposal.vote_summary?.abstain ?? 0),
+        targets: proposal.actions?.map((action: any) => action.target) ?? [],
+        functions: proposal.actions?.map((action: any) => action.function) ?? [],
+        args: proposal.actions?.map((action: any) => action.args) ?? []
       };
 
       return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
@@ -81,22 +83,22 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
           title: parseProposalMetadata(proposal.description ?? '').title,
           metadata: parseProposalMetadata(proposal.description ?? ''),
           proposer: proposal.proposer,
-           vote_end: proposal.deadline_ledger == null ? 0 : Number(proposal.deadline_ledger),
-           vote_snapshot: proposal.snapshot_ledger == null ? 0 : Number(proposal.snapshot_ledger),
-           vote_start: proposal.vote_start_timestamp == null ? 0 : Number(proposal.vote_start_timestamp),
-           deadline: proposal.deadline_ledger == null ? 0 : Number(proposal.deadline_ledger),
-           eta: proposal.eta == null ? 0 : Number(proposal.eta),
-           state: proposalStateFromLabel(proposal.state) ?? ProposalState.Pending,
-           label: proposal.state || 'Pending',
+          vote_end: proposal.deadline_ledger == null ? 0 : Number(proposal.deadline_ledger),
+          vote_snapshot: proposal.snapshot_ledger == null ? 0 : Number(proposal.snapshot_ledger),
+          vote_start: proposal.vote_start_timestamp == null ? 0 : Number(proposal.vote_start_timestamp),
+          deadline: proposal.deadline_ledger == null ? 0 : Number(proposal.deadline_ledger),
+          eta: proposal.eta == null ? 0 : Number(proposal.eta),
+          state: proposalStateFromLabel(proposal.state) ?? ProposalState.Pending,
+          label: proposal.state || 'Pending',
           quorumVotes: null,
-           ledger: Number(proposal.created_ledger ?? 0),
-           timestamp: Number(proposal.created_timestamp ?? 0),
-           for_votes: String(proposal.vote_summary?.for ?? 0),
-           against_votes: String(proposal.vote_summary?.against ?? 0),
-           abstain_votes: String(proposal.vote_summary?.abstain ?? 0),
-           targets: proposal.actions?.map((action: any) => action.target) ?? [],
-           functions: proposal.actions?.map((action: any) => action.function) ?? [],
-           args: proposal.actions?.map((action: any) => action.args) ?? []
+          ledger: Number(proposal.created_ledger ?? 0),
+          timestamp: Number(proposal.created_timestamp ?? 0),
+          for_votes: String(proposal.vote_summary?.for ?? 0),
+          against_votes: String(proposal.vote_summary?.against ?? 0),
+          abstain_votes: String(proposal.vote_summary?.abstain ?? 0),
+          targets: proposal.actions?.map((action: any) => action.target) ?? [],
+          functions: proposal.actions?.map((action: any) => action.function) ?? [],
+          args: proposal.actions?.map((action: any) => action.args) ?? []
         },
         { headers: { 'Cache-Control': 'no-store' } }
       );

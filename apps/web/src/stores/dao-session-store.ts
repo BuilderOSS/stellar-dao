@@ -42,7 +42,9 @@ export const useDaoSessionStore = create<DaoSessionStore>()(
           let changed = false;
           const next = { ...current };
 
-          for (const [key, value] of Object.entries(patch) as Array<[keyof DaoSessionState, DaoSessionState[keyof DaoSessionState]]>) {
+          for (const [key, value] of Object.entries(patch) as Array<
+            [keyof DaoSessionState, DaoSessionState[keyof DaoSessionState]]
+          >) {
             if (typeof value !== 'undefined' && next[key] !== value) {
               next[key] = value as never;
               changed = true;

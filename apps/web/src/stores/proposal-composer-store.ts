@@ -4,11 +4,8 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type {
-  ProposalActionType,
-  ProposalQueuedAction,
-  ValidationResult,
-} from '@/lib/proposal-actions/types';
+
+import type { ProposalActionType, ProposalQueuedAction, ValidationResult } from '@/lib/proposal-actions/types';
 
 /**
  * Proposal metadata
@@ -99,18 +96,16 @@ const initialState: ProposalComposerState = {
   validationErrors: null,
   formMessage: '',
   busy: false,
-  prepopulatedFrom: undefined,
+  prepopulatedFrom: undefined
 };
 
 const memoryStorage = {
   getItem: (_name: string) => null,
   setItem: (_name: string, _value: string) => undefined,
-  removeItem: (_name: string) => undefined,
+  removeItem: (_name: string) => undefined
 };
 
-const storage = createJSONStorage(() =>
-  typeof window === 'undefined' ? memoryStorage : window.localStorage
-);
+const storage = createJSONStorage(() => (typeof window === 'undefined' ? memoryStorage : window.localStorage));
 
 export const useProposalComposerStore = create<ProposalComposerStore>()(
   persist(
@@ -123,8 +118,7 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
       prevStep: () => set((state) => ({ step: Math.max(1, state.step - 1) as 1 | 2 | 3 })),
 
       // Metadata
-      updateMetadata: (patch) =>
-        set((state) => ({ metadata: { ...state.metadata, ...patch } })),
+      updateMetadata: (patch) => set((state) => ({ metadata: { ...state.metadata, ...patch } })),
 
       // Action editing
       beginCreate: async (actionType = 'mint-governance-token') => {
@@ -136,8 +130,8 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
           editingState: {
             mode: 'create',
             actionType,
-            draftData: handler.getDefaultValues(),
-          },
+            draftData: handler.getDefaultValues()
+          }
         });
       },
 
@@ -155,8 +149,8 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
             mode: 'edit',
             actionType: action.type,
             index,
-            draftData: handler.deserialize(action),
-          },
+            draftData: handler.deserialize(action)
+          }
         });
       },
 
@@ -177,8 +171,8 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
             editingState: {
               ...state.editingState,
               actionType,
-              draftData: handler.getDefaultValues(),
-            },
+              draftData: handler.getDefaultValues()
+            }
           };
         });
       },
@@ -194,13 +188,13 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
             return {
               queuedActions: nextActions,
               editingState: null,
-              formMessage: 'Action updated',
+              formMessage: 'Action updated'
             };
           } else {
             return {
               queuedActions: [...queuedActions, action],
               editingState: null,
-              formMessage: 'Action added',
+              formMessage: 'Action added'
             };
           }
         }),
@@ -229,7 +223,7 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
           metadata: metadata ? { ...state.metadata, ...metadata } : state.metadata,
           queuedActions: actions || state.queuedActions,
           step: step || state.step,
-          prepopulatedFrom: source,
+          prepopulatedFrom: source
         })),
 
       // Validation
@@ -243,7 +237,7 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
 
       // Reset
       reset: () => set(initialState),
-      resetDraft: () => set({ editingState: null, validationErrors: null }),
+      resetDraft: () => set({ editingState: null, validationErrors: null })
     }),
     {
       name: 'dao.proposal-composer.v1',
@@ -253,8 +247,8 @@ export const useProposalComposerStore = create<ProposalComposerStore>()(
         metadata: state.metadata,
         queuedActions: state.queuedActions,
         editingState: state.editingState,
-        prepopulatedFrom: state.prepopulatedFrom,
-      }),
+        prepopulatedFrom: state.prepopulatedFrom
+      })
     }
   )
 );
@@ -265,11 +259,8 @@ export const selectCanProceedToStep2 = (state: ProposalComposerStore) =>
   state.metadata.description.trim().length > 0 &&
   state.queuedActions.length > 0;
 
-export const selectIsEditing = (state: ProposalComposerStore) =>
-  state.editingState?.mode === 'edit';
+export const selectIsEditing = (state: ProposalComposerStore) => state.editingState?.mode === 'edit';
 
-export const selectEditingIndex = (state: ProposalComposerStore) =>
-  state.editingState?.index;
+export const selectEditingIndex = (state: ProposalComposerStore) => state.editingState?.index;
 
-export const selectValidationErrors = (state: ProposalComposerStore) =>
-  state.validationErrors;
+export const selectValidationErrors = (state: ProposalComposerStore) => state.validationErrors;

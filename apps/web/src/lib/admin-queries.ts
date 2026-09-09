@@ -1,6 +1,7 @@
-import useSWR from 'swr';
-import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
 import { Server } from '@stellar/stellar-sdk/rpc';
+import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
+import useSWR from 'swr';
+
 import type { DaoNetworkConfig } from '@/lib/dao-config';
 
 export type GovernorSettings = {
@@ -44,6 +45,9 @@ async function fetchGovernorSettings([, contractId, rpcUrl, passphrase, publicKe
 }
 
 export function useGovernorSettings(config: DaoNetworkConfig, publicKey: string) {
-  const key = config.governorContractId && publicKey ? (['governor-settings', config.governorContractId, config.rpcUrl, config.passphrase, publicKey] as const) : null;
+  const key =
+    config.governorContractId && publicKey
+      ? (['governor-settings', config.governorContractId, config.rpcUrl, config.passphrase, publicKey] as const)
+      : null;
   return useSWR(key, fetchGovernorSettings, { keepPreviousData: true });
 }

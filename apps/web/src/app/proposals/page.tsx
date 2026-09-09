@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Grid, Stack } from 'styled-system/jsx';
 import useSWR from 'swr';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Badge, Button, Callout, Card, Heading, Text } from '@/components/ui';
 import { ProposalStateBadge } from '@/components/proposal/proposal-state-badge';
-import { Grid, Stack } from 'styled-system/jsx';
 import type { ProposalListResponse } from '@/components/proposal/types';
+import { Button, Callout, Card, Heading, Text } from '@/components/ui';
 import type { GovernorSettings } from '@/lib/admin-queries';
 import { useGovernorSettings } from '@/lib/admin-queries';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
@@ -18,13 +19,19 @@ import { useDaoSessionStore } from '@/stores/dao-session-store';
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(timestamp * 1000)
+    );
   } catch {
     return String(timestamp);
   }
 }
 
-function formatProposalCreationDisabledMessage(votingPower: VotingPowerSnapshot | undefined, settings: GovernorSettings | undefined, errorMessage?: string) {
+function formatProposalCreationDisabledMessage(
+  votingPower: VotingPowerSnapshot | undefined,
+  settings: GovernorSettings | undefined,
+  errorMessage?: string
+) {
   if (errorMessage) {
     return errorMessage;
   }
@@ -50,19 +57,26 @@ export default function ProposalsPage() {
     error: governorSettingsError,
     isLoading: governorSettingsLoading
   } = useGovernorSettings(config, session.address || config.adminAddress);
-  const { data, error, isLoading, mutate } = useSWR<ProposalListResponse>('/api/proposals?limit=24', async (url: string) => {
-    const response = await fetch(url, { cache: 'no-store' });
-    const json = (await response.json()) as ProposalListResponse;
-    if (!response.ok) {
-      throw new Error(json.message || 'Proposal list failed');
-    }
-    return json;
-  }, { keepPreviousData: true });
+  const { data, error, isLoading, mutate } = useSWR<ProposalListResponse>(
+    '/api/proposals?limit=24',
+    async (url: string) => {
+      const response = await fetch(url, { cache: 'no-store' });
+      const json = (await response.json()) as ProposalListResponse;
+      if (!response.ok) {
+        throw new Error(json.message || 'Proposal list failed');
+      }
+      return json;
+    },
+    { keepPreviousData: true }
+  );
   const items = data?.items ?? [];
   const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
   const proposalEligibilityError = votingPowerError ?? governorSettingsError;
-  const hasProposalVotes = Boolean(votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold);
-  const createDisabled = !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
+  const hasProposalVotes = Boolean(
+    votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold
+  );
+  const createDisabled =
+    !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
   const createDisabledMessage = createDisabled
     ? formatProposalCreationDisabledMessage(votingPower, governorSettings, proposalEligibilityError?.message)
     : '';
@@ -81,7 +95,12 @@ export default function ProposalsPage() {
               <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
                 {isLoading ? 'Refreshing...' : 'Refresh'}
               </Button>
-              <Button type="button" size="sm" onClick={() => router.push('/proposals/create')} disabled={createDisabled}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => router.push('/proposals/create')}
+                disabled={createDisabled}
+              >
                 {proposalEligibilityLoading ? 'Checking eligibility...' : 'Create proposal'}
               </Button>
             </div>
@@ -90,7 +109,9 @@ export default function ProposalsPage() {
           {createDisabledMessage ? <Callout variant="warning" title={createDisabledMessage} /> : null}
           {error ? <Callout variant="error" title={error.message} /> : null}
           {!items.length ? (
-            <Text className="lede" style={{ margin: 0 }}>No proposal rows indexed yet.</Text>
+            <Text className="lede" style={{ margin: 0 }}>
+              No proposal rows indexed yet.
+            </Text>
           ) : (
             <Grid columns={{ base: 1 }} gap="4">
               {items.map((item) => (
@@ -104,7 +125,9 @@ export default function ProposalsPage() {
                         <ProposalStateBadge label={item.stateLabel} />
                       </div>
                       <Heading style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{item.metadata.title}</Heading>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{formatTimestamp(item.timestamp)}</Text>
+                      <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>
+                        {formatTimestamp(item.timestamp)}
+                      </Text>
                     </Stack>
                   </Link>
                 </Card>

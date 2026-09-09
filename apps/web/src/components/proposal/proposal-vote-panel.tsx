@@ -1,5 +1,6 @@
-import { Button, Callout, Card, Input, Text } from '@/components/ui';
 import { Stack } from 'styled-system/jsx';
+
+import { Button, Callout, Card, Input, Text } from '@/components/ui';
 
 const VOTE_OPTIONS = [
   { label: 'For', value: 1 },
@@ -48,9 +49,23 @@ type ProposalVotePanelProps = {
   currentVote: CurrentVote | null;
 };
 
-export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType, votingPower, votingPowerLoading, votingPowerError, unavailableReason, onVoteReasonChange, onSelectedVoteTypeChange, onVote, currentVote }: ProposalVotePanelProps) {
-  const selectedOption = selectedVoteType === null ? null : VOTE_OPTIONS.find((option) => option.value === selectedVoteType) ?? null;
-  const selectedVoteStyle = selectedVoteType === null ? null : VOTE_STYLES[selectedVoteType] ?? null;
+export function ProposalVotePanel({
+  canVote,
+  busy,
+  voteReason,
+  selectedVoteType,
+  votingPower,
+  votingPowerLoading,
+  votingPowerError,
+  unavailableReason,
+  onVoteReasonChange,
+  onSelectedVoteTypeChange,
+  onVote,
+  currentVote
+}: ProposalVotePanelProps) {
+  const selectedOption =
+    selectedVoteType === null ? null : (VOTE_OPTIONS.find((option) => option.value === selectedVoteType) ?? null);
+  const selectedVoteStyle = selectedVoteType === null ? null : (VOTE_STYLES[selectedVoteType] ?? null);
 
   return (
     <Stack gap="3">
@@ -63,8 +78,12 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
       {currentVote ? (
         <Card p="4">
           <Stack gap="2">
-            <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>You already voted {currentVote.label}.</Text>
-            <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{currentVote.reason || 'No reason provided'}</Text>
+            <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+              You already voted {currentVote.label}.
+            </Text>
+            <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+              {currentVote.reason || 'No reason provided'}
+            </Text>
           </Stack>
         </Card>
       ) : null}
@@ -73,9 +92,18 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
 
       {!currentVote && canVote ? (
         <>
-          <Input value={voteReason} onChange={(event) => onVoteReasonChange(event.target.value)} placeholder="Vote reason" disabled={busy} />
+          <Input
+            value={voteReason}
+            onChange={(event) => onVoteReasonChange(event.target.value)}
+            placeholder="Vote reason"
+            disabled={busy}
+          />
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend style={{ color: 'rgba(176,201,229,0.88)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>Select your vote</legend>
+            <legend
+              style={{ color: 'rgba(176,201,229,0.88)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}
+            >
+              Select your vote
+            </legend>
             <div role="radiogroup" aria-label="Vote type" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {VOTE_OPTIONS.map((option) => {
                 const selected = selectedVoteType === option.value;
@@ -128,7 +156,11 @@ export function ProposalVotePanel({ canVote, busy, voteReason, selectedVoteType,
             </Card>
           ) : null}
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button type="button" onClick={() => selectedVoteType !== null ? onVote(selectedVoteType) : undefined} disabled={busy || selectedVoteType === null}>
+            <Button
+              type="button"
+              onClick={() => (selectedVoteType !== null ? onVote(selectedVoteType) : undefined)}
+              disabled={busy || selectedVoteType === null}
+            >
               {busy ? 'Submitting...' : 'Submit vote'}
             </Button>
           </div>

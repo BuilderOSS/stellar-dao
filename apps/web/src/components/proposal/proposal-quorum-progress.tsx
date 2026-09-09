@@ -1,4 +1,5 @@
 import { Box, Stack } from 'styled-system/jsx';
+
 import { Badge, Card, Text } from '@/components/ui';
 import { proposalStateBadgeStyle } from '@/lib/proposal-state';
 
@@ -20,7 +21,13 @@ function formatPercent(value: bigint, quorumVotes: bigint) {
   return Number.isFinite(pct) ? pct : null;
 }
 
-export function ProposalQuorumProgress({ forVotes, againstVotes, abstainVotes, quorumVotes, totalVotes }: ProposalQuorumProgressProps) {
+export function ProposalQuorumProgress({
+  forVotes,
+  againstVotes,
+  abstainVotes,
+  quorumVotes,
+  totalVotes
+}: ProposalQuorumProgressProps) {
   if (totalVotes <= 0n || quorumVotes <= 0n) {
     return null;
   }
@@ -44,11 +51,19 @@ export function ProposalQuorumProgress({ forVotes, againstVotes, abstainVotes, q
         </Box>
 
         <Box display="flex" alignItems="baseline" gap="2">
-          <Text style={{ fontSize: '1.75rem', lineHeight: 1, margin: 0, fontWeight: 700 }}>{formatBigInt(participationVotes)}</Text>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.95rem' }}>/ {formatBigInt(quorumVotes)} needed</Text>
+          <Text style={{ fontSize: '1.75rem', lineHeight: 1, margin: 0, fontWeight: 700 }}>
+            {formatBigInt(participationVotes)}
+          </Text>
+          <Text className="lede" style={{ margin: 0, fontSize: '0.95rem' }}>
+            / {formatBigInt(quorumVotes)} needed
+          </Text>
         </Box>
 
-        {pct !== null ? <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>{pct}% of quorum</Text> : null}
+        {pct !== null ? (
+          <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+            {pct}% of quorum
+          </Text>
+        ) : null}
 
         <Box
           h="3"
@@ -82,13 +97,18 @@ export function ProposalQuorumProgress({ forVotes, againstVotes, abstainVotes, q
 
         {!quorumMet ? (
           <Box position="relative" h="4">
-            <Text className="lede" style={{ margin: 0, fontSize: '0.8rem', position: 'absolute', right: 0, whiteSpace: 'nowrap' }}>
+            <Text
+              className="lede"
+              style={{ margin: 0, fontSize: '0.8rem', position: 'absolute', right: 0, whiteSpace: 'nowrap' }}
+            >
               Quorum {formatBigInt(quorumVotes)}
             </Text>
           </Box>
         ) : null}
 
-        <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>{footer}</Text>
+        <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
+          {footer}
+        </Text>
         <Box display="flex" justifyContent="space-between" alignItems="center" gap="3" flexWrap="wrap">
           <Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>
             Approval requires For votes to exceed Against votes.

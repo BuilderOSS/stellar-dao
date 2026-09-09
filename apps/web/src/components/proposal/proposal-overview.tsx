@@ -1,12 +1,14 @@
 import { ArrowUpRight } from 'lucide-react';
-import { Card, Heading, IconLinkButton, ShortId, Text } from '@/components/ui';
 import type { ReactNode } from 'react';
 import { Grid, HStack, Stack } from 'styled-system/jsx';
-import type { ProposalDetail } from './types';
-import { ProposalStateBadge } from './proposal-state-badge';
-import { ProposalState } from '@/lib/proposal-state';
+
+import { Card, Heading, IconLinkButton, ShortId, Text } from '@/components/ui';
 import type { DaoNetworkName } from '@/lib/dao-config';
 import { getExplorerLedgerUrl } from '@/lib/explorer-links';
+import { ProposalState } from '@/lib/proposal-state';
+
+import { ProposalStateBadge } from './proposal-state-badge';
+import type { ProposalDetail } from './types';
 
 type ProposalOverviewProps = {
   detail: ProposalDetail;
@@ -31,7 +33,9 @@ function formatCountdown(target: number, now: number) {
 function formatDateTime(timestamp: number) {
   if (!timestamp) return '—';
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(timestamp * 1000)
+    );
   } catch {
     return String(timestamp);
   }
@@ -47,14 +51,22 @@ function getLifecycleSummary(detail: ProposalDetail, now: number) {
       const startTime = hasValidTimestamp(detail.vote_start) ? detail.vote_start : detail.vote_end;
       return {
         eyebrow: 'Voting starts',
-        headline: hasValidTimestamp(startTime) ? `Voting starts in ${formatCountdown(startTime, now)}` : 'Voting has not started yet',
-        subline: hasValidTimestamp(startTime) ? `Opens ${formatDateTime(startTime)}` : 'Waiting for the voting schedule to become available.'
+        headline: hasValidTimestamp(startTime)
+          ? `Voting starts in ${formatCountdown(startTime, now)}`
+          : 'Voting has not started yet',
+        subline: hasValidTimestamp(startTime)
+          ? `Opens ${formatDateTime(startTime)}`
+          : 'Waiting for the voting schedule to become available.'
       };
     case ProposalState.Active:
       return {
         eyebrow: 'Voting ends',
-        headline: hasValidTimestamp(detail.vote_end) ? `Voting ends in ${formatCountdown(detail.vote_end, now)}` : 'Voting is active',
-        subline: hasValidTimestamp(detail.vote_end) ? `Closes ${formatDateTime(detail.vote_end)}` : 'Voting end time is not available.'
+        headline: hasValidTimestamp(detail.vote_end)
+          ? `Voting ends in ${formatCountdown(detail.vote_end, now)}`
+          : 'Voting is active',
+        subline: hasValidTimestamp(detail.vote_end)
+          ? `Closes ${formatDateTime(detail.vote_end)}`
+          : 'Voting end time is not available.'
       };
     case ProposalState.Succeeded:
       return {
@@ -80,7 +92,9 @@ function getLifecycleSummary(detail: ProposalDetail, now: number) {
       return {
         eyebrow: 'Finalized',
         headline: 'Proposal defeated',
-        subline: hasValidTimestamp(detail.vote_end) ? `Voting ended ${formatDateTime(detail.vote_end)}` : 'No further action is available.'
+        subline: hasValidTimestamp(detail.vote_end)
+          ? `Voting ended ${formatDateTime(detail.vote_end)}`
+          : 'No further action is available.'
       };
     case ProposalState.Canceled:
       return {
@@ -123,14 +137,12 @@ export function ProposalOverview({ detail, now, network, actionSlot }: ProposalO
             <Stack gap="1">
               <Text className="label">{lifecycle.eyebrow}</Text>
               <Heading style={{ fontSize: '1.5rem' }}>{lifecycle.headline}</Heading>
-              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{lifecycle.subline}</Text>
+              <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                {lifecycle.subline}
+              </Text>
             </Stack>
           </Stack>
-          {actionSlot ? (
-            <div className="proposal-overview-action">
-              {actionSlot}
-            </div>
-          ) : null}
+          {actionSlot ? <div className="proposal-overview-action">{actionSlot}</div> : null}
         </Grid>
         <style jsx>{`
           .proposal-overview-action {
@@ -154,7 +166,9 @@ export function ProposalOverview({ detail, now, network, actionSlot }: ProposalO
           <HStack gap="2" justify="space-between">
             <div style={{ minWidth: 0 }}>
               <Text className="label">Snapshot</Text>
-              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>Ledger #{detail.vote_snapshot}</Text>
+              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>
+                Ledger #{detail.vote_snapshot}
+              </Text>
             </div>
             <IconLinkButton href={getExplorerLedgerUrl(network, detail.vote_snapshot)} label="Open in Stellar Expert">
               <ArrowUpRight size={12} />

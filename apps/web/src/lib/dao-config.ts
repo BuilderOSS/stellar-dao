@@ -1,4 +1,4 @@
-import { getDeployment, type DeploymentNetwork } from '@/config/deployments.generated';
+import { type DeploymentNetwork, getDeployment } from '@/config/deployments.generated';
 
 export type DaoNetworkName = DeploymentNetwork;
 
@@ -25,7 +25,7 @@ export function getDefaultDaoNetwork(): DaoNetworkName {
   return deployment.network as DaoNetworkName;
 }
 
-export function getDaoNetworkConfig(name: DaoNetworkName): DaoNetworkConfig {
+export function getDaoNetworkConfig(_name: DaoNetworkName): DaoNetworkConfig {
   const network = process.env.NEXT_PUBLIC_DAO_NETWORK || 'local';
   const label = process.env.NEXT_PUBLIC_DAO_LABEL || 'local';
   const deployment = getDeployment(network, label);
@@ -41,6 +41,6 @@ export function getDaoNetworkConfig(name: DaoNetworkName): DaoNetworkConfig {
     tokenContractId: deployment.contracts.token,
     governorContractId: deployment.contracts.governor,
     treasuryContractId: deployment.contracts.treasury,
-    auctionContractId: deployment.contracts.auction,
+    auctionContractId: deployment.contracts.auction
   };
 }

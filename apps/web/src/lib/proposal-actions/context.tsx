@@ -2,10 +2,12 @@
 
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, type ReactNode, useContext, useMemo } from 'react';
+
 import type { DaoNetworkConfig } from '@/lib/dao-config';
-import { useTreasuryBalances } from '@/lib/treasury-queries';
 import { useGoldskyMintAuthorities } from '@/lib/goldsky-queries';
+import { useTreasuryBalances } from '@/lib/treasury-queries';
+
 import type { FormContext } from './types';
 
 const ActionFormContext = createContext<FormContext | null>(null);
@@ -20,11 +22,7 @@ export interface ActionFormProviderProps {
  * Provider for shared action form data
  * Wraps the entire action editor to avoid prop drilling
  */
-export function ActionFormProvider({
-  children,
-  config,
-  session,
-}: ActionFormProviderProps) {
+export function ActionFormProvider({ children, config, session }: ActionFormProviderProps) {
   const { data: balances, isLoading: balancesLoading } = useTreasuryBalances(config);
   const { data: mintAuthoritiesData, isLoading: mintAuthoritiesLoading } = useGoldskyMintAuthorities();
 
@@ -35,16 +33,12 @@ export function ActionFormProvider({
       balances,
       balancesLoading,
       mintAuthorities: mintAuthoritiesData?.items,
-      mintAuthoritiesLoading,
+      mintAuthoritiesLoading
     }),
     [config, session, balances, balancesLoading, mintAuthoritiesData, mintAuthoritiesLoading]
   );
 
-  return (
-    <ActionFormContext.Provider value={contextValue}>
-      {children}
-    </ActionFormContext.Provider>
-  );
+  return <ActionFormContext.Provider value={contextValue}>{children}</ActionFormContext.Provider>;
 }
 
 /**

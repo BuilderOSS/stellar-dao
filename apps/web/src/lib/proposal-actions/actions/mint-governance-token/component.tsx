@@ -3,7 +3,9 @@
 'use client';
 
 import { Stack } from 'styled-system/jsx';
-import { FieldLabel, FieldHelperText, Input } from '@/components/ui';
+
+import { FieldHelperText, FieldLabel, Input } from '@/components/ui';
+
 import type { ActionFormProps } from '../../types';
 import type { MintGovernanceTokenData } from './types';
 
@@ -11,11 +13,10 @@ export function MintGovernanceTokenForm({
   value,
   onChange,
   disabled,
-  validationErrors,
+  validationErrors
 }: ActionFormProps<MintGovernanceTokenData>) {
   return (
     <Stack gap="3">
-
       <Stack gap="2">
         <FieldLabel htmlFor="recipient">Recipient</FieldLabel>
         <Input
@@ -25,7 +26,11 @@ export function MintGovernanceTokenForm({
           placeholder="Recipient address (G... or C...)"
           disabled={disabled}
           aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.recipient)}
-          aria-describedby={validationErrors && !validationErrors.valid && validationErrors.fields?.recipient ? 'recipient-error' : undefined}
+          aria-describedby={
+            validationErrors && !validationErrors.valid && validationErrors.fields?.recipient
+              ? 'recipient-error'
+              : undefined
+          }
         />
         {validationErrors && !validationErrors.valid && validationErrors.fields?.recipient ? (
           <FieldHelperText id="recipient-error" style={{ color: '#f87171' }}>
@@ -45,7 +50,11 @@ export function MintGovernanceTokenForm({
           placeholder="1"
           disabled
           aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.amount)}
-          aria-describedby={validationErrors && !validationErrors.valid && validationErrors.fields?.amount ? 'amount-error' : 'amount-helper'}
+          aria-describedby={
+            validationErrors && !validationErrors.valid && validationErrors.fields?.amount
+              ? 'amount-error'
+              : 'amount-helper'
+          }
         />
         {validationErrors && !validationErrors.valid && validationErrors.fields?.amount ? (
           <FieldHelperText id="amount-error" style={{ color: '#f87171' }}>

@@ -1,15 +1,16 @@
 'use client';
 
-import Link from 'next/link';
 import type { Route } from 'next';
-import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
+import Link from 'next/link';
+import { Grid, Stack } from 'styled-system/jsx';
+
+import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { AdminSectionNav } from '@/components/admin/admin-section-nav';
+import { Badge, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGoldskyGovernorAuthorities, useGoldskyMintAuthorities } from '@/lib/goldsky-queries';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { Grid, Stack } from 'styled-system/jsx';
 
 function SectionCard({
   title,
@@ -31,8 +32,13 @@ function SectionCard({
           <Badge>{label}</Badge>
         </div>
         <Heading style={{ fontSize: '1.2rem' }}>{title}</Heading>
-        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{description}</Text>
-        <Link href={allowed ? href : '/admin'} style={{ color: 'inherit', pointerEvents: allowed ? 'auto' : 'none', textDecoration: 'none' }}>
+        <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+          {description}
+        </Text>
+        <Link
+          href={allowed ? href : '/admin'}
+          style={{ color: 'inherit', pointerEvents: allowed ? 'auto' : 'none', textDecoration: 'none' }}
+        >
           <Badge>{allowed ? 'Open section' : 'Locked'}</Badge>
         </Link>
       </Stack>
@@ -48,7 +54,9 @@ export default function AdminPage() {
 
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
   const hasMintAccess = Boolean(isOwner || mintAuthorities?.items.some((item) => item.authority === session.address));
-  const hasGovernanceAccess = Boolean(isOwner || governorAuthorities?.items.some((item) => item.authority === session.address));
+  const hasGovernanceAccess = Boolean(
+    isOwner || governorAuthorities?.items.some((item) => item.authority === session.address)
+  );
   const hasAnyAccess = Boolean(isOwner || hasMintAccess || hasGovernanceAccess);
 
   return (
@@ -61,7 +69,15 @@ export default function AdminPage() {
         <Stack gap="4">
           <Card p="5">
             <Stack gap="3">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
                 <div>
                   <Badge>Connected wallet</Badge>
                   <Heading style={{ fontSize: '1.2rem', marginTop: '10px' }}>Access summary</Heading>
@@ -75,7 +91,9 @@ export default function AdminPage() {
               </div>
 
               <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
-                {session.address ? 'Choose a section below. The dashboard only exposes actions the connected wallet can use.' : 'Connect a wallet to see your available admin sections.'}
+                {session.address
+                  ? 'Choose a section below. The dashboard only exposes actions the connected wallet can use.'
+                  : 'Connect a wallet to see your available admin sections.'}
               </Text>
               {session.address ? <ShortId value={session.address} label="Connected address" /> : null}
             </Stack>

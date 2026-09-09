@@ -1,7 +1,7 @@
 'use client';
 
-import type { ComponentProps } from 'react';
 import { ark } from '@ark-ui/react/factory';
+import type { ComponentProps } from 'react';
 import { styled } from 'styled-system/jsx';
 import { button } from 'styled-system/recipes';
 

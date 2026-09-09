@@ -2,11 +2,13 @@
 
 'use client';
 
-import { Badge, Button, Card, FieldLabel, Select, Text, Callout } from '@/components/ui';
-import { getAllActionHandlers } from '../registry';
-import type { ProposalActionType, PreconditionResult } from '../types';
-import { Stack } from 'styled-system/jsx';
 import type { ReactNode } from 'react';
+import { Stack } from 'styled-system/jsx';
+
+import { Badge, Button, Callout, Card, FieldLabel, Select, Text } from '@/components/ui';
+
+import { getAllActionHandlers } from '../registry';
+import type { PreconditionResult, ProposalActionType } from '../types';
 
 export interface ActionFormShellProps {
   mode: 'create' | 'edit';
@@ -23,13 +25,13 @@ export interface ActionFormShellProps {
 export function ActionFormShell({
   mode,
   actionType,
-  actionLabel,
+  actionLabel: _actionLabel,
   disabled,
   preconditionResult,
   onActionTypeChange,
   onSave,
   onCancel,
-  children,
+  children
 }: ActionFormShellProps) {
   const allHandlers = getAllActionHandlers();
 
@@ -38,10 +40,7 @@ export function ActionFormShell({
       <Stack gap="3">
         {/* Precondition blocking message */}
         {preconditionResult && !preconditionResult.canExecute && (
-          <Callout
-            variant={preconditionResult.loading ? 'info' : 'error'}
-            title={preconditionResult.reason}
-          />
+          <Callout variant={preconditionResult.loading ? 'info' : 'error'} title={preconditionResult.reason} />
         )}
 
         {/* Header */}
@@ -51,7 +50,7 @@ export function ActionFormShell({
             justifyContent: 'space-between',
             gap: '12px',
             flexWrap: 'wrap',
-            alignItems: 'flex-start',
+            alignItems: 'flex-start'
           }}
         >
           <Stack gap="1">
@@ -97,7 +96,7 @@ export function ActionFormShell({
             display: 'flex',
             justifyContent: 'space-between',
             gap: '8px',
-            flexWrap: 'wrap',
+            flexWrap: 'wrap'
           }}
         >
           <Button type="button" variant="outline" onClick={onCancel} disabled={disabled}>

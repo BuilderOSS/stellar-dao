@@ -1,8 +1,9 @@
 'use client';
 
+import { Stack } from 'styled-system/jsx';
+
 import { Badge, Button, Card, Text } from '@/components/ui';
 import { getProposalActionLabel, getProposalActionSummary, type ProposalQueuedAction } from '@/lib/proposal-call';
-import { Stack } from 'styled-system/jsx';
 
 type ProposalActionQueueProps = {
   actions: ProposalQueuedAction[];
@@ -17,10 +18,20 @@ export function ProposalActionQueue({ actions, busy, onRequestEdit, onRequestRem
   return (
     <Card p="5">
       <Stack gap="3">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start'
+          }}
+        >
           <Stack gap="1">
             <Badge>Queued actions</Badge>
-            <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>{actions.length} action{actions.length === 1 ? '' : 's'} queued</Text>
+            <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>
+              {actions.length} action{actions.length === 1 ? '' : 's'} queued
+            </Text>
           </Stack>
         </div>
 
@@ -58,7 +69,9 @@ export function ProposalActionQueue({ actions, busy, onRequestEdit, onRequestRem
                         <Badge>{index + 1}</Badge>
                         <Badge>{getProposalActionLabel(action.type)}</Badge>
                       </div>
-                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{getProposalActionSummary(action)}</Text>
+                      <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                        {getProposalActionSummary(action)}
+                      </Text>
                     </Stack>
                   </button>
 
@@ -67,7 +80,12 @@ export function ProposalActionQueue({ actions, busy, onRequestEdit, onRequestRem
                       <Button type="button" variant="outline" onClick={() => onRequestEdit(action.id)} disabled={busy}>
                         Edit
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => onRequestRemove(action.id)} disabled={busy}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onRequestRemove(action.id)}
+                        disabled={busy}
+                      >
                         Remove
                       </Button>
                     </div>

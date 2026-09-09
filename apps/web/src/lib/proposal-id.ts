@@ -10,9 +10,10 @@ export function proposalIdToRouteId(proposalId: Buffer | Uint8Array) {
 
 export function proposalIdToBuffer(proposalId: string) {
   const normalized = proposalId.startsWith('0x') ? proposalId.slice(2) : proposalId;
-  const decoded = /^[0-9a-fA-F]+$/.test(normalized) && normalized.length % 2 === 0
-    ? Buffer.from(normalized, 'hex')
-    : Buffer.from(proposalId, 'base64');
+  const decoded =
+    /^[0-9a-fA-F]+$/.test(normalized) && normalized.length % 2 === 0
+      ? Buffer.from(normalized, 'hex')
+      : Buffer.from(proposalId, 'base64');
 
   if (decoded.length === 32) {
     return decoded;

@@ -1,10 +1,10 @@
 'use client';
 
+import { Stack } from 'styled-system/jsx';
+
 import { Badge, Button, Callout, Card, FieldHelperText, FieldLabel, Input, Select, Text } from '@/components/ui';
 import { getProposalActionLabel, type ProposalActionType } from '@/lib/proposal-call';
 import type { AssetBalance } from '@/lib/treasury-queries';
-import { validateStellarAddress } from '@/lib/validate-address';
-import { Stack } from 'styled-system/jsx';
 
 type ProposalActionEditorProps = {
   actionType: ProposalActionType;
@@ -58,25 +58,35 @@ export function ProposalActionEditor({
   const formDisabled = busy || Boolean(disabledReason);
 
   // Find the balance for the selected asset
-  const selectedAssetBalance = sacTransfer && assetCode && treasuryBalances
-    ? treasuryBalances.find((b) => b.assetCode === assetCode)
-    : undefined;
+  const selectedAssetBalance =
+    sacTransfer && assetCode && treasuryBalances ? treasuryBalances.find((b) => b.assetCode === assetCode) : undefined;
 
-  const balanceDisplay = sacTransfer && assetCode
-    ? balancesLoading
-      ? 'Loading balance...'
-      : selectedAssetBalance
-        ? `${parseFloat(selectedAssetBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })} ${assetCode}`
-        : '0 ' + assetCode
-    : undefined;
+  const balanceDisplay =
+    sacTransfer && assetCode
+      ? balancesLoading
+        ? 'Loading balance...'
+        : selectedAssetBalance
+          ? `${parseFloat(selectedAssetBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })} ${assetCode}`
+          : '0 ' + assetCode
+      : undefined;
 
   return (
     <Card p="5">
       <Stack gap="3">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start'
+          }}
+        >
           <Stack gap="1">
             <Badge>{editingActionId ? 'Editing' : 'Action builder'}</Badge>
-            <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>{title}</Text>
+            <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>
+              {title}
+            </Text>
           </Stack>
           {editingActionId ? (
             <Button type="button" variant="outline" onClick={onCancelEdit} disabled={busy}>
@@ -101,11 +111,7 @@ export function ProposalActionEditor({
         </Stack>
 
         {disabledReason ? (
-          <Callout
-            variant="error"
-            title="Treasury mint authority required"
-            description={disabledReason}
-          />
+          <Callout variant="error" title="Treasury mint authority required" description={disabledReason} />
         ) : null}
 
         <div style={disabledReason ? { opacity: 0.62 } : undefined}>
@@ -158,11 +164,11 @@ export function ProposalActionEditor({
                       id="proposal-action-amount"
                       value={amount}
                       onChange={(event) => onAmountChange(event.target.value)}
-                      placeholder={sacTransfer ? "Amount to transfer (e.g., 100.5)" : "Amount to mint"}
+                      placeholder={sacTransfer ? 'Amount to transfer (e.g., 100.5)' : 'Amount to mint'}
                       type="number"
                       min="0.0000001"
-                      max={batchMint ? "20" : undefined}
-                      step={sacTransfer ? "0.0000001" : "1"}
+                      max={batchMint ? '20' : undefined}
+                      step={sacTransfer ? '0.0000001' : '1'}
                       disabled={formDisabled}
                     />
                   </div>
@@ -185,8 +191,8 @@ export function ProposalActionEditor({
                     {sacTransfer
                       ? 'Use a positive decimal number (supports up to 7 decimal places).'
                       : batchMint
-                      ? 'Use a positive whole number up to 20 tokens.'
-                      : 'Use a positive whole number of tokens.'}
+                        ? 'Use a positive whole number up to 20 tokens.'
+                        : 'Use a positive whole number of tokens.'}
                   </FieldHelperText>
                 )}
               </Stack>

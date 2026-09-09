@@ -1,7 +1,8 @@
 // src/lib/proposal-actions/actions/batch-mint-governance-token/validator.ts
 
 import { validateStellarAddress } from '@/lib/validate-address';
-import type { ValidationResult, FormContext } from '../../types';
+
+import type { FormContext, ValidationResult } from '../../types';
 import type { BatchMintGovernanceTokenData } from './types';
 
 export function validateBatchMintGovernanceToken(
@@ -17,14 +18,14 @@ export function validateBatchMintGovernanceToken(
   if (context.mintAuthoritiesLoading) {
     return {
       valid: false,
-      message: 'Checking mint authority...',
+      message: 'Checking mint authority...'
     };
   }
 
   if (!treasuryHasMintAuthority) {
     return {
       valid: false,
-      message: 'Grant mint authority to the treasury before creating mint proposals.',
+      message: 'Grant mint authority to the treasury before creating mint proposals.'
     };
   }
 
@@ -57,7 +58,7 @@ export function validateBatchMintGovernanceToken(
     return {
       valid: false,
       message: 'Please fix the errors below',
-      fields,
+      fields
     };
   }
 

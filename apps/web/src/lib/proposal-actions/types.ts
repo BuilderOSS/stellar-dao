@@ -1,17 +1,15 @@
 // src/lib/proposal-actions/types.ts
 
+import type { ComponentType } from 'react';
+
 import type { DaoNetworkConfig } from '@/lib/dao-config';
 import type { AssetBalance } from '@/lib/treasury-queries';
-import type { ComponentType } from 'react';
 
 /**
  * All supported proposal action types
  * Add new types here when adding new action handlers
  */
-export type ProposalActionType =
-  | 'mint-governance-token'
-  | 'batch-mint-governance-token'
-  | 'transfer-sac-token';
+export type ProposalActionType = 'mint-governance-token' | 'batch-mint-governance-token' | 'transfer-sac-token';
 
 /**
  * Queued action structure (persisted in store)

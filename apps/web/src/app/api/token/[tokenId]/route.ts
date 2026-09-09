@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { buildTokenMetadata } from '@/lib/token-metadata';
+
 import { TOKEN_DESCRIPTION, TOKEN_NAME, TOKEN_SYMBOL } from '@/lib/token-config';
+import { buildTokenMetadata } from '@/lib/token-metadata';
 
 export const dynamic = 'force-dynamic';
 

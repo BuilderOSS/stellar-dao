@@ -80,10 +80,7 @@ export function getTreasuryAssets(network: keyof AssetsByNetwork): TreasuryAsset
 /**
  * Find a specific asset by code and network
  */
-export function findAsset(
-  network: keyof AssetsByNetwork,
-  assetCode: string
-): TreasuryAsset | undefined {
+export function findAsset(network: keyof AssetsByNetwork, assetCode: string): TreasuryAsset | undefined {
   const assets = getTreasuryAssets(network);
-  return assets.find(asset => asset.code === assetCode);
+  return assets.find((asset) => asset.code === assetCode);
 }

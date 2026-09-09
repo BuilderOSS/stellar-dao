@@ -1,5 +1,8 @@
 'use client';
 
+import Image from 'next/image';
+import { Grid, Stack } from 'styled-system/jsx';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
@@ -7,8 +10,6 @@ import { findAsset } from '@/lib/assets-config';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGoldskyActivityFeed } from '@/lib/goldsky-queries';
 import { useTreasuryBalances } from '@/lib/treasury-queries';
-import Image from 'next/image';
-import { Grid, Stack } from 'styled-system/jsx';
 
 function parseBalance(value: string) {
   const parsed = Number(value);
@@ -42,7 +43,13 @@ function AssetMark({ code, imageSrc }: { code: string; imageSrc?: string }) {
       }}
     >
       {imageSrc ? (
-        <Image src={imageSrc} alt="" width={46} height={46} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <Image
+          src={imageSrc}
+          alt=""
+          width={46}
+          height={46}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
       ) : (
         code.slice(0, 2)
       )}
@@ -70,7 +77,15 @@ export default function TreasuryPage() {
         <Grid columns={{ base: 1 }} gap="4">
           <Card p="5">
             <Stack gap="4">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-start'
+                }}
+              >
                 <div>
                   <Text className="label">Treasury overview</Text>
                   <Heading style={{ fontSize: '1.35rem', marginTop: '6px' }}>Assets under governance control</Heading>
@@ -92,7 +107,10 @@ export default function TreasuryPage() {
                 </div>
               </div>
 
-              <Card p="4" style={{ border: '1px solid rgba(96, 165, 250, 0.24)', background: 'rgba(30, 64, 175, 0.1)' }}>
+              <Card
+                p="4"
+                style={{ border: '1px solid rgba(96, 165, 250, 0.24)', background: 'rgba(30, 64, 175, 0.1)' }}
+              >
                 <Stack gap="2" style={{ minWidth: 0 }}>
                   <Text className="label">Treasury contract</Text>
                   {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
@@ -113,7 +131,9 @@ export default function TreasuryPage() {
                         key={asset.isNative ? 'XLM' : `${asset.assetCode}-${asset.assetIssuer}`}
                         p="4"
                         style={{
-                          border: asset.isNative ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(160, 194, 225, 0.16)',
+                          border: asset.isNative
+                            ? '1px solid rgba(96, 165, 250, 0.3)'
+                            : '1px solid rgba(160, 194, 225, 0.16)',
                           background: asset.isNative ? 'rgba(30, 64, 175, 0.1)' : 'rgba(157, 179, 203, 0.05)',
                           opacity: hasBalance ? 1 : 0.74
                         }}
@@ -123,12 +143,18 @@ export default function TreasuryPage() {
                             <AssetMark code={asset.assetCode} imageSrc={assetConfig?.imageSrc} />
                             <Stack gap="1" style={{ minWidth: 0 }}>
                               <Text style={{ margin: 0, fontWeight: 800 }}>{asset.assetCode}</Text>
-                              <Text className="lede" style={{ margin: 0, fontSize: '0.78rem' }}>{assetConfig?.name ?? asset.assetCode}</Text>
+                              <Text className="lede" style={{ margin: 0, fontSize: '0.78rem' }}>
+                                {assetConfig?.name ?? asset.assetCode}
+                              </Text>
                             </Stack>
                           </div>
                           <div>
-                            <Text style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>{formatAssetBalance(asset.balance)}</Text>
-                            <Text className="lede" style={{ margin: 0, fontSize: '0.78rem' }}>{asset.assetCode}</Text>
+                            <Text style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
+                              {formatAssetBalance(asset.balance)}
+                            </Text>
+                            <Text className="lede" style={{ margin: 0, fontSize: '0.78rem' }}>
+                              {asset.assetCode}
+                            </Text>
                           </div>
                         </Stack>
                       </Card>
@@ -146,7 +172,11 @@ export default function TreasuryPage() {
               <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
                 {isLoading ? 'Refreshing...' : 'Refresh'}
               </Button>
-              {error ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{error.message}</Text> : null}
+              {error ? (
+                <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  {error.message}
+                </Text>
+              ) : null}
               {!data?.items.length ? (
                 <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
                   Treasury execution history will appear here once actions are indexed.
@@ -154,13 +184,17 @@ export default function TreasuryPage() {
               ) : (
                 <Stack gap="2">
                   {data.items
-                     .filter((item) => item.contract_role === 'treasury')
+                    .filter((item) => item.contract_role === 'treasury')
                     .map((item) => (
                       <Card key={item.activity_id} p="4">
                         <Stack gap="1">
                           <Text style={{ margin: 0, fontWeight: 700 }}>{item.title}</Text>
-                          <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{item.summary}</Text>
-                           <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>Ledger {item.ledger_sequence}</Text>
+                          <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>
+                            {item.summary}
+                          </Text>
+                          <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>
+                            Ledger {item.ledger_sequence}
+                          </Text>
                         </Stack>
                       </Card>
                     ))}

@@ -1,8 +1,9 @@
 'use client';
 
-import { FieldHelperText, FieldLabel, Input, Text } from '@/components/ui';
-import { clampDurationParts, combineDuration, splitDuration, type DurationParts } from '@/lib/duration';
 import { Stack } from 'styled-system/jsx';
+
+import { FieldHelperText, FieldLabel, Input, Text } from '@/components/ui';
+import { clampDurationParts, combineDuration, type DurationParts, splitDuration } from '@/lib/duration';
 
 type DurationInputProps = {
   id: string;
@@ -68,11 +69,7 @@ export function DurationInput({ id, label, value, onChange, helperText, disabled
     const clamped = parseDraftParts(parts);
     const nextParts = {
       ...parts,
-      [key]: String(
-        typeof max === 'number'
-          ? Math.min(max, clamped[key])
-          : clamped[key]
-      )
+      [key]: String(typeof max === 'number' ? Math.min(max, clamped[key]) : clamped[key])
     };
 
     emit(parseDraftParts(nextParts));
@@ -91,7 +88,9 @@ export function DurationInput({ id, label, value, onChange, helperText, disabled
 
           return (
             <Stack key={input.key} gap="1" align="flex-start">
-              <Text className="label" style={{ fontSize: '0.78rem', margin: 0 }}>{input.label}</Text>
+              <Text className="label" style={{ fontSize: '0.78rem', margin: 0 }}>
+                {input.label}
+              </Text>
               <Input
                 id={`${id}-${input.key}`}
                 type="number"

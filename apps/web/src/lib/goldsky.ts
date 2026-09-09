@@ -18,23 +18,29 @@ function getDeploymentId() {
 
 export async function getGoldskyAuctionHistory(limit = 24, offset = 0) {
   const deploymentId = getDeploymentId();
-  const result = await pool.query(`
+  const result = await pool.query(
+    `
     SELECT * FROM auction.auctions
     WHERE deployment_id = $1 AND settled = true
     ORDER BY token_id DESC
     LIMIT $2 OFFSET $3
-  `, [deploymentId, limit, offset]);
+  `,
+    [deploymentId, limit, offset]
+  );
   return result.rows;
 }
 
 export async function getGoldskyAuctionBids(tokenId: string, limit = 20) {
-  const result = await pool.query(`
+  const result = await pool.query(
+    `
     SELECT event_id, bidder, amount, payment_type, ledger_sequence, timestamp, transaction_hash
     FROM auction.bids
     WHERE deployment_id = $1 AND token_id = $2
     ORDER BY ledger_sequence DESC, event_id DESC
     LIMIT $3
-  `, [getDeploymentId(), tokenId, limit]);
+  `,
+    [getDeploymentId(), tokenId, limit]
+  );
   return result.rows;
 }
 
@@ -43,12 +49,14 @@ export async function getGoldskyAuctionBids(tokenId: string, limit = 20) {
  *
  * Returns recent activity across all contracts (governance, token, auction, treasury)
  */
-export async function getGoldskyActivityFeed(params: {
-  limit?: number;
-  offset?: number;
-  contractId?: string;
-  kind?: string;
-} = {}) {
+export async function getGoldskyActivityFeed(
+  params: {
+    limit?: number;
+    offset?: number;
+    contractId?: string;
+    kind?: string;
+  } = {}
+) {
   const { limit = 25, offset = 0, contractId, kind } = params;
 
   const conditions: string[] = [];
@@ -92,7 +100,10 @@ export async function getGoldskyActivityFeed(params: {
 
   const [result, countResult] = await Promise.all([
     pool.query(query, values),
-    pool.query(`SELECT COUNT(*)::int AS total FROM app.activity_feed ${whereClause}`, values.slice(0, values.length - 2))
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM app.activity_feed ${whereClause}`,
+      values.slice(0, values.length - 2)
+    )
   ]);
   const total = countResult.rows[0]?.total ?? 0;
 
@@ -111,11 +122,13 @@ export async function getGoldskyActivityFeed(params: {
  *
  * Returns all proposals with their current status and vote tallies
  */
-export async function getGoldskyProposalList(params: {
-  limit?: number;
-  offset?: number;
-  status?: string;
-} = {}) {
+export async function getGoldskyProposalList(
+  params: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+  } = {}
+) {
   const { limit = 50, offset = 0, status } = params;
 
   const conditions: string[] = [];
@@ -157,7 +170,10 @@ export async function getGoldskyProposalList(params: {
 
   const [result, countResult] = await Promise.all([
     pool.query(query, values),
-    pool.query(`SELECT COUNT(*)::int AS total FROM app.proposal_list ${whereClause}`, values.slice(0, values.length - 2))
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM app.proposal_list ${whereClause}`,
+      values.slice(0, values.length - 2)
+    )
   ]);
 
   return {
@@ -251,7 +267,10 @@ export async function getGoldskyProposalVotes(params: {
 
   const [result, countResult] = await Promise.all([
     pool.query(query, values),
-    pool.query(`SELECT COUNT(*)::int AS total FROM governance.proposal_votes WHERE ${conditions.join(' AND ')}`, values.slice(0, values.length - 2))
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM governance.proposal_votes WHERE ${conditions.join(' AND ')}`,
+      values.slice(0, values.length - 2)
+    )
   ]);
 
   // Get vote tallies
@@ -295,10 +314,12 @@ export async function getGoldskyProposalVotes(params: {
  *
  * Returns all token holders and their delegations
  */
-export async function getGoldskyTokenInventory(params: {
-  limit?: number;
-  offset?: number;
-} = {}) {
+export async function getGoldskyTokenInventory(
+  params: {
+    limit?: number;
+    offset?: number;
+  } = {}
+) {
   const { limit = 100, offset = 0 } = params;
 
   const query = `
@@ -317,7 +338,9 @@ export async function getGoldskyTokenInventory(params: {
   const [result, countResult, supplyResult] = await Promise.all([
     pool.query(query, [limit, offset, getDeploymentId()]),
     pool.query('SELECT COUNT(*)::int AS total FROM token.inventory WHERE deployment_id = $1', [getDeploymentId()]),
-    pool.query('SELECT COUNT(*)::bigint as total_supply FROM token.inventory WHERE deployment_id = $1', [getDeploymentId()])
+    pool.query('SELECT COUNT(*)::bigint as total_supply FROM token.inventory WHERE deployment_id = $1', [
+      getDeploymentId()
+    ])
   ]);
 
   // Get total supply
@@ -345,13 +368,16 @@ export async function getGoldskyTokenInventory(params: {
 export async function getGoldskyMemberList(params: { limit?: number; offset?: number } = {}) {
   const { limit = 100, offset = 0 } = params;
   const [result, countResult] = await Promise.all([
-    pool.query(`
+    pool.query(
+      `
       SELECT address, owned_token_count, delegated_to, voting_power, last_activity_ledger
       FROM token.members
       WHERE deployment_id = $1
       ORDER BY voting_power DESC, address
       LIMIT $2 OFFSET $3
-    `, [getDeploymentId(), limit, offset]),
+    `,
+      [getDeploymentId(), limit, offset]
+    ),
     pool.query('SELECT COUNT(*)::int AS total FROM token.members WHERE deployment_id = $1', [getDeploymentId()])
   ]);
   const total = countResult.rows[0]?.total ?? 0;
