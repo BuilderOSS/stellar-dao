@@ -58,7 +58,7 @@ function shortenProposalId(value: string) {
 async function fetchProposalPageData([, proposalId]: readonly ['proposal-detail', string]): Promise<ProposalPageData> {
   const [detailResponse, votesResponse] = await Promise.all([
     fetch(`/api/proposals/${proposalId}`, { cache: 'no-store' }),
-    fetch(`/api/mercury/proposals/${proposalId}/votes`, { cache: 'no-store' })
+    fetch(`/api/proposals/${proposalId}/votes`, { cache: 'no-store' })
   ]);
 
   if (!detailResponse.ok) {

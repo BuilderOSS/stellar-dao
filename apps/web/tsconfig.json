@@ -21,15 +21,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@stellar-dao/token-bindings": [
-        "../../packages/token-bindings/src/index.ts"
-      ],
-      "@stellar-dao/governor-bindings": [
-        "../../packages/governor-bindings/src/index.ts"
-      ],
-      "@stellar-dao/treasury-bindings": [
-        "../../packages/treasury-bindings/src/index.ts"
       ]
     },
     "plugins": [

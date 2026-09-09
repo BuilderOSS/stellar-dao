@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { getMercuryActivityFeed, getMercuryProposalDetail } from '@/lib/mercury';
+import { getGoldskyProposalList } from '@/lib/goldsky';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { parseProposalMetadata, type ProposalMetadata } from '@/lib/proposal-metadata';
-import { proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
+import { proposalStateFromLabel, proposalStateLabel, type ProposalState as ProposalStateValue } from '@/lib/proposal-state';
 
 type ProposalListItem = {
   proposalId: string;
+  proposalNumber: string;
   metadata: ProposalMetadata;
   state: ProposalStateValue | null;
   stateLabel: string;
@@ -15,12 +16,6 @@ type ProposalListItem = {
   timestamp: number;
   txHash: string;
   contractId: string;
-};
-
-type ProposalGroup = {
-  proposalId: string;
-  latestLedger: number;
-  latestTimestamp: number;
 };
 
 async function fetchProposalState(client: InstanceType<typeof GovernorClient>, proposalId: string) {
@@ -32,6 +27,7 @@ async function fetchProposalState(client: InstanceType<typeof GovernorClient>, p
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit') ?? '24'), 100));
+  const status = url.searchParams.get('status') ?? undefined;
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
 
   if (!config.governorContractId) {
@@ -39,27 +35,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const feed = await getMercuryActivityFeed(limit * 6);
-    const groups = new Map<string, ProposalGroup>();
-
-    for (const item of feed.items) {
-      if (item.programKey !== 'governor' || !item.proposalId) {
-        continue;
-      }
-
-      const current = groups.get(item.proposalId);
-      if (!current) {
-        groups.set(item.proposalId, {
-          proposalId: item.proposalId,
-          latestLedger: item.ledger,
-          latestTimestamp: item.timestamp
-        });
-        continue;
-      }
-
-      current.latestLedger = Math.max(current.latestLedger, item.ledger);
-      current.latestTimestamp = Math.max(current.latestTimestamp, item.timestamp);
-    }
+    const proposalData = await getGoldskyProposalList({ limit, status });
 
     const client = new GovernorClient({
       contractId: config.governorContractId,
@@ -68,40 +44,26 @@ export async function GET(request: Request) {
       publicKey: config.adminAddress
     });
 
-    const items = await Promise.all(
-      [...groups.values()]
-        .sort((a, b) => b.latestTimestamp - a.latestTimestamp || b.latestLedger - a.latestLedger)
-        .slice(0, limit)
-        .map(async (group): Promise<ProposalListItem> => {
-          const detail = await getMercuryProposalDetail(group.proposalId).catch(() => null);
-          const metadata = parseProposalMetadata(detail?.description ?? '');
-
+    const items = await Promise.all(proposalData.items.map(async (proposal: any): Promise<ProposalListItem> => {
+          const metadata = parseProposalMetadata(proposal.description ?? '');
+          let state: ProposalStateValue | null = null;
           try {
-            const state = await fetchProposalState(client, group.proposalId);
-            return {
-              proposalId: group.proposalId,
-              metadata,
-              state,
-              stateLabel: proposalStateLabel(state),
-              ledger: detail?.ledger ?? group.latestLedger,
-              timestamp: detail?.timestamp ?? group.latestTimestamp,
-              txHash: detail?.txHash ?? '',
-              contractId: detail?.contractId ?? ''
-            };
+            state = await fetchProposalState(client, proposal.proposal_id);
           } catch {
-            return {
-              proposalId: group.proposalId,
-              metadata,
-              state: null,
-              stateLabel: 'Unknown',
-              ledger: detail?.ledger ?? group.latestLedger,
-              timestamp: detail?.timestamp ?? group.latestTimestamp,
-              txHash: detail?.txHash ?? '',
-              contractId: detail?.contractId ?? ''
-            };
+            state = proposalStateFromLabel(proposal.current_state);
           }
-        })
-    );
+          return {
+            proposalId: proposal.proposal_id,
+            proposalNumber: proposal.proposal_number,
+            metadata,
+            state,
+            stateLabel: state === null ? proposal.current_state ?? 'Unknown' : proposalStateLabel(state),
+            ledger: Number(proposal.created_at_ledger ?? 0),
+            timestamp: Number(proposal.created_at_timestamp ?? 0),
+            txHash: '',
+            contractId: config.governorContractId
+          };
+        }));
 
     return NextResponse.json({ items, generatedAt: new Date().toISOString() }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {

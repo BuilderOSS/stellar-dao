@@ -9,7 +9,7 @@ import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { useGoldskyMintAuthorities } from '@/lib/goldsky-queries';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
@@ -23,7 +23,7 @@ export default function TokenAdminPage() {
   const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const tx = useTransactionFeedback(config.name);
-  const { data: mintAuthorities, error, isLoading, mutate } = useMercuryMintAuthorities();
+  const { data: mintAuthorities, error, isLoading, mutate } = useGoldskyMintAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
   const hasMintAccess = Boolean(isOwner || mintAuthorities?.items.some((item) => item.authority === session.address));
 

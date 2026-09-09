@@ -14,14 +14,6 @@ export type DaoNetworkConfig = {
   governorContractId: string;
   treasuryContractId: string;
   auctionContractId: string;
-  tokenMercuryProgramId: string;
-  governorMercuryProgramId: string;
-  treasuryMercuryProgramId: string;
-  tokenMercuryProject: string;
-  governorMercuryProject: string;
-  treasuryMercuryProject: string;
-  auctionMercuryProgramId: string;
-  auctionMercuryProject: string;
 };
 
 export function getDefaultDaoNetwork(): DaoNetworkName {
@@ -50,13 +42,5 @@ export function getDaoNetworkConfig(name: DaoNetworkName): DaoNetworkConfig {
     governorContractId: deployment.contracts.governor,
     treasuryContractId: deployment.contracts.treasury,
     auctionContractId: deployment.contracts.auction,
-    tokenMercuryProgramId: String(deployment.mercury?.programs?.token?.program_id || ''),
-    governorMercuryProgramId: String(deployment.mercury?.programs?.governor?.program_id || ''),
-    treasuryMercuryProgramId: String(deployment.mercury?.programs?.treasury?.program_id || ''),
-    tokenMercuryProject: deployment.mercury?.programs?.token?.project || '',
-    governorMercuryProject: deployment.mercury?.programs?.governor?.project || '',
-    treasuryMercuryProject: deployment.mercury?.programs?.treasury?.project || '',
-    auctionMercuryProgramId: String(deployment.mercury?.programs?.auction?.program_id || ''),
-    auctionMercuryProject: deployment.mercury?.programs?.auction?.project || ''
   };
 }

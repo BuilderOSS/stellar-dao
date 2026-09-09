@@ -10,7 +10,7 @@ import { AdminSectionNav } from '@/components/admin/admin-section-nav';
 import { AuthorityPanel } from '@/components/admin/authority-panel';
 import { Badge, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { useMercuryGovernorAuthorities, useMercuryMintAuthorities } from '@/lib/mercury-queries';
+import { useGoldskyGovernorAuthorities, useGoldskyMintAuthorities } from '@/lib/goldsky-queries';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
@@ -54,8 +54,8 @@ export default function OwnerPage() {
   const [formMessage, setFormMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const tx = useTransactionFeedback(config.name);
-  const { data: mintAuthorities, mutate: refreshMintAuthorities, error: mintAuthorityError, isLoading: mintAuthoritiesLoading } = useMercuryMintAuthorities();
-  const { data: governorAuthorities, mutate: refreshGovernorAuthorities, error: governorAuthorityError, isLoading: governorAuthoritiesLoading } = useMercuryGovernorAuthorities();
+  const { data: mintAuthorities, mutate: refreshMintAuthorities, error: mintAuthorityError, isLoading: mintAuthoritiesLoading } = useGoldskyMintAuthorities();
+  const { data: governorAuthorities, mutate: refreshGovernorAuthorities, error: governorAuthorityError, isLoading: governorAuthoritiesLoading } = useGoldskyGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
 
   if (!isOwner) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Client as GovernorClient } from '@stellar-dao/governor-bindings';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { getMercuryProposalDetail } from '@/lib/mercury';
+import { getGoldskyProposalDetail } from '@/lib/goldsky';
 import { proposalIdToBuffer } from '@/lib/proposal-id';
 import { parseProposalMetadata } from '@/lib/proposal-metadata';
 import { ProposalState, proposalStateFromLabel, proposalStateLabel } from '@/lib/proposal-state';
@@ -15,7 +15,7 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
   }
 
   try {
-    const detail = await getMercuryProposalDetail(proposalId);
+    const { proposal } = await getGoldskyProposalDetail(proposalId);
 
     try {
       const client = new GovernorClient({
@@ -41,27 +41,50 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
       }
 
       const payload = {
-        ...detail,
-        metadata: parseProposalMetadata(detail.description),
-        proposer: detail.proposer || proposerTx.result,
-        vote_end: detail.vote_end || deadlineTx.result,
-        vote_snapshot: detail.vote_snapshot || snapshotTx.result,
-        vote_start: detail.vote_start || snapshotTx.result + 1,
-        deadline: detail.deadline || deadlineTx.result,
+        proposalId: proposal.proposal_id,
+        proposalNumber: proposal.proposal_number,
+        description: proposal.description,
+        title: proposal.title,
+        metadata: parseProposalMetadata(proposal.description ?? ''),
+        proposer: proposal.proposer || proposerTx.result,
+        vote_end: proposal.vote_end_ledger || deadlineTx.result,
+        vote_snapshot: proposal.vote_snapshot_ledger || snapshotTx.result,
+        vote_start: proposal.vote_start_timestamp || snapshotTx.result + 1,
+        deadline: proposal.vote_end_ledger || deadlineTx.result,
+        eta: proposal.eta,
         state: stateTx.result,
         label: proposalStateLabel(stateTx.result),
-        quorumVotes
+        quorumVotes,
+        ledger: Number(proposal.created_at_ledger ?? 0),
+        timestamp: Number(proposal.created_at_timestamp ?? 0),
+        for_votes: proposal.for_votes,
+        against_votes: proposal.against_votes,
+        abstain_votes: proposal.abstain_votes
       };
 
       return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
     } catch {
       return NextResponse.json(
         {
-          ...detail,
-          metadata: parseProposalMetadata(detail.description),
-          state: proposalStateFromLabel(detail.label) ?? ProposalState.Pending,
-          label: detail.label || 'Pending',
-          quorumVotes: null
+          proposalId: proposal.proposal_id,
+          proposalNumber: proposal.proposal_number,
+          description: proposal.description,
+          title: proposal.title,
+          metadata: parseProposalMetadata(proposal.description ?? ''),
+          proposer: proposal.proposer,
+          vote_end: proposal.vote_end_ledger,
+          vote_snapshot: proposal.vote_snapshot_ledger,
+          vote_start: proposal.vote_start_timestamp,
+          deadline: proposal.vote_end_ledger,
+          eta: proposal.eta,
+          state: proposalStateFromLabel(proposal.current_state) ?? ProposalState.Pending,
+          label: proposal.current_state || 'Pending',
+          quorumVotes: null,
+          ledger: Number(proposal.created_at_ledger ?? 0),
+          timestamp: Number(proposal.created_at_timestamp ?? 0),
+          for_votes: proposal.for_votes,
+          against_votes: proposal.against_votes,
+          abstain_votes: proposal.abstain_votes
         },
         { headers: { 'Cache-Control': 'no-store' } }
       );

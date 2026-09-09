@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { run } from './lib.mjs';
 
 const buildDir = 'target/wasm32v1-none/release';
@@ -53,9 +53,12 @@ function replaceNth(content, search, replacement, targetIndex) {
 }
 
 function patchGeneratedBindings(packageName, outputDir) {
+  // Note: We keep .js extensions as-is for ES module compatibility
+  const typesPath = `${outputDir}/src/types.ts`;
+  const clientPath = `${outputDir}/src/client.ts`;
+
   // Patch types.ts for Point and ComplianceError issues
   if (packageName === 'token') {
-    const typesPath = `${outputDir}/src/types.ts`;
     let typesContent = readFileSync(typesPath, 'utf8');
 
     // Add Point type alias with Buffer import
@@ -72,7 +75,6 @@ function patchGeneratedBindings(packageName, outputDir) {
 
   // Patch client.ts for function parameter (reserved keyword)
   if (packageName === 'treasury') {
-    const clientPath = `${outputDir}/src/client.ts`;
     let clientContent = readFileSync(clientPath, 'utf8');
 
     // Rename 'function' parameter to 'function_' (reserved keyword)

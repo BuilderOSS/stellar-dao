@@ -2,7 +2,7 @@
  * Goldsky Data Access Layer
  *
  * PostgreSQL-backed data queries for Stellar DAO using Goldsky indexer.
- * This replaces Mercury queries with direct database access.
+ * Direct database access for indexed DAO data.
  */
 
 import { Pool } from '@neondatabase/serverless';
@@ -64,13 +64,18 @@ export async function getGoldskyActivityFeed(params: {
 
   values.push(limit, offset);
 
-  const result = await pool.query(query, values);
+  const [result, countResult] = await Promise.all([
+    pool.query(query, values),
+    pool.query(`SELECT COUNT(*)::int AS total FROM app.activity_feed ${whereClause}`, values.slice(0, values.length - 2))
+  ]);
+  const total = countResult.rows[0]?.total ?? 0;
 
   return {
     items: result.rows,
-    total: result.rowCount,
+    total,
     limit,
     offset,
+    hasMore: offset + result.rows.length < total,
     generatedAt: new Date().toISOString()
   };
 }
@@ -124,13 +129,17 @@ export async function getGoldskyProposalList(params: {
 
   values.push(limit, offset);
 
-  const result = await pool.query(query, values);
+  const [result, countResult] = await Promise.all([
+    pool.query(query, values),
+    pool.query(`SELECT COUNT(*)::int AS total FROM governance.proposals ${whereClause}`, values.slice(0, values.length - 2))
+  ]);
 
   return {
     items: result.rows,
-    total: result.rowCount,
+    total: countResult.rows[0]?.total ?? 0,
     limit,
     offset,
+    hasMore: offset + result.rows.length < (countResult.rows[0]?.total ?? 0),
     generatedAt: new Date().toISOString()
   };
 }
@@ -222,7 +231,10 @@ export async function getGoldskyProposalVotes(params: {
 
   values.push(limit, offset);
 
-  const result = await pool.query(query, values);
+  const [result, countResult] = await Promise.all([
+    pool.query(query, values),
+    pool.query(`SELECT COUNT(*)::int AS total FROM governance.proposal_votes WHERE ${conditions.join(' AND ')}`, values.slice(0, values.length - 2))
+  ]);
 
   // Get vote tallies
   const tallyQuery = `
@@ -243,7 +255,7 @@ export async function getGoldskyProposalVotes(params: {
     abstain: '0'
   };
 
-  tallyResult.rows.forEach(row => {
+  tallyResult.rows.forEach((row: any) => {
     if (row.support === 1) tally.for = row.total_weight || '0';
     if (row.support === 0) tally.against = row.total_weight || '0';
     if (row.support === 2) tally.abstain = row.total_weight || '0';
@@ -251,10 +263,11 @@ export async function getGoldskyProposalVotes(params: {
 
   return {
     items: result.rows,
-    total: result.rowCount,
+    total: countResult.rows[0]?.total ?? 0,
     tally,
     limit,
     offset,
+    hasMore: offset + result.rows.length < (countResult.rows[0]?.total ?? 0),
     generatedAt: new Date().toISOString()
   };
 }
@@ -282,19 +295,23 @@ export async function getGoldskyTokenInventory(params: {
     LIMIT $1 OFFSET $2
   `;
 
-  const result = await pool.query(query, [limit, offset]);
+  const [result, countResult, supplyResult] = await Promise.all([
+    pool.query(query, [limit, offset]),
+    pool.query('SELECT COUNT(*)::int AS total FROM token.members'),
+    pool.query('SELECT SUM(balance) as total_supply FROM token.members')
+  ]);
 
   // Get total supply
-  const supplyQuery = `SELECT SUM(balance) as total_supply FROM token.members`;
-  const supplyResult = await pool.query(supplyQuery);
   const totalSupply = supplyResult.rows[0]?.total_supply || '0';
+  const total = countResult.rows[0]?.total ?? 0;
 
   return {
     items: result.rows,
-    total: result.rowCount,
+    total,
     totalSupply,
     limit,
     offset,
+    hasMore: offset + result.rows.length < total,
     generatedAt: new Date().toISOString()
   };
 }

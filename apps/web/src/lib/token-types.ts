@@ -1,15 +1,18 @@
 export type TokenInventoryItem = {
-  tokenId: number;
-  owner: string;
-  ledger: number;
-  timestamp: number;
-  txHash: string;
-  contractId: string;
+  address: string;
+  balance: string;
+  delegated_to: string | null;
+  voting_power: string;
+  last_updated_ledger: number;
 };
 
 export type TokenInventoryResponse = {
   items: TokenInventoryItem[];
-  totalSupply: number;
+  totalSupply: string;
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
   generatedAt: string;
   message?: string;
 };

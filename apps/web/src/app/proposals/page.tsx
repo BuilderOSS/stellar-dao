@@ -81,7 +81,7 @@ export default function ProposalsPage() {
       >
         <Stack gap="4">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <Text className="label">Mercury proposals</Text>
+            <Text className="label">Goldsky proposals</Text>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
                 {isLoading ? 'Refreshing...' : 'Refresh'}
