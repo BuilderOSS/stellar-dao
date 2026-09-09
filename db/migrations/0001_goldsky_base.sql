@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS chain.decoded_events (
   payload text,
   proposal_id text,
   proposal_number text,
+  proposer text,
   actor text,
   amount text,
   token_id text,
