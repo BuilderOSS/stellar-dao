@@ -5,7 +5,7 @@
   "scripts": {
     "predev": "node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
     "dev": "next dev",
-    "prebuild": "pnpm --filter @stellar-dao/token-bindings --filter @stellar-dao/governor-bindings --filter @stellar-dao/treasury-bindings build && node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
+    "prebuild": "pnpm --filter @stellar-dao/token-bindings --filter @stellar-dao/governor-bindings --filter @stellar-dao/treasury-bindings --filter @stellar-dao/auction-bindings build && node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
