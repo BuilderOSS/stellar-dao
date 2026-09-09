@@ -93,7 +93,7 @@ export default function Page() {
                      <Card key={token.address} p="4">
                        <Stack gap="2">
                          <ShortId value={token.address} label="Member" />
-                         <Text>Balance {token.balance}</Text>
+                         <Text>Tokens {token.owned_token_count}</Text>
                          <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Voting power {token.voting_power}</Text>
                        </Stack>
                      </Card>

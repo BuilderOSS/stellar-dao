@@ -12,6 +12,10 @@ const pool = new Pool({
   connectionString: process.env.APP_DATABASE_URL
 });
 
+function getDeploymentId() {
+  return `${process.env.NEXT_PUBLIC_DAO_LABEL || 'local'}-${process.env.NEXT_PUBLIC_DAO_NETWORK || 'local'}`;
+}
+
 /**
  * Activity Feed
  *
@@ -286,19 +290,20 @@ export async function getGoldskyTokenInventory(params: {
   const query = `
     SELECT
       address,
-      balance,
+      owned_token_count,
       delegated_to,
       voting_power,
-      last_updated_ledger
+      last_activity_ledger
     FROM token.members
-    ORDER BY balance DESC, address
+    WHERE deployment_id = $3
+    ORDER BY owned_token_count DESC, address
     LIMIT $1 OFFSET $2
   `;
 
   const [result, countResult, supplyResult] = await Promise.all([
-    pool.query(query, [limit, offset]),
-    pool.query('SELECT COUNT(*)::int AS total FROM token.members'),
-    pool.query('SELECT SUM(balance) as total_supply FROM token.members')
+    pool.query(query, [limit, offset, getDeploymentId()]),
+    pool.query('SELECT COUNT(*)::int AS total FROM token.members WHERE deployment_id = $1', [getDeploymentId()]),
+    pool.query('SELECT SUM(owned_token_count) as total_supply FROM token.members WHERE deployment_id = $1', [getDeploymentId()])
   ]);
 
   // Get total supply

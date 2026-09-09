@@ -1,9 +1,9 @@
 export type TokenInventoryItem = {
   address: string;
-  balance: string;
+  owned_token_count: string;
   delegated_to: string | null;
   voting_power: string;
-  last_updated_ledger: number;
+  last_activity_ledger: number;
 };
 
 export type TokenInventoryResponse = {

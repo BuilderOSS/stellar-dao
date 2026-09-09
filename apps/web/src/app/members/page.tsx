@@ -37,7 +37,7 @@ export default function MembersPage() {
                     <Stack gap="2">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                         <Badge>#{index + 1}</Badge>
-                        <Badge>Balance {row.balance}</Badge>
+                        <Badge>Tokens {row.owned_token_count}</Badge>
                       </div>
                       <ShortId value={row.address} label="Address" />
                     </Stack>
