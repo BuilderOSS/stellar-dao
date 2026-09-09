@@ -96,6 +96,19 @@ importers:
       dotenv:
         specifier: ^17.2.1
         version: 17.4.2
+    devDependencies:
+      '@stellar-dao/auction-bindings':
+        specifier: workspace:*
+        version: link:../auction-bindings
+      '@stellar-dao/governor-bindings':
+        specifier: workspace:*
+        version: link:../governor-bindings
+      '@stellar-dao/token-bindings':
+        specifier: workspace:*
+        version: link:../token-bindings
+      '@stellar-dao/treasury-bindings':
+        specifier: workspace:*
+        version: link:../treasury-bindings
 
   packages/governor-bindings:
     dependencies:

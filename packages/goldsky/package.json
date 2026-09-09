@@ -5,9 +5,16 @@
   "type": "module",
   "scripts": {
     "generate": "node scripts/generate-pipeline.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "validate": "node scripts/validate-events.mjs"
   },
   "dependencies": {
     "dotenv": "^17.2.1"
+  },
+  "devDependencies": {
+    "@stellar-dao/token-bindings": "workspace:*",
+    "@stellar-dao/governor-bindings": "workspace:*",
+    "@stellar-dao/treasury-bindings": "workspace:*",
+    "@stellar-dao/auction-bindings": "workspace:*"
   }
 }
