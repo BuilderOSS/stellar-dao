@@ -50,16 +50,16 @@ export async function GET(request: Request) {
           try {
             state = await fetchProposalState(client, proposal.proposal_id);
           } catch {
-            state = proposalStateFromLabel(proposal.current_state);
+             state = proposalStateFromLabel(proposal.state);
           }
           return {
             proposalId: proposal.proposal_id,
             proposalNumber: proposal.proposal_number,
             metadata,
             state,
-            stateLabel: state === null ? proposal.current_state ?? 'Unknown' : proposalStateLabel(state),
-            ledger: Number(proposal.created_at_ledger ?? 0),
-            timestamp: Number(proposal.created_at_timestamp ?? 0),
+             stateLabel: state === null ? proposal.state ?? 'Unknown' : proposalStateLabel(state),
+             ledger: Number(proposal.created_ledger ?? 0),
+             timestamp: Number(proposal.created_timestamp ?? 0),
             txHash: '',
             contractId: config.governorContractId
           };

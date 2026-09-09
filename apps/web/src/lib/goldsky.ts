@@ -101,7 +101,7 @@ export async function getGoldskyProposalList(params: {
   let paramIndex = 1;
 
   if (status) {
-    conditions.push(`current_state = $${paramIndex++}`);
+    conditions.push(`state = $${paramIndex++}`);
     values.push(status);
   }
 
@@ -112,20 +112,20 @@ export async function getGoldskyProposalList(params: {
       proposal_id,
       proposal_number,
       proposer,
-      title,
       description,
-      vote_snapshot_ledger,
+      snapshot_ledger,
       vote_start_timestamp,
-      vote_end_ledger,
+      deadline_ledger,
       eta,
-      current_state,
+      state,
       for_votes,
       against_votes,
       abstain_votes,
-      created_at_ledger,
-      created_at_timestamp,
-      last_updated_ledger
-    FROM governance.proposals
+      created_timestamp,
+      created_ledger,
+      updated_ledger,
+      updated_timestamp
+    FROM app.proposal_list
     ${whereClause}
     ORDER BY proposal_number DESC
     LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -135,7 +135,7 @@ export async function getGoldskyProposalList(params: {
 
   const [result, countResult] = await Promise.all([
     pool.query(query, values),
-    pool.query(`SELECT COUNT(*)::int AS total FROM governance.proposals ${whereClause}`, values.slice(0, values.length - 2))
+    pool.query(`SELECT COUNT(*)::int AS total FROM app.proposal_list ${whereClause}`, values.slice(0, values.length - 2))
   ]);
 
   return {
@@ -158,30 +158,22 @@ export async function getGoldskyProposalDetail(proposalId: string) {
     SELECT
       proposal_id,
       proposal_number,
-      proposer,
-      title,
-      description,
-      vote_snapshot_ledger,
-      vote_start_timestamp,
-      vote_end_ledger,
-      eta,
-      current_state,
-      for_votes,
-      against_votes,
-      abstain_votes,
-      created_at_ledger,
-      created_at_timestamp,
-      queued_at_ledger,
-      queued_at_timestamp,
-      executed_at_ledger,
-      executed_at_timestamp,
-      canceled_at_ledger,
-      canceled_at_timestamp,
-      expired_at_ledger,
-      expired_at_timestamp,
-      last_updated_ledger
-    FROM governance.proposals
-    WHERE proposal_id = $1
+       proposer,
+       description,
+       snapshot_ledger,
+       vote_start_timestamp,
+       deadline_ledger,
+       eta,
+       state,
+       vote_summary,
+       votes,
+       actions,
+       created_timestamp,
+       created_ledger,
+       updated_ledger,
+       updated_timestamp
+    FROM app.proposal_detail
+    WHERE proposal_id = $1 OR proposal_number::text = $1
   `;
 
   const result = await pool.query(query, [proposalId]);

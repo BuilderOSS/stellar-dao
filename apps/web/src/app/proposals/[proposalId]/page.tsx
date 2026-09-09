@@ -140,7 +140,7 @@ export default function ProposalDetailPage() {
     try {
       const governor = await getGovernor();
       const assembled = await governor.cast_vote({
-        proposal_id: proposalIdToBuffer(proposalId),
+        proposal_id: proposalIdToBuffer(detail.proposalId),
         vote_type: voteType,
         reason: voteReason,
         voter: session.address

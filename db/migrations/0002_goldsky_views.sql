@@ -518,15 +518,20 @@ SELECT
   deployment_id,
   proposal_id,
   proposer,
-  left(description, 120) AS description_preview,
+  description,
   state,
+  snapshot_ledger,
   created_timestamp,
   vote_start_timestamp,
   deadline_ledger,
+  eta,
   COALESCE((SELECT SUM(CASE WHEN support = 1 THEN 1 ELSE 0 END) FROM governance.proposal_votes v WHERE v.deployment_id = p.deployment_id AND v.proposal_id = p.proposal_id), 0)::bigint AS for_votes,
   COALESCE((SELECT SUM(CASE WHEN support = 0 THEN 1 ELSE 0 END) FROM governance.proposal_votes v WHERE v.deployment_id = p.deployment_id AND v.proposal_id = p.proposal_id), 0)::bigint AS against_votes,
   COALESCE((SELECT SUM(CASE WHEN support = 2 THEN 1 ELSE 0 END) FROM governance.proposal_votes v WHERE v.deployment_id = p.deployment_id AND v.proposal_id = p.proposal_id), 0)::bigint AS abstain_votes,
-  action_count
+  action_count,
+  created_ledger,
+  updated_ledger,
+  updated_timestamp
 FROM governance.proposals p;
 
 CREATE OR REPLACE VIEW app.proposal_detail AS
@@ -555,6 +560,11 @@ WITH action_rows AS (
     SUM(CASE WHEN support = 1 THEN 1 ELSE 0 END)::bigint AS for_votes,
     SUM(CASE WHEN support = 0 THEN 1 ELSE 0 END)::bigint AS against_votes,
     SUM(CASE WHEN support = 2 THEN 1 ELSE 0 END)::bigint AS abstain_votes,
+    jsonb_build_object(
+      'for', COALESCE(SUM(CASE WHEN support = 1 THEN weight ELSE 0 END), 0),
+      'against', COALESCE(SUM(CASE WHEN support = 0 THEN weight ELSE 0 END), 0),
+      'abstain', COALESCE(SUM(CASE WHEN support = 2 THEN weight ELSE 0 END), 0)
+    ) AS vote_summary,
     jsonb_agg(
       jsonb_build_object(
         'vote_event_id', vote_event_id,
@@ -581,12 +591,14 @@ SELECT
   p.vote_start_timestamp,
   p.deadline_ledger,
   p.eta,
+  pl.created_timestamp,
+  pl.created_ledger,
+  pl.updated_ledger,
+  pl.updated_timestamp,
+  pl.action_count,
   COALESCE(a.actions, '[]'::jsonb) AS actions,
-  jsonb_build_object(
-    'for', COALESCE(v.for_votes, 0),
-    'against', COALESCE(v.against_votes, 0),
-    'abstain', COALESCE(v.abstain_votes, 0)
-  ) AS vote_summary
+  COALESCE(v.vote_summary, '{"for": 0, "against": 0, "abstain": 0}'::jsonb) AS vote_summary,
+  COALESCE(v.votes, '[]'::jsonb) AS votes
 FROM governance.proposals p
 JOIN app.proposal_list pl
   ON pl.deployment_id = p.deployment_id

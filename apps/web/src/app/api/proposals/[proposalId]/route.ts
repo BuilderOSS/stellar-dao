@@ -25,7 +25,7 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         publicKey: config.adminAddress
       });
 
-      const proposalBuffer = proposalIdToBuffer(proposalId);
+      const proposalBuffer = proposalIdToBuffer(proposal.proposal_id);
       const [stateTx, deadlineTx, snapshotTx, proposerTx] = await Promise.all([
         client.proposal_state({ proposal_id: proposalBuffer }),
         client.proposal_deadline({ proposal_id: proposalBuffer }),
@@ -40,26 +40,30 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
         quorumVotes = null;
       }
 
+      const metadata = parseProposalMetadata(proposal.description ?? '');
       const payload = {
         proposalId: proposal.proposal_id,
         proposalNumber: proposal.proposal_number,
         description: proposal.description,
-        title: proposal.title,
-        metadata: parseProposalMetadata(proposal.description ?? ''),
+        title: metadata.title,
+        metadata,
         proposer: proposal.proposer || proposerTx.result,
-        vote_end: proposal.vote_end_ledger || deadlineTx.result,
-        vote_snapshot: proposal.vote_snapshot_ledger || snapshotTx.result,
-        vote_start: proposal.vote_start_timestamp || snapshotTx.result + 1,
-        deadline: proposal.vote_end_ledger || deadlineTx.result,
+         vote_end: proposal.deadline_ledger ?? deadlineTx.result,
+         vote_snapshot: proposal.snapshot_ledger ?? snapshotTx.result,
+         vote_start: proposal.vote_start_timestamp ?? snapshotTx.result + 1,
+         deadline: proposal.deadline_ledger ?? deadlineTx.result,
         eta: proposal.eta,
         state: stateTx.result,
         label: proposalStateLabel(stateTx.result),
         quorumVotes,
-        ledger: Number(proposal.created_at_ledger ?? 0),
-        timestamp: Number(proposal.created_at_timestamp ?? 0),
-        for_votes: proposal.for_votes,
-        against_votes: proposal.against_votes,
-        abstain_votes: proposal.abstain_votes
+         ledger: Number(proposal.created_ledger ?? 0),
+         timestamp: Number(proposal.created_timestamp ?? 0),
+         for_votes: proposal.vote_summary?.for,
+         against_votes: proposal.vote_summary?.against,
+         abstain_votes: proposal.vote_summary?.abstain,
+         targets: proposal.actions?.map((action: any) => action.target) ?? [],
+         functions: proposal.actions?.map((action: any) => action.function) ?? [],
+         args: proposal.actions?.map((action: any) => action.args) ?? []
       };
 
       return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
@@ -69,22 +73,25 @@ export async function GET(_request: Request, context: { params: Promise<{ propos
           proposalId: proposal.proposal_id,
           proposalNumber: proposal.proposal_number,
           description: proposal.description,
-          title: proposal.title,
+          title: parseProposalMetadata(proposal.description ?? '').title,
           metadata: parseProposalMetadata(proposal.description ?? ''),
           proposer: proposal.proposer,
-          vote_end: proposal.vote_end_ledger,
-          vote_snapshot: proposal.vote_snapshot_ledger,
+           vote_end: proposal.deadline_ledger,
+           vote_snapshot: proposal.snapshot_ledger,
           vote_start: proposal.vote_start_timestamp,
-          deadline: proposal.vote_end_ledger,
+           deadline: proposal.deadline_ledger,
           eta: proposal.eta,
-          state: proposalStateFromLabel(proposal.current_state) ?? ProposalState.Pending,
-          label: proposal.current_state || 'Pending',
+           state: proposalStateFromLabel(proposal.state) ?? ProposalState.Pending,
+           label: proposal.state || 'Pending',
           quorumVotes: null,
-          ledger: Number(proposal.created_at_ledger ?? 0),
-          timestamp: Number(proposal.created_at_timestamp ?? 0),
-          for_votes: proposal.for_votes,
-          against_votes: proposal.against_votes,
-          abstain_votes: proposal.abstain_votes
+           ledger: Number(proposal.created_ledger ?? 0),
+           timestamp: Number(proposal.created_timestamp ?? 0),
+           for_votes: proposal.vote_summary?.for,
+           against_votes: proposal.vote_summary?.against,
+           abstain_votes: proposal.vote_summary?.abstain,
+           targets: proposal.actions?.map((action: any) => action.target) ?? [],
+           functions: proposal.actions?.map((action: any) => action.function) ?? [],
+           args: proposal.actions?.map((action: any) => action.args) ?? []
         },
         { headers: { 'Cache-Control': 'no-store' } }
       );
