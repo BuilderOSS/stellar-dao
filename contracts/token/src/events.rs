@@ -1,99 +1,12 @@
 //! Event definitions and emission helpers for the Token contract.
 //!
-//! This module defines two types of events:
-//!
-//! 1. **Standard Soroban Events** - Published via `contractevent` macro for on-chain indexing
-//! 2. **Mercury-Indexed Events** - Retroshade SDK events (when `mercury` feature is enabled)
-//!    for enhanced off-chain querying via Mercury data indexer
-//!
-//! Most NFT lifecycle events (Transfer, Mint, Approve) are emitted automatically by
-//! OpenZeppelin's Base and NonFungibleVotes implementations. This module only defines
-//! custom events that add information not included in the standard events, such as
-//! tracking the minter address and batch minting operations.
+//! This module defines standard Soroban events published via the `contractevent` macro
+//! for on-chain indexing. Most NFT lifecycle events (Transfer, Mint, Approve) are emitted
+//! automatically by OpenZeppelin's Base and NonFungibleVotes implementations. This module
+//! only defines custom events that add information not included in the standard events,
+//! such as tracking the minter address and batch minting operations.
 
 use soroban_sdk::{contractevent, Address};
-
-#[cfg(feature = "mercury")]
-mod retroshade {
-    use super::*;
-    use retroshade_sdk::Retroshade;
-    use soroban_sdk::contracttype;
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct TokenInitializedIndexed {
-        pub owner: Address,
-        pub uri: String,
-        pub name: String,
-        pub symbol: String,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct TokenMintIndexed {
-        pub minter: Address,
-        pub to: Address,
-        pub token_id: u32,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct TokenTransferIndexed {
-        pub operator: Address,
-        pub from: Address,
-        pub to: Address,
-        pub token_id: u32,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct ApprovalChangedIndexed {
-        pub owner: Address,
-        pub spender: Address,
-        pub token_id: u32,
-        pub expiration_ledger: u32,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct MintAuthorityChangedIndexed {
-        pub authority: Address,
-        pub old_enabled: bool,
-        pub enabled: bool,
-        pub changed_by: Address,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct DelegateChangedIndexed {
-        pub delegator: Address,
-        pub from_delegate: Option<Address>,
-        pub to_delegate: Address,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct BatchMintIndexed {
-        pub minter: Address,
-        pub to: Address,
-        pub amount: u32,
-        pub last_token_id: u32,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-}
 
 // Standard contract events
 
@@ -164,7 +77,7 @@ pub struct BatchMint {
 
 use soroban_sdk::{Env, String};
 
-/// Emits a TokenInitialized event in both standard and Mercury-indexed formats.
+/// Emits a TokenInitialized event.
 ///
 /// Called once during contract initialization to record the deployment parameters.
 pub fn emit_token_initialized(
@@ -181,17 +94,6 @@ pub fn emit_token_initialized(
         symbol: symbol.clone(),
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::TokenInitializedIndexed {
-        owner: owner.clone(),
-        uri: uri.clone(),
-        name: name.clone(),
-        symbol: symbol.clone(),
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }
 
 pub fn emit_mint_authority_changed(
@@ -208,17 +110,6 @@ pub fn emit_mint_authority_changed(
         changed_by: changed_by.clone(),
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::MintAuthorityChangedIndexed {
-        authority: authority.clone(),
-        old_enabled,
-        enabled,
-        changed_by: changed_by.clone(),
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }
 
 pub fn emit_token_mint(e: &Env, minter: &Address, to: &Address, token_id: u32) {
@@ -228,16 +119,6 @@ pub fn emit_token_mint(e: &Env, minter: &Address, to: &Address, token_id: u32) {
         token_id,
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::TokenMintIndexed {
-        minter: minter.clone(),
-        to: to.clone(),
-        token_id,
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }
 
 pub fn emit_batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32, last_token_id: u32) {
@@ -248,70 +129,4 @@ pub fn emit_batch_mint(e: &Env, minter: &Address, to: &Address, amount: u32, las
         last_token_id,
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::BatchMintIndexed {
-        minter: minter.clone(),
-        to: to.clone(),
-        amount,
-        last_token_id,
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
-}
-
-#[cfg(feature = "mercury")]
-pub fn emit_token_transfer(
-    e: &Env,
-    operator: &Address,
-    from: &Address,
-    to: &Address,
-    token_id: u32,
-) {
-    retroshade::TokenTransferIndexed {
-        operator: operator.clone(),
-        from: from.clone(),
-        to: to.clone(),
-        token_id,
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
-}
-
-#[cfg(feature = "mercury")]
-pub fn emit_approval_changed(
-    e: &Env,
-    owner: &Address,
-    spender: &Address,
-    token_id: u32,
-    expiration_ledger: u32,
-) {
-    retroshade::ApprovalChangedIndexed {
-        owner: owner.clone(),
-        spender: spender.clone(),
-        token_id,
-        expiration_ledger,
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
-}
-
-#[cfg(feature = "mercury")]
-pub fn emit_delegate_changed(
-    e: &Env,
-    delegator: &Address,
-    from_delegate: Option<Address>,
-    to_delegate: &Address,
-) {
-    retroshade::DelegateChangedIndexed {
-        delegator: delegator.clone(),
-        from_delegate,
-        to_delegate: to_delegate.clone(),
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }

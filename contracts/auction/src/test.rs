@@ -30,7 +30,7 @@ fn setup_auction_contract(
             owner.clone(),
             token_contract.clone(),
             treasury.clone(),
-            300_u64,                     // duration: 5 minutes (MIN_AUCTION_DURATION)
+            300_u64, // duration: 5 minutes (MIN_AUCTION_DURATION)
             1_000_0000_i128,
             10_u32,
             50_u64,                      // time_buffer: 50 seconds
@@ -417,7 +417,7 @@ fn test_constructor_requires_payment_token() {
             owner,
             token_contract,
             treasury,
-            300_u64,  // Must meet MIN_AUCTION_DURATION
+            300_u64, // Must meet MIN_AUCTION_DURATION
             1_000_0000_i128,
             10_u32,
             10_u64,

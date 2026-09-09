@@ -15,7 +15,8 @@ use crate::{
     helpers::{create_auction, process_bid, refund_bid, settle_auction_internal},
     storage::{
         get_auction, get_config, is_launched, set_auction, set_config, set_launched, AuctionConfig,
-        AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_AUCTION_DURATION, MIN_RESERVE_PRICE,
+        AuctionState, PaymentType, MAX_BID_INCREMENT_PERCENT, MIN_AUCTION_DURATION,
+        MIN_RESERVE_PRICE,
     },
 };
 
