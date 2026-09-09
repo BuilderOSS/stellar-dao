@@ -124,13 +124,13 @@ This keeps voting intuitive while allowing explicit delegation without extra com
 - governor can make treasury execute an arbitrary contract call
 - unauthorized callers cannot invoke treasury execution
 
-## 9) Mercury Read Model
+## 9) Indexing Read Model
 
-- use Mercury for indexed read surfaces in the app and test harness
+- use Goldsky for indexed read surfaces in the app and test harness
 - keep contract execution separate from indexing concerns
 - prefer direct Soroban RPC reads for authoritative contract state
-- use Mercury-backed views for activity feed, account history, and governance summaries
-- if a contract needs custom indexing metadata, expose it in a compact, Mercury-friendly event or struct shape
+- use Goldsky-backed PostgreSQL views for activity feed, account history, and governance summaries
+- contracts emit standard Soroban events only; Goldsky pipeline transforms them into queryable data
 
 ## 10) Build Order
 
@@ -144,4 +144,4 @@ This keeps voting intuitive while allowing explicit delegation without extra com
 - keep the system single-DAO and test-focused
 - prefer minimal contract boundaries over reusable platform abstractions
 - use the existing OpenZeppelin Stellar governance and NFT examples as implementation references
-- keep the existing Mercury integration pattern available for read-side features, not core execution logic
+- use Goldsky indexing for read-side features, not core execution logic
