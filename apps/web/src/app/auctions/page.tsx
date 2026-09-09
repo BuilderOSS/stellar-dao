@@ -5,7 +5,7 @@ import Image from 'next/image';
 import useSWR from 'swr';
 import { Client as AuctionClient } from '@stellar-dao/auction-bindings';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
-import { Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
+import { Button, Callout, Card, Heading, Input, ShortId, Text } from '@/components/ui';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
@@ -44,7 +44,12 @@ function parseAmount(value: string) {
 }
 
 function formatDate(value: string | number | undefined) {
-  const timestamp = Number(value);
+  const numericValue = Number(value);
+  const timestamp = Number.isFinite(numericValue) && numericValue > 0
+    ? numericValue
+    : typeof value === 'string'
+      ? Date.parse(value) / 1000
+      : NaN;
   if (!Number.isFinite(timestamp) || timestamp <= 0) return 'Time unavailable';
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
 }
@@ -119,7 +124,7 @@ export default function AuctionsPage() {
     {isLoading && !data ? <Text className="lede">Loading auction...</Text> : null}
     {data?.auction ? <>
       <Card p="6"><div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 280px) 1fr', gap: '24px', alignItems: 'start' }}><div style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: '16px', background: 'rgba(255,255,255,0.06)' }}><Image src={`/api/token/${data.auction.token_id}/image.svg`} alt={`Token #${data.auction.token_id}`} width={560} height={560} style={{ width: '100%', height: '100%', objectFit: 'cover' }} unoptimized /></div><Stack gap="4"><Text className="label">Current auction</Text><Text className="mono" style={{ fontSize: '0.9rem', fontWeight: 600 }}>Token #{data.auction.token_id}</Text><Text className="lede">{data.auction.highest_bid === '0' ? `Reserve ${formatAmount(data.config.reserve_price)} ${paymentToken}` : `Highest bid ${formatAmount(data.auction.highest_bid)} ${paymentToken}`}</Text><Text>{auctionEnded ? 'Ended' : `Ends ${formatDate(data.auction.end_time)}`}</Text>{data.auction.highest_bidder ? <Text className="mono">{data.auction.highest_bidder}</Text> : null}{auctionEnded ? <Callout variant="warning" title="This auction has ended." description="Settle it to distribute the winning token and start the next auction." /> : data.paused ? <Callout variant="warning" title="Auctions are paused." /> : <Stack gap="2"><Input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder={`Minimum ${formatAmount(BigInt(data.auction.highest_bid) > 0n ? BigInt(data.auction.highest_bid) + BigInt(data.auction.highest_bid) * BigInt(data.config.min_bid_increment_percent) / 100n : BigInt(data.config.reserve_price))} ${paymentToken}`} inputMode="decimal" disabled={busy} /><Text className="lede" style={{ margin: 0, fontSize: '0.85rem' }}>Enter an amount in {paymentToken}. SAC amounts support up to 7 decimal places.</Text><Button onClick={() => void submit('bid')} disabled={busy}>{busy ? 'Submitting...' : 'Place bid'}</Button></Stack>}{auctionEnded && !data.paused ? <Button variant="outline" onClick={() => void submit('settle')} disabled={busy}>{busy ? 'Settling...' : 'Settle and start next auction'}</Button> : null}</Stack></div></Card>
-      <Grid columns={{ base: 1, md: 2 }} gap="4"><Card p="5"><Stack gap="3"><Heading style={{ fontSize: '1.2rem' }}>Recent bids</Heading>{data.bids.length ? data.bids.map((bid, index) => <div key={`${bid.bidder}-${index}`}><Text className="mono">{formatAmount(bid.amount)} · {bid.bidder}</Text></div>) : <Text className="lede">No bids yet.</Text>}</Stack></Card><Card p="5"><Stack gap="3"><Heading style={{ fontSize: '1.2rem' }}>Past auctions</Heading>{data.history.length ? data.history.map((auction) => <div key={auction.token_id}><Text>Token #{auction.token_id} · {formatAmount(auction.highest_bid_amount)}</Text><Text className="lede">{auction.highest_bidder || 'No winning bidder'}</Text></div>) : <Text className="lede">No settled auctions yet.</Text>}</Stack></Card></Grid>
+      <Grid columns={{ base: 1, md: 2 }} gap="4"><Card p="5"><Stack gap="4"><div><Text className="label">Activity</Text><Heading style={{ fontSize: '1.2rem', marginTop: '4px' }}>Recent bids</Heading></div>{data.bids.length ? <Stack gap="2">{data.bids.map((bid, index) => <div key={`${bid.bidder}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: index ? '1px solid rgba(148,163,184,0.14)' : undefined }}><div style={{ minWidth: 0 }}><ShortId value={bid.bidder} label="Bidder" /><Text className="lede" style={{ margin: '4px 0 0', fontSize: '0.78rem' }}>{bid.timestamp ? formatDate(bid.timestamp) : 'Recently'}</Text></div><Text className="mono" style={{ margin: 0, fontSize: '1rem', fontWeight: 700, whiteSpace: 'nowrap' }}>{formatAmount(bid.amount)} {paymentToken}</Text></div>)}</Stack> : <Text className="lede">No bids yet. Be the first to bid.</Text>}</Stack></Card><Card p="5"><Stack gap="4"><div><Text className="label">Archive</Text><Heading style={{ fontSize: '1.2rem', marginTop: '4px' }}>Past auctions</Heading></div>{data.history.length ? <Stack gap="2">{data.history.map((auction, index) => <div key={auction.token_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '12px 0', borderTop: index ? '1px solid rgba(148,163,184,0.14)' : undefined }}><div><Text style={{ margin: 0, fontWeight: 600 }}>Token #{auction.token_id}</Text><Text className="lede" style={{ margin: '4px 0 0', fontSize: '0.78rem' }}>{auction.highest_bidder ? <ShortId value={auction.highest_bidder} label="Winner" /> : 'No winning bidder'}</Text></div><Text className="mono" style={{ margin: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>{formatAmount(auction.highest_bid_amount)} {paymentToken}</Text></div>)}</Stack> : <Text className="lede">No settled auctions yet.</Text>}</Stack></Card></Grid>
     </> : data && !data.auction ? <Callout variant="warning" title="Current auction data is unavailable." /> : null}
     {message ? <Callout variant="warning" title={message} /> : null}
   </Stack></PageSection></DaoShell>;
