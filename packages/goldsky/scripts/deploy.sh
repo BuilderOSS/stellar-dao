@@ -30,7 +30,7 @@ NC='\033[0m' # No Color
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"
-PIPELINE_FILE="$PACKAGE_DIR/goldsky.yaml"
+PIPELINE_FILE="$PACKAGE_DIR/pipelines/dao-stellar-events.yaml"
 
 # Load environment
 if [ -f "$PACKAGE_DIR/.env" ]; then
@@ -51,15 +51,7 @@ if ! command -v pnpm &> /dev/null; then
   exit 1
 fi
 
-# Check API key
-if [ -z "$GOLDSKY_API_KEY" ]; then
-  echo -e "${RED}Error: GOLDSKY_API_KEY not set${NC}"
-  echo ""
-  echo "Set your API key:"
-  echo "  export GOLDSKY_API_KEY=your_api_key"
-  echo "  # or add to $PACKAGE_DIR/.env"
-  exit 1
-fi
+# Note: GOLDSKY_API_KEY not required - pnpm goldsky uses authenticated session
 
 # Get pipeline name from goldsky.yaml
 PIPELINE_NAME=$(grep "^name:" "$PIPELINE_FILE" | head -1 | sed 's/name: //' | tr -d '"' | tr -d "'")
