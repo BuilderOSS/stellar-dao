@@ -6,7 +6,8 @@ const ITEMS: Array<{ href: Route; label: string }> = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/owner', label: 'Owner' },
   { href: '/admin/token', label: 'Token Admin' },
-  { href: '/admin/governance', label: 'Governance Admin' }
+  { href: '/admin/governance', label: 'Governance Admin' },
+  { href: '/admin/auction', label: 'Auction Admin' }
 ];
 
 export function AdminSectionNav({ active }: { active: Route }) {

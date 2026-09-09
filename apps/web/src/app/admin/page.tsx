@@ -105,6 +105,13 @@ export default function AdminPage() {
               href="/admin/governance"
               allowed={hasGovernanceAccess}
             />
+            <SectionCard
+              label="Owner"
+              title="Auction controls"
+              description="Pause or resume auction activity for emergency and maintenance operations."
+              href="/admin/auction"
+              allowed={isOwner}
+            />
           </Grid>
         </Stack>
       </PageSection>

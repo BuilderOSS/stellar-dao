@@ -16,6 +16,7 @@ import { Grid, Stack } from 'styled-system/jsx';
 const BASE_NAV_ITEMS: Array<{ href: Route; label: string }> = [
   { href: '/', label: 'Dashboard' },
   { href: '/proposals', label: 'Proposals' },
+  { href: '/auctions', label: 'Auctions' },
   { href: '/treasury', label: 'Treasury' },
   { href: '/members', label: 'Members' }
 ];

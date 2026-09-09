@@ -16,6 +16,28 @@ function getDeploymentId() {
   return `${process.env.NEXT_PUBLIC_DAO_LABEL || 'local'}-${process.env.NEXT_PUBLIC_DAO_NETWORK || 'local'}`;
 }
 
+export async function getGoldskyAuctionHistory(limit = 24, offset = 0) {
+  const deploymentId = getDeploymentId();
+  const result = await pool.query(`
+    SELECT * FROM auction.auctions
+    WHERE deployment_id = $1 AND settled = true
+    ORDER BY token_id DESC
+    LIMIT $2 OFFSET $3
+  `, [deploymentId, limit, offset]);
+  return result.rows;
+}
+
+export async function getGoldskyAuctionBids(tokenId: string, limit = 20) {
+  const result = await pool.query(`
+    SELECT event_id, bidder, amount, payment_type, ledger_sequence, timestamp, transaction_hash
+    FROM auction.bids
+    WHERE deployment_id = $1 AND token_id = $2
+    ORDER BY ledger_sequence DESC, event_id DESC
+    LIMIT $3
+  `, [getDeploymentId(), tokenId, limit]);
+  return result.rows;
+}
+
 /**
  * Activity Feed
  *

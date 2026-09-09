@@ -17,6 +17,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@noble/hashes": "^2.2.0",
     "@stellar-dao/governor-bindings": "workspace:*",
+    "@stellar-dao/auction-bindings": "workspace:*",
     "@stellar-dao/token-bindings": "workspace:*",
     "@stellar-dao/treasury-bindings": "workspace:*",
     "@stellar/stellar-sdk": "^17.0.1",
