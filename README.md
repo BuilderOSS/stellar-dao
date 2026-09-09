@@ -1,6 +1,6 @@
 # Stellar DAO
 
-Single-DAO governance MVP on Stellar/Soroban with Rust contracts, generated TypeScript bindings, a Next.js web app, and Mercury read models.
+Single-DAO governance MVP on Stellar/Soroban with Rust contracts, generated TypeScript bindings, a Next.js web app, and Goldsky indexing.
 
 ## DAO Flow
 
@@ -23,7 +23,7 @@ The default deployment minimums are 300 seconds for voting delay, voting period,
 - `packages/*-bindings` - generated TypeScript clients.
 - `configs` - deployment inputs.
 - `deploys` - deployment outputs and contract addresses.
-- `scripts` - build, deploy, binding, config, local network, and Mercury tooling.
+- `scripts` - build, deploy, binding, config, and local network tooling.
 
 ## Requirements
 
@@ -50,7 +50,7 @@ NEXT_PUBLIC_DAO_NETWORK=local
 NEXT_PUBLIC_DAO_LABEL=local
 ```
 
-Copy `apps/web/.env.example` to `apps/web/.env.local` only when needed. Contract IDs, RPC settings, passphrases, token metadata, governance settings, and Mercury program metadata are generated from deployment outputs. Do not maintain those values as separate manual environment variables.
+Copy `apps/web/.env.example` to `apps/web/.env.local` only when needed. Contract IDs, RPC settings, passphrases, token metadata, and governance settings are generated from deployment outputs. Do not maintain those values as separate manual environment variables.
 
 ## Commands
 
@@ -61,7 +61,6 @@ pnpm lint
 pnpm typecheck
 
 pnpm dao:build
-pnpm dao:build:mercury
 pnpm dao:bindings
 pnpm dao:generate-config
 pnpm dao:test:unit
@@ -88,19 +87,11 @@ Inputs include network, label, admin address, RPC URL, passphrase, token metadat
 
 Deployment commands write JSON artifacts to `deploys/`. Run `pnpm dao:generate-config` after changing deployment artifacts to regenerate the frontend configuration.
 
-## Mercury
+## Goldsky Indexing
 
-Mercury provides indexed read models for proposals, votes, tokens, authorities, members, activity, and program status. Contract execution does not depend on Mercury.
+Goldsky provides indexed read models for proposals, votes, tokens, authorities, members, activity, and program status via PostgreSQL views. The web app queries these views for all DAO data.
 
-```bash
-pnpm mercury:deploy:local
-pnpm mercury:deploy:testnet
-pnpm mercury:list
-pnpm mercury:tables
-pnpm mercury:status
-```
-
-Set `MERCURY_JWT` only if the web app or Mercury scripts need authenticated Mercury access.
+See `packages/goldsky/README.md` for Goldsky pipeline setup and deployment instructions.
 
 ## Verification
 
