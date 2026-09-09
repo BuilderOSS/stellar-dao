@@ -331,7 +331,7 @@ export async function getGoldskyMintAuthorities() {
     SELECT
       authority,
       enabled,
-      last_updated_ledger
+      ledger_sequence AS last_updated_ledger
     FROM token.mint_authorities
     WHERE enabled = true
     ORDER BY authority
@@ -356,7 +356,7 @@ export async function getGoldskyGovernorAuthorities() {
     SELECT
       authority,
       enabled,
-      last_updated_ledger
+      ledger_sequence AS last_updated_ledger
     FROM governance.governor_authorities
     WHERE enabled = true
     ORDER BY authority
