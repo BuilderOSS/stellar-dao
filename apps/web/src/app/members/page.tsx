@@ -5,10 +5,13 @@ import { PageSection } from '@/components/page-section';
 import { Badge, Button, Card, ShortId, Text } from '@/components/ui';
 import { useGoldskyMemberList } from '@/lib/goldsky-queries';
 import { Grid, Stack } from 'styled-system/jsx';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { getDaoAccountRole } from '@/lib/account-role';
 
 export default function MembersPage() {
   const { data, error, isLoading, mutate } = useGoldskyMemberList(100);
   const rows = data?.items ?? [];
+  const config = getDaoNetworkConfig(getDefaultDaoNetwork());
 
   return (
     <DaoShell>
@@ -39,7 +42,7 @@ export default function MembersPage() {
                         <Badge>#{index + 1}</Badge>
                         <Badge>Tokens {row.owned_token_count}</Badge>
                       </div>
-                      <ShortId value={row.address} label="Address" />
+                      <ShortId value={row.address} label={getDaoAccountRole(config, row.address) ?? 'Address'} />
                     </Stack>
                   </Card>
                 ))}

@@ -42,7 +42,7 @@ export default function Page() {
         title="Governance at a glance"
         description="Track DAO contracts, token supply, Goldsky indexing, and recent governance activity from one clean home screen."
       >
-        <Grid columns={{ base: 1, md: 2, xl: 4 }} gap="4">
+        <Grid columns={{ base: 1, md: 2, xl: 5 }} gap="4">
           <Card p="5">
             <Stack gap="2">
               <Text className="label">Token</Text>
@@ -59,6 +59,12 @@ export default function Page() {
             <Stack gap="2">
               <Text className="label">Treasury</Text>
               {config.treasuryContractId ? <ShortId value={config.treasuryContractId} /> : <Text>Missing</Text>}
+            </Stack>
+          </Card>
+          <Card p="5">
+            <Stack gap="2">
+              <Text className="label">Auction</Text>
+              {config.auctionContractId ? <ShortId value={config.auctionContractId} /> : <Text>Missing</Text>}
             </Stack>
           </Card>
           <Card p="5">

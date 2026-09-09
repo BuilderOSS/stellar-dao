@@ -4,9 +4,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Card, Heading, ShortId, Text } from '@/components/ui';
 import { useTokenMetadata } from '@/lib/token-queries';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { getDaoAccountRole } from '@/lib/account-role';
 
 export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }) {
   const { data, error, isLoading } = useTokenMetadata(tokenId);
+  const role = getDaoAccountRole(getDaoNetworkConfig(getDefaultDaoNetwork()), owner);
 
   return (
     <Card p="4">
@@ -47,7 +50,7 @@ export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }
           </Text>
           <div style={{ display: 'grid', gap: '6px' }}>
             <Text className="lede" style={{ margin: 0, fontSize: '0.84rem' }}>Symbol: {data.attributes.find((attribute) => attribute.trait_type === 'Token Symbol')?.value ?? '—'}</Text>
-            <ShortId value={owner} label="Owner" />
+             <ShortId value={owner} label={role ? `Owner · ${role}` : 'Owner'} />
           </div>
         </div>
       ) : null}
