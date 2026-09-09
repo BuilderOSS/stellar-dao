@@ -5,8 +5,7 @@ export function proposalIdFromBuffer(proposalId: Buffer | Uint8Array) {
 }
 
 export function proposalIdToRouteId(proposalId: Buffer | Uint8Array) {
-  const hexString = Buffer.from(proposalId).toString('hex');
-  return Buffer.from(hexString, 'utf8').toString('hex');
+  return proposalIdFromBuffer(proposalId);
 }
 
 export function proposalIdToBuffer(proposalId: string) {
