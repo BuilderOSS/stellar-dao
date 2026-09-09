@@ -9,7 +9,11 @@ export type TokenInventoryItem = {
 
 export type TokenInventoryResponse = {
   items: TokenInventoryItem[];
-  totalSupply: number;
+  totalSupply: string;
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
   generatedAt: string;
   message?: string;
 };

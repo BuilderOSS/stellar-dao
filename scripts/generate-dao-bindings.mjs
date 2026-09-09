@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { run } from './lib.mjs';
 
 const buildDir = 'target/wasm32v1-none/release';
@@ -33,7 +33,7 @@ function rewritePackageJsonName(outputDir, packageJsonName) {
   const packageJsonPath = `${outputDir}/package.json`;
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   packageJson.name = packageJsonName;
-  packageJson.dependencies['@stellar/stellar-sdk'] = '^16.1.0';
+  packageJson.dependencies['@stellar/stellar-sdk'] = '^17.0.1';
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 }
 
@@ -53,46 +53,38 @@ function replaceNth(content, search, replacement, targetIndex) {
 }
 
 function patchGeneratedBindings(packageName, outputDir) {
-  const indexPath = `${outputDir}/src/index.ts`;
-  let content = readFileSync(indexPath, 'utf8');
+  // Note: We keep .js extensions as-is for ES module compatibility
+  const typesPath = `${outputDir}/src/types.ts`;
+  const clientPath = `${outputDir}/src/client.ts`;
 
+  // Patch types.ts for Point and ComplianceError issues
   if (packageName === 'token') {
-    content = content.replace(
-      'export * as rpc from "@stellar/stellar-sdk/rpc";\n\nif (typeof window !== "undefined") {',
-      'export * as rpc from "@stellar/stellar-sdk/rpc";\n\ntype Point = Buffer;\n\nif (typeof window !== "undefined") {'
+    let typesContent = readFileSync(typesPath, 'utf8');
+
+    // Add Point type alias with Buffer import
+    typesContent = typesContent.replace(
+      "import {Address, xdr} from '@stellar/stellar-sdk';",
+      "import {Address, xdr} from '@stellar/stellar-sdk';\nimport {Buffer} from 'buffer';\n\ntype Point = Buffer;"
     );
-    content = replaceNth(content, 'export const ComplianceError = {', 'export const ComplianceHookError = {', 2);
+
+    // Rename duplicate ComplianceError to ComplianceHookError
+    typesContent = replaceNth(typesContent, 'export const ComplianceError = {', 'export const ComplianceHookError = {', 2);
+
+    writeFileSync(typesPath, typesContent);
   }
 
-  if (packageName === 'governor') {
-    content = content.replace(
-      'export class Client extends ContractClient {\n',
-      'export class Client extends ContractClient {\n  declare txFromJSON: any;\n'
-    );
-  }
-
+  // Patch client.ts for function parameter (reserved keyword)
   if (packageName === 'treasury') {
-    content = content.replace(
-      '  execute: ({target, function, args}: {target: string, function: string, args: Array<any>}, options?: MethodOptions) => Promise<AssembledTransaction<any>>',
-      '  execute: (params: {target: string, function_: string, args: Array<any>}, options?: MethodOptions) => Promise<AssembledTransaction<any>>'
+    let clientContent = readFileSync(clientPath, 'utf8');
+
+    // Rename 'function' parameter to 'function_' (reserved keyword)
+    clientContent = clientContent.replace(
+      /execute\(\s*{\s*target,\s*function,\s*args\s*}:\s*{\s*target:\s*string,\s*function:\s*string,/g,
+      'execute({ target, function_, args }: { target: string, function_: string,'
     );
-    content = content.replace(
-      'export class Client extends ContractClient {\n',
-      'export class Client extends ContractClient {\n  declare txFromJSON: any;\n'
-    );
+
+    writeFileSync(clientPath, clientContent);
   }
-
-  if (packageName === 'auction') {
-    content = content.replace(
-      'export class Client extends ContractClient {\n',
-      'export class Client extends ContractClient {\n  declare txFromJSON: any;\n'
-    );
-  }
-
-  content = content.replace(/this\.txFromJSON<[^>]+>/g, '(this as any).txFromJSON');
-  content = content.replace(/\(this as any\)\.txFromJSON>/g, '(this as any).txFromJSON');
-
-  writeFileSync(indexPath, content);
 }
 
 run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '-p', 'auction', '--release', '--target', 'wasm32v1-none'], {
@@ -104,14 +96,16 @@ run('cargo', ['build', '-p', 'token', '-p', 'governor', '-p', 'treasury', '-p', 
 
 for (const contract of contracts) {
   mkdirSync(contract.outputDir, { recursive: true });
-  run('stellar', [
-    'contract',
-    'bindings',
-    'typescript',
+  run('pnpm', [
+    'dlx',
+    '@stellar/stellar-sdk@17.0.1',
+    'generate',
     '--wasm',
     contract.wasmPath,
     '--output-dir',
     contract.outputDir,
+    '--contract-name',
+    contract.packageName,
     '--overwrite'
   ]);
   patchGeneratedBindings(contract.packageName, contract.outputDir);

@@ -5,7 +5,7 @@
   "scripts": {
     "predev": "node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
     "dev": "next dev",
-    "prebuild": "node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
+    "prebuild": "pnpm --filter @stellar-dao/token-bindings --filter @stellar-dao/governor-bindings --filter @stellar-dao/treasury-bindings build && node ../../scripts/generate-deployment-config.mjs && panda codegen && panda cssgen",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -14,11 +14,12 @@
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.5.0",
+    "@neondatabase/serverless": "^1.1.0",
     "@noble/hashes": "^2.2.0",
-    "@stellar-dao/token-bindings": "workspace:*",
     "@stellar-dao/governor-bindings": "workspace:*",
+    "@stellar-dao/token-bindings": "workspace:*",
     "@stellar-dao/treasury-bindings": "workspace:*",
-    "@stellar/stellar-sdk": "^16.1.0",
+    "@stellar/stellar-sdk": "^17.0.1",
     "buffer": "^6.0.3",
     "next": "^15.4.0",
     "react": "^19.0.0",

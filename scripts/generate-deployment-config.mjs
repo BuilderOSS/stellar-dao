@@ -9,12 +9,6 @@ const projectRoot = join(scriptDir, '..');
 const deploysDir = join(projectRoot, 'deploys');
 const outputFile = join(projectRoot, 'apps/web/src/config/deployments.generated.ts');
 
-const MERCURY_URLS = {
-  testnet: 'https://testnet.mercurydata.app/rest',
-  mainnet: 'https://mainnet.mercurydata.app/rest',
-  local: 'https://testnet.mercurydata.app/rest'
-};
-
 function generateDeploymentConfig() {
   if (!existsSync(deploysDir)) {
     console.error(`Error: ${deploysDir} directory not found`);
@@ -28,8 +22,7 @@ function generateDeploymentConfig() {
       return {
         fileName: f,
         deployment: {
-          ...content,
-          mercuryBaseUrl: MERCURY_URLS[content.network] || MERCURY_URLS.testnet
+          ...content
         }
       };
     });
@@ -90,23 +83,15 @@ export const DEPLOYMENTS = DEPLOYMENTS_DATA as Array<{
     identityName: string;
     saltSuffix: string | null;
     deployArtifactPath: string;
+    deploymentLedger: number | null;
   };
+  deploymentLedger?: number | null;
   transactions?: {
-    token?: { deployedAt: string; txHash?: string };
-    governor?: { deployedAt: string; txHash?: string };
-    treasury?: { deployedAt: string; txHash?: string };
-    auction?: { deployedAt: string; txHash?: string };
+    token?: { deployedAt: string; txHash?: string; ledger?: number };
+    governor?: { deployedAt: string; txHash?: string; ledger?: number };
+    treasury?: { deployedAt: string; txHash?: string; ledger?: number };
+    auction?: { deployedAt: string; txHash?: string; ledger?: number };
   };
-  mercury?: {
-    deployedAt: string;
-    programs: {
-      token: { program_id: number; project: string };
-      governor: { program_id: number; project: string };
-      treasury: { program_id: number; project: string };
-      auction: { program_id: number; project: string };
-    };
-  };
-  mercuryBaseUrl: string;
 }>;
 
 export function getDeployment(network: string, label: string) {

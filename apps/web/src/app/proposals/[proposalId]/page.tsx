@@ -58,7 +58,7 @@ function shortenProposalId(value: string) {
 async function fetchProposalPageData([, proposalId]: readonly ['proposal-detail', string]): Promise<ProposalPageData> {
   const [detailResponse, votesResponse] = await Promise.all([
     fetch(`/api/proposals/${proposalId}`, { cache: 'no-store' }),
-    fetch(`/api/mercury/proposals/${proposalId}/votes`, { cache: 'no-store' })
+    fetch(`/api/proposals/${proposalId}/votes`, { cache: 'no-store' })
   ]);
 
   if (!detailResponse.ok) {
@@ -140,7 +140,7 @@ export default function ProposalDetailPage() {
     try {
       const governor = await getGovernor();
       const assembled = await governor.cast_vote({
-        proposal_id: proposalIdToBuffer(proposalId),
+        proposal_id: proposalIdToBuffer(detail.proposalId),
         vote_type: voteType,
         reason: voteReason,
         voter: session.address
@@ -291,7 +291,7 @@ export default function ProposalDetailPage() {
     <DaoShell>
       <PageSection
         eyebrow="Proposal detail"
-        title={detail ? detail.metadata.title : `Proposal ${shortenProposalId(proposalId)}`}
+         title={detail ? `Proposal #${detail.proposalNumber}` : `Proposal ${shortenProposalId(proposalId)}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">

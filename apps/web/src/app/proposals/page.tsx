@@ -15,11 +15,6 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useVotingPower, type VotingPowerSnapshot } from '@/lib/voting-power';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
 
-function shorten(value: string) {
-  if (value.length <= 16) return value;
-  return `${value.slice(0, 6)}…${value.slice(-6)}`;
-}
-
 function formatTimestamp(timestamp: number) {
   if (!timestamp) return '—';
   try {
@@ -81,7 +76,7 @@ export default function ProposalsPage() {
       >
         <Stack gap="4">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <Text className="label">Mercury proposals</Text>
+            <Text className="label">Goldsky proposals</Text>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
                 {isLoading ? 'Refreshing...' : 'Refresh'}
@@ -100,11 +95,11 @@ export default function ProposalsPage() {
             <Grid columns={{ base: 1 }} gap="4">
               {items.map((item) => (
                 <Card key={item.proposalId} p="4">
-                  <Link href={`/proposals/${item.proposalId}`} style={{ textDecoration: 'none' }}>
+                  <Link href={`/proposals/${item.proposalNumber}`} style={{ textDecoration: 'none' }}>
                     <Stack gap="2">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <Text className="mono" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                          {shorten(item.proposalId)}
+                          Proposal #{item.proposalNumber}
                         </Text>
                         <ProposalStateBadge label={item.stateLabel} />
                       </div>

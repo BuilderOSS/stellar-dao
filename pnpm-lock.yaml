@@ -13,6 +13,9 @@ importers:
       '@creit.tech/stellar-wallets-kit':
         specifier: ^2.5.0
         version: 2.5.0(@trezor/connect@9.7.3(@solana/sysvars@5.5.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(tslib@2.8.1)(typescript@5.9.3)(utf-8-validate@6.0.6)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)))(@types/react@19.2.17)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(near-api-js@5.1.1)(react@19.2.8)(tslib@2.8.1)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.2.8))(utf-8-validate@6.0.6)(zod@3.25.76)
+      '@neondatabase/serverless':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@noble/hashes':
         specifier: ^2.2.0
         version: 2.2.0
@@ -26,8 +29,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/treasury-bindings
       '@stellar/stellar-sdk':
-        specifier: ^16.1.0
-        version: 16.1.0
+        specifier: ^17.0.1
+        version: 17.0.1
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -81,14 +84,14 @@ importers:
   packages/auction-bindings:
     dependencies:
       '@stellar/stellar-sdk':
-        specifier: ^16.1.0
-        version: 16.1.0
+        specifier: ^17.0.1
+        version: 17.0.1
       buffer:
         specifier: 6.0.3
         version: 6.0.3
     devDependencies:
       typescript:
-        specifier: ^5.6.2
+        specifier: ^5.6.3
         version: 5.9.3
 
   packages/goldsky:
@@ -96,44 +99,60 @@ importers:
       dotenv:
         specifier: ^17.2.1
         version: 17.4.2
+    devDependencies:
+      '@goldskycom/cli':
+        specifier: ^13.10.2
+        version: 13.10.2
+      '@stellar-dao/auction-bindings':
+        specifier: workspace:*
+        version: link:../auction-bindings
+      '@stellar-dao/governor-bindings':
+        specifier: workspace:*
+        version: link:../governor-bindings
+      '@stellar-dao/token-bindings':
+        specifier: workspace:*
+        version: link:../token-bindings
+      '@stellar-dao/treasury-bindings':
+        specifier: workspace:*
+        version: link:../treasury-bindings
 
   packages/governor-bindings:
     dependencies:
       '@stellar/stellar-sdk':
-        specifier: ^16.1.0
-        version: 16.1.0
+        specifier: ^17.0.1
+        version: 17.0.1
       buffer:
         specifier: 6.0.3
         version: 6.0.3
     devDependencies:
       typescript:
-        specifier: ^5.6.2
+        specifier: ^5.6.3
         version: 5.9.3
 
   packages/token-bindings:
     dependencies:
       '@stellar/stellar-sdk':
-        specifier: ^16.1.0
-        version: 16.1.0
+        specifier: ^17.0.1
+        version: 17.0.1
       buffer:
         specifier: 6.0.3
         version: 6.0.3
     devDependencies:
       typescript:
-        specifier: ^5.6.2
+        specifier: ^5.6.3
         version: 5.9.3
 
   packages/treasury-bindings:
     dependencies:
       '@stellar/stellar-sdk':
-        specifier: ^16.1.0
-        version: 16.1.0
+        specifier: ^17.0.1
+        version: 17.0.1
       buffer:
         specifier: 6.0.3
         version: 6.0.3
     devDependencies:
       typescript:
-        specifier: ^5.6.2
+        specifier: ^5.6.3
         version: 5.9.3
 
 packages:
@@ -515,6 +534,15 @@ packages:
     resolution: {integrity: sha512-UPBgXtHHfQugoXOSAoeG3jdmPbl37cwV9y3XqTPAnw8tJj8np14TPV2uc5lOs7C2LMF9Ubn66zyaiYxgwGppng==}
     engines: {node: '>=20'}
 
+  '@exodus/bytes@1.15.1':
+    resolution: {integrity: sha512-S6mL0yNB/Abt9Ei4tq8gDhcczc4S3+vQ4ra7vxnAf+YHC02srtqxKKZghx2Dq6p0e66THKwR6r8N6P95wEty7Q==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    peerDependencies:
+      '@noble/hashes': ^1.8.0 || ^2.0.0
+    peerDependenciesMeta:
+      '@noble/hashes':
+        optional: true
+
   '@fivebinaries/coin-selection@3.0.0':
     resolution: {integrity: sha512-h25Pn1ZA7oqQBQDodGAgIsQt66T2wDge9onBKNqE66WNWL0KJiKJbpij8YOLo5AAlEIg5IS7EB1QjBgDOIg6DQ==}
 
@@ -526,6 +554,10 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@goldskycom/cli@13.10.2':
+    resolution: {integrity: sha512-1BLOTtwpJHCk76d1gBTtZ8WEZwRPwPZ8gWF5KbfHuOz8mW0g5OEb6yLVLhUhOycTgyUHoeRw8+QcEyiahXRqOg==}
+    hasBin: true
 
   '@hono/node-server@2.0.12':
     resolution: {integrity: sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg==}
@@ -813,6 +845,10 @@ packages:
     resolution: {integrity: sha512-MH8sg6XHyylq2ZXxnOjrKHMCmuRgFfpfdC816fW0R8hctZiXZ0lmfLvgG1xfA2BAxrVytiU1g3dcE97/P5cZqg==}
     peerDependencies:
       near-api-js: ^4.0.0 || ^5.0.0
+
+  '@neondatabase/serverless@1.1.0':
+    resolution: {integrity: sha512-r3ZZhRjEcfEdKIZnoB1RusNgvHuaBRqfCzV4Gi+5A9yUX0S4HTws/ASWqt13wL4y4I+0rqsWGdA2w7EQXHi3+Q==}
+    engines: {node: '>=19.0.0'}
 
   '@next/env@15.5.22':
     resolution: {integrity: sha512-O5BlKb3KtsHkvO0gjjV66PuJnAgCtIEIzwkt50HRAHsQkU1t77eksIXSZV84/WMtZJjWrnDUPKHVRi0D62nSAA==}
@@ -1755,6 +1791,10 @@ packages:
     resolution: {integrity: sha512-+NmNa7Tk5BI5XFdy/6xGTqAN4J9a9KgCrCGhj2uEUTCBhLkch0M+QbKzNH8zEnejWe0p8w+0q5hUVX6L3OzoVA==}
     engines: {node: '>=20.0.0', pnpm: '>=9.0.0'}
 
+  '@stellar/js-xdr@5.0.0':
+    resolution: {integrity: sha512-HBDNKnxr+ecdaEmbZ0mcKkirOF8tXXEbWSw34P3wT40Tn3g+u+cCH17xAWZymzscq8cojHB8340pR8QNVaD32w==}
+    engines: {node: '>=22.0.0', pnpm: '>=10.0.0'}
+
   '@stellar/stellar-base@14.1.0':
     resolution: {integrity: sha512-A8kFli6QGy22SRF45IjgPAJfUNGjnI+R7g4DF5NZYVsD1kGf7B4ITyc4OPclLV9tqNI4/lXxafGEw0JEUbHixw==}
     engines: {node: '>=20.0.0'}
@@ -1767,6 +1807,11 @@ packages:
   '@stellar/stellar-sdk@16.1.0':
     resolution: {integrity: sha512-MOIrUvbzuTnSvUurL+9nrS1UW6Ko+QTW00RggSomm4WaWkE8onKPo2MRJMd89X7qPaGPjYjxNX6B671AEQlzxQ==}
     engines: {node: '>=22.0.0'}
+    hasBin: true
+
+  '@stellar/stellar-sdk@17.0.1':
+    resolution: {integrity: sha512-fsHHbzJ14N5Ttq5Qpz4AX0ytmPSLCzcy4XC3uIgSQz0cBkEgv0Zb4KE6tWEd3nDQUk/1qP8ZX9cRonIaUXO3Sw==}
+    engines: {node: '>=22.12.0'}
     hasBin: true
 
   '@swc/helpers@0.5.15':
@@ -5927,6 +5972,10 @@ snapshots:
       '@noble/curves': 2.2.0
       '@noble/hashes': 2.2.0
 
+  '@exodus/bytes@1.15.1(@noble/hashes@2.2.0)':
+    optionalDependencies:
+      '@noble/hashes': 2.2.0
+
   '@fivebinaries/coin-selection@3.0.0':
     dependencies:
       '@emurgo/cardano-serialization-lib-browser': 13.2.1
@@ -5942,6 +5991,8 @@ snapshots:
       '@floating-ui/utils': 0.2.12
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@goldskycom/cli@13.10.2': {}
 
   '@hono/node-server@2.0.12(hono@4.12.32)':
     dependencies:
@@ -6282,6 +6333,8 @@ snapshots:
       js-sha256: 0.9.0
       near-api-js: 5.1.1
       rxjs: 7.8.1
+
+  '@neondatabase/serverless@1.1.0': {}
 
   '@next/env@15.5.22': {}
 
@@ -7836,6 +7889,8 @@ snapshots:
 
   '@stellar/js-xdr@4.0.0': {}
 
+  '@stellar/js-xdr@5.0.0': {}
+
   '@stellar/stellar-base@14.1.0':
     dependencies:
       '@noble/curves': 1.9.7
@@ -7868,6 +7923,24 @@ snapshots:
       base32.js: 0.1.0
       bignumber.js: 11.1.5
       buffer: 6.0.3
+      commander: 14.0.3
+      eventsource: 4.1.0
+      feaxios: 0.0.23
+      smol-toml: 1.7.1
+      uint8array-extras: 1.5.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+
+  '@stellar/stellar-sdk@17.0.1':
+    dependencies:
+      '@exodus/bytes': 1.15.1(@noble/hashes@2.2.0)
+      '@noble/ed25519': 3.1.0
+      '@noble/hashes': 2.2.0
+      '@stellar/js-xdr': 5.0.0
+      '@types/json-schema': 7.0.15
+      axios: 1.18.0
+      bignumber.js: 11.1.5
       commander: 14.0.3
       eventsource: 4.1.0
       feaxios: 0.0.23

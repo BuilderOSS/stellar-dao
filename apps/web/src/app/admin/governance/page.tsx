@@ -11,7 +11,7 @@ import { DurationInput } from '@/components/admin/duration-input';
 import { Badge, Button, Callout, Card, Heading, Input, Text } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGovernorSettings } from '@/lib/admin-queries';
-import { useMercuryGovernorAuthorities } from '@/lib/mercury-queries';
+import { useGoldskyGovernorAuthorities } from '@/lib/goldsky-queries';
 import { formatDuration } from '@/lib/format-duration';
 import { waitForConfirmation } from '@/lib/transaction-confirmation';
 import { useTransactionFeedback } from '@/lib/transaction-feedback';
@@ -65,7 +65,7 @@ export default function GovernanceAdminPage() {
   const [activeAction, setActiveAction] = useState<GovernorSettingKey | ''>('');
   const tx = useTransactionFeedback(config.name);
   const { data: settings, mutate: refreshSettings, error: settingsError, isLoading: settingsLoading } = useGovernorSettings(config, session.address || config.adminAddress);
-  const { data: governorAuthorities, error: authorityError, isLoading: authorityLoading, mutate: refreshAuthorities } = useMercuryGovernorAuthorities();
+  const { data: governorAuthorities, error: authorityError, isLoading: authorityLoading, mutate: refreshAuthorities } = useGoldskyGovernorAuthorities();
   const isOwner = Boolean(session.address && session.address === config.adminAddress);
   const hasGovernanceAccess = Boolean(isOwner || governorAuthorities?.items.some((item) => item.authority === session.address));
 

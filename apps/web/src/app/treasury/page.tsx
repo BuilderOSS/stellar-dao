@@ -5,7 +5,7 @@ import { PageSection } from '@/components/page-section';
 import { Badge, Button, Callout, Card, Heading, ShortId, Text } from '@/components/ui';
 import { findAsset } from '@/lib/assets-config';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
-import { useMercuryActivityFeed } from '@/lib/mercury-queries';
+import { useGoldskyActivityFeed } from '@/lib/goldsky-queries';
 import { useTreasuryBalances } from '@/lib/treasury-queries';
 import Image from 'next/image';
 import { Grid, Stack } from 'styled-system/jsx';
@@ -52,7 +52,7 @@ function AssetMark({ code, imageSrc }: { code: string; imageSrc?: string }) {
 
 export default function TreasuryPage() {
   const config = getDaoNetworkConfig(getDefaultDaoNetwork());
-  const { data, error, isLoading, mutate } = useMercuryActivityFeed(8);
+  const { data, error, isLoading, mutate } = useGoldskyActivityFeed(8);
   const {
     data: balances,
     error: balanceError,
@@ -154,13 +154,13 @@ export default function TreasuryPage() {
               ) : (
                 <Stack gap="2">
                   {data.items
-                    .filter((item) => item.programKey === 'treasury')
+                     .filter((item) => item.contract_role === 'treasury')
                     .map((item) => (
-                      <Card key={item.id} p="4">
+                      <Card key={item.activity_id} p="4">
                         <Stack gap="1">
                           <Text style={{ margin: 0, fontWeight: 700 }}>{item.title}</Text>
                           <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }}>{item.summary}</Text>
-                          <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>Ledger {item.ledger}</Text>
+                           <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>Ledger {item.ledger_sequence}</Text>
                         </Stack>
                       </Card>
                     ))}

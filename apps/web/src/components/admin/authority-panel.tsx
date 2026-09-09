@@ -5,11 +5,9 @@ import { Stack } from 'styled-system/jsx';
 
 type AuthorityItem = {
   authority: string;
-  ledger: number;
-  timestamp: number;
-  txHash: string;
-  contractId: string;
-  source: 'owner' | 'mercury';
+  last_updated_ledger?: number;
+  ledger?: number;
+  source?: 'owner' | 'goldsky';
 };
 
 export function AuthorityPanel({
@@ -71,7 +69,7 @@ export function AuthorityPanel({
               <Card key={item.authority} p="3">
                 <Stack gap="1">
                   <ShortId value={item.authority} label={item.source === 'owner' ? 'Owner' : 'Authority'} />
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Ledger {item.ledger || '—'}</Text>
+                  <Text className="lede" style={{ margin: 0, fontSize: '0.82rem' }}>Ledger {item.ledger ?? item.last_updated_ledger ?? '—'}</Text>
                 </Stack>
               </Card>
             ))}
