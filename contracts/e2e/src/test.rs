@@ -1013,19 +1013,19 @@ fn test_auction_multiple_consecutive_auctions() {
     auction.unpause(&owner);
 
     // Run 3 consecutive auctions
-    for i in 0..3 {
+    for bidder in &bidders {
         let auction_state = auction.get_auction();
         let token_id = auction_state.token_id;
 
         // Each bidder bids on their respective auction
-        auction.create_bid(&bidders[i], &token_id, &100_0000000);
+        auction.create_bid(bidder, &token_id, &100_0000000);
 
         // Advance and settle
         e.ledger().set_timestamp(auction_state.end_time + 1);
         auction.settle_and_create_new();
 
         // Verify winner received NFT
-        assert_eq!(token.balance(&bidders[i]), 1);
+        assert_eq!(token.balance(bidder), 1);
     }
 
     // Treasury should have received 3 payments
