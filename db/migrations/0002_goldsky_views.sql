@@ -489,7 +489,7 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'governor', governor) AS governor,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'target', target) AS target,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'function', function) AS function,
-  COALESCE(NULLIF(payload, '')::jsonb ->> 'args', '[]'::jsonb)::text AS args,
+  COALESCE(NULLIF(payload, '')::jsonb ->> 'args', '[]') AS args,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'executor', executor, actor) AS executor,
   NULLIF(payload, '')::jsonb ->> 'action_index' AS action_index,
   ledger_sequence,
