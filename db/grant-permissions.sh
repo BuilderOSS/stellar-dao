@@ -93,13 +93,21 @@ echo ""
 echo -e "${YELLOW}→ Granting permissions to goldsky_writer...${NC}"
 
 psql "$DATABASE_URL" << 'EOF'
--- Grant schema usage
+-- Grant schema usage and create permissions
 GRANT USAGE ON SCHEMA chain TO goldsky_writer;
 GRANT USAGE ON SCHEMA governance TO goldsky_writer;
 GRANT USAGE ON SCHEMA token TO goldsky_writer;
 GRANT USAGE ON SCHEMA auction TO goldsky_writer;
 GRANT USAGE ON SCHEMA treasury TO goldsky_writer;
 GRANT USAGE ON SCHEMA app TO goldsky_writer;
+
+-- Grant CREATE permission (needed for Goldsky's CREATE TABLE IF NOT EXISTS)
+GRANT CREATE ON SCHEMA chain TO goldsky_writer;
+GRANT CREATE ON SCHEMA governance TO goldsky_writer;
+GRANT CREATE ON SCHEMA token TO goldsky_writer;
+GRANT CREATE ON SCHEMA auction TO goldsky_writer;
+GRANT CREATE ON SCHEMA treasury TO goldsky_writer;
+GRANT CREATE ON SCHEMA app TO goldsky_writer;
 
 -- Grant table permissions (INSERT, UPDATE, DELETE for data writes)
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA chain TO goldsky_writer;
