@@ -98,9 +98,9 @@ fn setup() -> (
             owner.clone(),
             token_id.clone(),
             treasury_id.clone(),
-            300_u32,    // voting_delay: 5 minutes
-            300_u32,    // voting_period: 5 minutes
-            300_u32,    // queue_delay: 5 minutes
+            300_u32, // voting_delay: 5 minutes
+            300_u32, // voting_period: 5 minutes
+            300_u32, // queue_delay: 5 minutes
             1_u128,
             1_000_u32,
         ),
