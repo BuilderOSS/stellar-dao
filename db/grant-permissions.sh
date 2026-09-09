@@ -137,6 +137,7 @@ echo -e "${YELLOW}→ Granting permissions to app_server (read-only)...${NC}"
 
 psql "$DATABASE_URL" << 'EOF'
 -- Grant schema usage
+GRANT USAGE ON SCHEMA chain TO app_server;
 GRANT USAGE ON SCHEMA governance TO app_server;
 GRANT USAGE ON SCHEMA token TO app_server;
 GRANT USAGE ON SCHEMA auction TO app_server;
@@ -144,6 +145,7 @@ GRANT USAGE ON SCHEMA treasury TO app_server;
 GRANT USAGE ON SCHEMA app TO app_server;
 
 -- Grant SELECT only (read-only access)
+GRANT SELECT ON ALL TABLES IN SCHEMA chain TO app_server;
 GRANT SELECT ON ALL TABLES IN SCHEMA governance TO app_server;
 GRANT SELECT ON ALL TABLES IN SCHEMA token TO app_server;
 GRANT SELECT ON ALL TABLES IN SCHEMA auction TO app_server;
@@ -151,6 +153,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA treasury TO app_server;
 GRANT SELECT ON ALL TABLES IN SCHEMA app TO app_server;
 
 -- Grant default privileges for future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA chain GRANT SELECT ON TABLES TO app_server;
 ALTER DEFAULT PRIVILEGES IN SCHEMA governance GRANT SELECT ON TABLES TO app_server;
 ALTER DEFAULT PRIVILEGES IN SCHEMA token GRANT SELECT ON TABLES TO app_server;
 ALTER DEFAULT PRIVILEGES IN SCHEMA auction GRANT SELECT ON TABLES TO app_server;

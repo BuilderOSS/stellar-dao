@@ -7,20 +7,20 @@ WITH lifecycle_events AS (
     deployment_id,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'proposal_id', proposal_id) AS proposal_id,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'proposer', proposer, actor) AS proposer,
-    CASE event_name
-      WHEN 'ProposalQueued' THEN 'queued'
-      WHEN 'ProposalCanceled' THEN 'canceled'
-      WHEN 'ProposalCancelled' THEN 'canceled'
-      WHEN 'ProposalExecuted' THEN 'executed'
-      WHEN 'ProposalExpired' THEN 'expired'
+    CASE LOWER(event_name)
+      WHEN 'proposal_queued' THEN 'queued'
+      WHEN 'proposal_canceled' THEN 'canceled'
+      WHEN 'proposal_cancelled' THEN 'canceled'
+      WHEN 'proposal_executed' THEN 'executed'
+      WHEN 'proposal_expired' THEN 'expired'
       ELSE lower(event_name)
     END AS state,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'eta', eta, '0')::bigint AS eta,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
     transaction_hash
   FROM chain.decoded_events
-  WHERE event_name IN ('ProposalQueued', 'ProposalCanceled', 'ProposalCancelled', 'ProposalExecuted', 'ProposalExpired')
+  WHERE LOWER(event_name) IN ('proposal_queued', 'proposal_canceled', 'proposal_cancelled', 'proposal_executed', 'proposal_expired')
 )
 SELECT * FROM lifecycle_events;
 
@@ -34,10 +34,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'weight', amount, '0')::numeric(78, 0) AS weight,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'reason', reason, '') AS reason,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('VoteCast', 'ProposalVote', 'ProposalVoteCast', 'ProposalVoteIndexed');
+WHERE LOWER(event_name) IN ('vote_cast', 'proposal_vote', 'proposal_vote_cast', 'proposal_vote_indexed');
 
 CREATE OR REPLACE VIEW governance.proposal_actions AS
 WITH created AS (
@@ -47,10 +47,10 @@ WITH created AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'proposal_id', proposal_id) AS proposal_id,
     NULLIF(payload, '')::jsonb AS payload,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS created_timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS created_timestamp,
     transaction_hash
   FROM chain.decoded_events
-  WHERE event_name IN ('ProposalCreated', 'ProposalCreatedIndexed')
+  WHERE LOWER(event_name) IN ('proposal_created', 'proposal_created_indexed')
 ),
 targets AS (
   SELECT
@@ -122,12 +122,12 @@ WITH created AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'deadline', deadline_ledger, '0')::bigint AS deadline_ledger,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'action_count', action_count, '0')::integer AS action_count,
     ledger_sequence AS created_ledger,
-    NULLIF(ledger_closed_at, '')::timestamptz AS created_timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS created_timestamp,
     transaction_hash AS created_transaction_hash,
     transaction_index AS created_transaction_index,
     event_index AS created_event_index
   FROM chain.decoded_events
-  WHERE event_name IN ('ProposalCreated', 'ProposalCreatedIndexed')
+  WHERE LOWER(event_name) IN ('proposal_created', 'proposal_created_indexed')
 ), latest_lifecycle AS (
   SELECT DISTINCT ON (deployment_id, proposal_id)
     deployment_id,
@@ -179,12 +179,12 @@ WITH ownership_events AS (
       owner
     ) AS owner,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
     transaction_hash,
     transaction_index,
     event_index
   FROM chain.decoded_events
-  WHERE event_name IN ('Mint', 'Transfer', 'MintWithMinter', 'TokenMintIndexed', 'TokenTransferIndexed')
+  WHERE LOWER(event_name) IN ('mint', 'transfer', 'mint_with_minter', 'token_mint_indexed', 'token_transfer_indexed')
 ), latest_ownership AS (
   SELECT DISTINCT ON (deployment_id, token_id)
     *
@@ -211,10 +211,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'from', from_address) AS from_address,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'to', to_address, owner) AS to_address,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('Transfer', 'TokenTransferIndexed');
+WHERE LOWER(event_name) IN ('transfer', 'token_transfer_indexed');
 
 CREATE OR REPLACE VIEW token.delegations AS
 SELECT
@@ -224,10 +224,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'from_delegate', from_address) AS from_delegate,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'to_delegate', to_address) AS to_delegate,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('DelegateChanged', 'DelegateChangedIndexed');
+WHERE LOWER(event_name) IN ('delegate_changed', 'delegate_changed_indexed');
 
 CREATE OR REPLACE VIEW token.mint_authority_history AS
 SELECT
@@ -237,10 +237,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'enabled', 'false')::boolean AS enabled,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'changed_by', changed_by) AS changed_by,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('MintAuthorityChanged', 'MintAuthorityChangedIndexed');
+WHERE LOWER(event_name) IN ('mint_authority_changed', 'mint_authority_changed_indexed');
 
 CREATE OR REPLACE VIEW token.mint_authorities AS
 WITH seeded AS (
@@ -250,11 +250,11 @@ WITH seeded AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'owner', owner, actor) AS authority,
     true AS enabled,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
     transaction_hash,
     'owner'::text AS source
   FROM chain.decoded_events
-  WHERE event_name IN ('TokenInitialized', 'TokenInitializedIndexed')
+  WHERE LOWER(event_name) IN ('token_initialized', 'token_initialized_indexed')
 
   UNION ALL
 
@@ -264,11 +264,11 @@ WITH seeded AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'authority', actor) AS authority,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'enabled', 'false')::boolean AS enabled,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
     transaction_hash,
     'event'::text AS source
   FROM chain.decoded_events
-  WHERE event_name IN ('MintAuthorityChanged', 'MintAuthorityChangedIndexed')
+  WHERE LOWER(event_name) IN ('mint_authority_changed', 'mint_authority_changed_indexed')
 ), latest AS (
   SELECT DISTINCT ON (deployment_id, authority)
     *
@@ -294,10 +294,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'enabled', 'false')::boolean AS enabled,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'changed_by', changed_by) AS changed_by,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('GovernorAuthorityChanged', 'GovernorAuthorityChangedIndexed');
+WHERE LOWER(event_name) IN ('governor_authority_changed', 'governor_authority_changed_indexed');
 
 CREATE OR REPLACE VIEW governance.governor_authorities AS
 WITH seeded AS (
@@ -307,11 +307,11 @@ WITH seeded AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'owner', owner, actor) AS authority,
     true AS enabled,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
     transaction_hash,
     'owner'::text AS source
   FROM chain.decoded_events
-  WHERE event_name IN ('GovernorInitialized', 'GovernorInitializedIndexed')
+  WHERE LOWER(event_name) IN ('governor_initialized', 'governor_initialized_indexed')
 
   UNION ALL
 
@@ -321,11 +321,11 @@ WITH seeded AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'authority', actor) AS authority,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'enabled', 'false')::boolean AS enabled,
     ledger_sequence,
-    NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
     transaction_hash,
     'event'::text AS source
   FROM chain.decoded_events
-  WHERE event_name IN ('GovernorAuthorityChanged', 'GovernorAuthorityChangedIndexed')
+  WHERE LOWER(event_name) IN ('governor_authority_changed', 'governor_authority_changed_indexed')
 ), latest AS (
   SELECT DISTINCT ON (deployment_id, authority)
     *
@@ -361,20 +361,31 @@ WITH owned_tokens AS (
   FROM token.delegations
   WHERE delegator IS NOT NULL
   ORDER BY deployment_id, delegator, ledger_sequence DESC, timestamp DESC, event_id DESC
+), latest_votes AS (
+  SELECT DISTINCT ON (deployment_id, delegate)
+    deployment_id,
+    COALESCE(NULLIF(payload, '')::jsonb ->> 'delegate', actor) AS delegate,
+    COALESCE(NULLIF(payload, '')::jsonb ->> 'new_votes', '0')::numeric AS voting_power
+  FROM chain.decoded_events
+  WHERE LOWER(event_name) = 'delegate_votes_changed'
+  ORDER BY deployment_id, delegate, ledger_sequence DESC, transaction_index DESC, event_index DESC, event_id DESC
 )
 SELECT
   o.deployment_id,
   o.owner AS address,
   COUNT(*)::bigint AS owned_token_count,
   d.to_delegate AS delegated_to,
-  COUNT(*)::bigint AS voting_power,
+  COALESCE(v.voting_power, 0)::bigint AS voting_power,
   MIN(o.ledger_sequence)::bigint AS first_seen_ledger,
   MAX(o.ledger_sequence)::bigint AS last_activity_ledger
 FROM owned_tokens o
 LEFT JOIN latest_delegation d
-  ON d.deployment_id = o.deployment_id
+ ON d.deployment_id = o.deployment_id
  AND d.delegator = o.owner
-GROUP BY o.deployment_id, o.owner, d.to_delegate;
+ LEFT JOIN latest_votes v
+   ON v.deployment_id = o.deployment_id
+  AND v.delegate = COALESCE(d.to_delegate, o.owner)
+GROUP BY o.deployment_id, o.owner, d.to_delegate, v.voting_power;
 
 CREATE OR REPLACE VIEW auction.bids AS
 SELECT
@@ -387,10 +398,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'extended', 'false')::boolean AS extended,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'new_end_time', '0')::bigint AS new_end_time,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('BidPlaced', 'BidPlacedIndexed');
+WHERE LOWER(event_name) IN ('bid_placed', 'bid_placed_indexed');
 
 CREATE OR REPLACE VIEW auction.bid_refunds AS
 SELECT
@@ -401,10 +412,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'amount', amount, '0')::numeric(78, 0) AS amount,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'payment_type', '') AS payment_type,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('BidRefunded', 'BidRefundedIndexed');
+WHERE LOWER(event_name) IN ('bid_refunded', 'bid_refunded_indexed');
 
 CREATE OR REPLACE VIEW auction.settlements AS
 SELECT
@@ -415,10 +426,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'amount', amount, '0')::numeric(78, 0) AS amount,
   COALESCE(NULLIF(payload, '')::jsonb ->> 'payment_type', '') AS payment_type,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('AuctionSettled', 'AuctionSettledIndexed');
+WHERE LOWER(event_name) IN ('auction_settled', 'auction_settled_indexed');
 
 CREATE OR REPLACE VIEW auction.auctions AS
 WITH created AS (
@@ -432,10 +443,10 @@ WITH created AS (
     COALESCE(NULLIF(payload, '')::jsonb ->> 'payment_type', '') AS payment_type,
     COALESCE(NULLIF(payload, '')::jsonb ->> 'payment_token', token_contract_id) AS payment_token,
     ledger_sequence AS created_ledger,
-    NULLIF(ledger_closed_at, '')::timestamptz AS created_timestamp,
+    to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS created_timestamp,
     transaction_hash
   FROM chain.decoded_events
-  WHERE event_name IN ('AuctionCreated', 'AuctionCreatedIndexed')
+  WHERE LOWER(event_name) IN ('auction_created', 'auction_created_indexed')
 ), latest_bid AS (
   SELECT DISTINCT ON (deployment_id, token_id)
     deployment_id,
@@ -493,10 +504,10 @@ SELECT
   COALESCE(NULLIF(payload, '')::jsonb ->> 'executor', executor, actor) AS executor,
   NULLIF(payload, '')::jsonb ->> 'action_index' AS action_index,
   ledger_sequence,
-  NULLIF(ledger_closed_at, '')::timestamptz AS timestamp,
+  to_timestamp(NULLIF(ledger_closed_at, '')::numeric / 1000.0) AS timestamp,
   transaction_hash
 FROM chain.decoded_events
-WHERE event_name IN ('Execute', 'TreasuryCallIndexed', 'ProposalCallIndexed');
+WHERE LOWER(event_name) IN ('execute', 'treasury_call_indexed', 'proposal_call_indexed');
 
 CREATE OR REPLACE VIEW app.proposal_list AS
 SELECT
