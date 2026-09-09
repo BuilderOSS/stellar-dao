@@ -18,43 +18,48 @@
       "queueDelay": 300,
       "proposalThreshold": 1,
       "quorumBps": 1000
-    },
-    "auction": {
-      "duration": 300,
-      "reservePrice": 1000000000,
-      "minBidIncrementPercent": 10,
-      "timeBuffer": 900,
-      "paymentToken": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
     }
   },
   "contracts": {
-    "token": "CBGLIC3VDPNSXRQTHIHADJVL3WVM54ZIO7FV23SDC3DQTTDLO2NMYUK7",
-    "governor": "CCWTJATDBQN5H2M4RFTCB7Z3SHEMVZUXEB6YA7CHO5QME6AS55IUMEHI",
-    "treasury": "CCPNKK3XDYHX57MNAUSWNRHDZKDOIG7DOGV43I4N3LJ74KK7TVZLXVW2",
-    "auction": "CBHISFJ2I27W7LWUYE3MX5ZS732BPVKPJ2BTO3ASSYAPEBSV7YZYD66E"
+    "token": "CBWAVXBFEGKITCHTH2VBRH4H66MMKATCWRO4YH3RMBBIKBUEWJSI76GJ",
+    "governor": "CACJEZDLCXAKTUYCRHS37DGH435RNXLK63ZSYOWG7ANIBNERZGKU6XPF",
+    "treasury": "CAZPZ4SK6L2IJZDBBOKG2DJD76ZJCCXQO72MYA5GCWLHW3CCYTQT4BGY"
   },
   "outputs": {
     "tokenBaseUri": "https://test-dao-stellar-web.vercel.app/api/token/",
     "identityName": "testnet-dev",
-    "saltSuffix": null,
+    "saltSuffix": "889982",
     "deployArtifactPath": "deploys/builder-testnet.json"
   },
   "transactions": {
     "token": {
-      "deployedAt": "2026-09-07T11:57:09.921Z",
-      "txHash": "22451ea84e95e52254d603e909dc67d9ae266be70b45c9ff7e2fdfaf1302f801"
+      "deployedAt": "2026-08-21T13:04:51.963Z",
+      "txHash": "058df77a796fbeb7f4d41b3eaebf3b261565f7ddf9e9af3ff8c4299b44cdb24b"
     },
     "treasury": {
-      "deployedAt": "2026-09-07T11:57:19.850Z",
-      "txHash": "6ec05b0d3998b217075bf2f7c63534717b1553f6c4fbe0e05dbed3375d2f6ca3"
+      "deployedAt": "2026-08-21T13:05:00.243Z",
+      "txHash": "2da8293785ff4c5faa8446f758a9bd89a86309bec13ff5bc056c921267d3cccd"
     },
     "governor": {
-      "deployedAt": "2026-09-07T11:57:28.351Z",
-      "txHash": "ad685b99833c4213c5e37445eaa7a94b470777dc8427c168fed41a2f7c212dbc"
-    },
-    "auction": {
-      "deployedAt": "2026-09-07T11:57:39.202Z",
-      "txHash": "538e9d992bb66348f3496b52ccbd845a967130b25cfdf65d310a7546765110d8"
+      "deployedAt": "2026-08-21T13:05:10.699Z",
+      "txHash": "a3a38bbeb81824044ec0b1765c2d04effaef8c029732fd23a576628613d0cc2e"
+    }
+  },
+  "mercury": {
+    "deployedAt": "2026-08-21T13:05:48.056Z",
+    "programs": {
+      "token": {
+        "program_id": 48,
+        "project": "dao-builder-token-testnet-v9"
+      },
+      "governor": {
+        "program_id": 49,
+        "project": "dao-builder-governor-testnet-v9"
+      },
+      "treasury": {
+        "program_id": 50,
+        "project": "dao-builder-treasury-testnet-v9"
+      }
     }
   }
 }
