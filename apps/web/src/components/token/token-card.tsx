@@ -2,20 +2,20 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, Heading, ShortId, Text } from '@/components/ui';
+import { Card, Heading, Text } from '@/components/ui';
 import { useTokenMetadata } from '@/lib/token-queries';
 
 export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }) {
   const { data, error, isLoading } = useTokenMetadata(tokenId);
 
   return (
-    <Card p="3" style={{ overflow: 'hidden' }}>
+    <Card p="3" className="membership-token-card" style={{ overflow: 'hidden', minWidth: 0 }}>
       {isLoading ? (
         <Text className="lede" style={{ margin: 0 }}>Loading token...</Text>
       ) : error ? (
         <Text className="lede" style={{ margin: 0 }}>{error.message}</Text>
       ) : data ? (
-        <div style={{ display: 'grid', gap: '14px' }}>
+          <div className="membership-token-card__content">
           <Link href={`/token/${tokenId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
             <div style={{ display: 'grid', gap: '12px' }}>
               <Image
@@ -24,30 +24,18 @@ export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }
                 width={216}
                 height={216}
                 unoptimized
-                style={{ width: '100%', height: 'auto', borderRadius: '14px', background: 'var(--surface-2)', border: '1px solid var(--border-default)' }}
+                style={{ width: '100%', height: 'auto', borderRadius: '10px', background: 'var(--surface-2)', border: '1px solid var(--border-default)' }}
               />
               <div>
-                <Text className="label" style={{ marginBottom: '4px' }}>Token #{tokenId}</Text>
                 <Heading style={{ fontSize: '1.1rem', margin: 0 }}>{data.name}</Heading>
               </div>
             </div>
           </Link>
-          <Text
-            className="lede"
-            style={{
-              display: '-webkit-box',
-              fontSize: '0.86rem',
-              margin: 0,
-              overflow: 'hidden',
-              WebkitBoxOrient: 'vertical',
-              WebkitLineClamp: 2
-            }}
-          >
-            {data.description}
-          </Text>
-          <div style={{ display: 'grid', gap: '6px' }}>
-            <Text className="lede" style={{ margin: 0, fontSize: '0.84rem' }}>Symbol: {data.attributes.find((attribute) => attribute.trait_type === 'Token Symbol')?.value ?? '—'}</Text>
-            <ShortId value={owner} label="Owner" />
+          <div className="membership-token-card__owner">
+            <Text className="label" style={{ margin: 0 }}>Owner</Text>
+            <Link className="membership-token-card__owner-link mono" href={`/members/${owner}`} title={`View ${owner}'s profile`}>
+              {owner.slice(0, 6)}…{owner.slice(-6)}
+            </Link>
           </div>
         </div>
       ) : null}

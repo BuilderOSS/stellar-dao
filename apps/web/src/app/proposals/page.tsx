@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
+import { RefreshCw } from 'lucide-react';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Button, Callout, Heading, Input, Select, Text } from '@/components/ui';
@@ -90,7 +91,7 @@ export default function ProposalsPage() {
   const createDisabled = !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
   const createDisabledMessage = createDisabled
     ? formatProposalCreationDisabledMessage(votingPower, governorSettings, proposalEligibilityError?.message)
-    : '';
+    : undefined;
 
   return (
     <DaoShell>
@@ -114,16 +115,18 @@ export default function ProposalsPage() {
               </Select>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
-                {isLoading ? 'Refreshing...' : 'Refresh'}
+              <Button className="proposal-refresh-button" type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading} aria-label="Refresh proposals" title="Refresh proposals">
+                <RefreshCw aria-hidden="true" className={isLoading ? 'is-spinning' : undefined} size={16} />
               </Button>
-              <Button type="button" size="sm" onClick={() => router.push('/proposals/create')} disabled={createDisabled}>
-                {proposalEligibilityLoading ? 'Checking eligibility...' : 'Create proposal'}
-              </Button>
+              <span className="proposal-create-tooltip" tabIndex={createDisabledMessage ? 0 : undefined}>
+                <Button type="button" size="sm" onClick={() => router.push('/proposals/create')} disabled={createDisabled}>
+                  {proposalEligibilityLoading ? 'Checking eligibility...' : 'Create proposal'}
+                </Button>
+                {createDisabledMessage ? <span className="proposal-create-tooltip__message" role="tooltip">{createDisabledMessage}</span> : null}
+              </span>
             </div>
           </div>
 
-          {createDisabledMessage ? <Callout variant="warning" title={createDisabledMessage} /> : null}
           {error ? <Callout variant="error" title={error.message} /> : null}
           {!items.length ? (
             <div className="empty-state" role="status"><Heading style={{ fontSize: '1.15rem' }}>No proposals yet</Heading><Text className="lede" style={{ margin: '8px auto 0' }}>Once an eligible member creates a proposal, its state and voting activity will appear here.</Text></div>

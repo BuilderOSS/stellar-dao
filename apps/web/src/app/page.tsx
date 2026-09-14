@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import useSWR from 'swr';
 import { Activity, ChevronDown, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
@@ -9,6 +12,8 @@ import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useGoldskyActivityFeed, useGoldskyHealth } from '@/lib/goldsky-queries';
 import { useTokenInventory } from '@/lib/token-queries';
 import { TokenCard } from '@/components/token/token-card';
+import { ProposalStateBadge } from '@/components/proposal/proposal-state-badge';
+import type { ProposalListResponse } from '@/components/proposal/types';
 import { Stack } from 'styled-system/jsx';
 
 function formatTimestamp(timestamp: string | number | null) {
@@ -21,7 +26,32 @@ function formatTimestamp(timestamp: string | number | null) {
   }
 }
 
-const ACTIVITY_PAGE_SIZE = 12;
+type AuctionData = {
+  auction: { token_id: string; start_time: string; end_time: string; highest_bid: string; highest_bidder: string | null; settled: boolean };
+  config: { reserve_price: string; min_bid_increment_percent: number; payment_token: string | null };
+  paused: boolean;
+};
+
+async function fetchJson<T>(url: string) {
+  const response = await fetch(url, { cache: 'no-store' });
+  const json = (await response.json()) as T & { message?: string };
+  if (!response.ok) throw new Error(json.message || 'Dashboard data unavailable');
+  return json;
+}
+
+function formatVoteTotal(value: string) {
+  try { return new Intl.NumberFormat().format(BigInt(value)); } catch { return '—'; }
+}
+
+function formatAuctionAmount(value: string | undefined) {
+  if (!value) return '0';
+  const raw = BigInt(value);
+  const whole = raw / 10_000_000n;
+  const fraction = (raw % 10_000_000n).toString().padStart(7, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+const ACTIVITY_PAGE_SIZE = 10;
 const TOKEN_PAGE_SIZE = 8;
 
 export default function Page() {
@@ -30,23 +60,35 @@ export default function Page() {
   const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
   const [tokenLimit, setTokenLimit] = useState(TOKEN_PAGE_SIZE);
   const [refreshingDashboard, setRefreshingDashboard] = useState(false);
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
   const { data: goldskyHealth, error: goldskyHealthError, isLoading: goldskyHealthLoading, isValidating: goldskyHealthRefreshing, mutate: refreshHealth } = useGoldskyHealth();
   const { data: activityFeed, error: activityError, isLoading: activityLoading, isValidating: activityRefreshing, mutate: refreshFeed } = useGoldskyActivityFeed(activityLimit);
   const { data: tokens, error: tokenError, isLoading: tokenLoading, isValidating: tokenRefreshing, mutate: refreshTokens } = useTokenInventory();
+  const { data: proposals, error: proposalsError, isLoading: proposalsLoading, mutate: refreshProposals } = useSWR<ProposalListResponse>('/api/proposals?limit=24', fetchJson, { keepPreviousData: true });
+  const { data: auctionData, error: auctionError, isLoading: auctionLoading, mutate: refreshAuction } = useSWR<AuctionData>('/api/auctions', fetchJson, { refreshInterval: 15_000 });
   const tokenItems = tokens?.items.slice(0, tokenLimit) ?? [];
   const canLoadMoreTokens = Boolean(tokens && tokens.items.length > tokenLimit);
   const activityItems = activityFeed?.items ?? [];
-  const proposalActivity = activityItems.filter((item) => Boolean(item.proposal_id));
+  const proposalItems = proposals?.items ?? [];
   const canLoadMoreActivity = Boolean(activityFeed?.hasMore);
   const indexerIsHealthy = goldskyHealth?.status === 'healthy';
   const indexerHealthLabel = goldskyHealthLoading ? 'Checking indexer health' : goldskyHealthError ? 'Indexer health unavailable' : indexerIsHealthy ? 'Indexer healthy' : 'Indexer needs attention';
-  const isDashboardRefreshing = refreshingDashboard || goldskyHealthLoading || goldskyHealthRefreshing || activityLoading || activityRefreshing || tokenLoading || tokenRefreshing;
+  const isDashboardRefreshing = refreshingDashboard || goldskyHealthLoading || goldskyHealthRefreshing || activityLoading || activityRefreshing || tokenLoading || tokenRefreshing || proposalsLoading || auctionLoading;
+  const auctionEndTime = auctionData?.auction ? Number(auctionData.auction.end_time) : null;
+  const isAuctionEnded = currentTime !== null && auctionEndTime !== null && auctionEndTime <= currentTime;
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTime(Date.now() / 1000);
+    updateCurrentTime();
+    const timer = window.setInterval(updateCurrentTime, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function refreshDashboard() {
     if (isDashboardRefreshing) return;
     setRefreshingDashboard(true);
     try {
-      await Promise.all([refreshHealth(), refreshFeed(), refreshTokens()]);
+      await Promise.all([refreshHealth(), refreshFeed(), refreshTokens(), refreshProposals(), refreshAuction()]);
     } finally {
       setRefreshingDashboard(false);
     }
@@ -81,50 +123,32 @@ export default function Page() {
           </details>
         </div>
 
-        <Card p="5">
-          <Stack gap="3">
-            <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Proposal activity</Heading>
-            {activityError ? <Callout variant="error" title="Proposal activity unavailable" description={activityError.message} /> : null}
-            {activityLoading && !activityFeed ? <Callout variant="info" title="Loading proposal activity…" /> : null}
-            {!activityLoading && !proposalActivity.length ? <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>Proposal activity will appear here once proposals are indexed.</Text></div> : null}
-            {proposalActivity.length ? <div className="dashboard-activity-list">
-              {proposalActivity.map((item, index) => <div className="dashboard-activity-row" key={item.activity_id} data-first={index === 0 ? 'true' : undefined}>
-                <Stack gap="1">
-                  <Text style={{ margin: 0, fontWeight: 700 }}>{item.title}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{item.summary}</Text>
-                  <Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{formatTimestamp(item.timestamp)} | Ledger {item.ledger_sequence}</Text>
-                </Stack>
-              </div>)}
-            </div> : null}
-          </Stack>
-        </Card>
-
         <div className="dashboard-secondary-grid">
           <Card className="dashboard-secondary-card" p="5">
             <div className="dashboard-secondary-card__content">
-              <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Auction activity</Heading>
-              <div className="dashboard-secondary-card__scroll"><div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>Auction activity is not currently indexed for this dashboard.</Text></div></div>
+              <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Auction</Heading>
+              <div className="dashboard-secondary-card__scroll">
+                {auctionError ? <Callout variant="error" title="Auction unavailable" description={auctionError.message} /> : null}
+                {auctionLoading && !auctionData ? <Text className="lede" style={{ margin: 0 }}>Loading auction...</Text> : null}
+                {auctionData?.auction ? <div className="dashboard-auction"><Link href="/auctions"><Image src={`/api/token/${auctionData.auction.token_id}/image.svg`} alt={`Token #${auctionData.auction.token_id}`} width={240} height={240} unoptimized /></Link><div className="dashboard-auction__details"><div><Text className="label" style={{ margin: 0 }}>Current auction</Text><Heading style={{ fontSize: '1.1rem', margin: '4px 0 0' }}>Token #{auctionData.auction.token_id}</Heading><Text className="lede" style={{ margin: '8px 0 0' }}>{auctionData.auction.highest_bid === '0' ? `Reserve ${formatAuctionAmount(auctionData.config.reserve_price)}` : `Highest bid ${formatAuctionAmount(auctionData.auction.highest_bid)}`}</Text><Text className="lede" style={{ margin: '4px 0 0', fontSize: '0.84rem' }}>Ends {formatTimestamp(auctionData.auction.end_time)}</Text></div>{!auctionData.paused ? <Link className="dashboard-auction__action" href="/auctions">{isAuctionEnded ? 'Settle auction' : 'Place bid'}</Link> : null}</div></div> : null}
+                {!auctionLoading && auctionData && !auctionData.auction ? <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>Current auction data is unavailable.</Text></div> : null}
+              </div>
             </div>
           </Card>
           <Card className="dashboard-secondary-card" p="5">
             <div className="dashboard-secondary-card__content">
-              <div className="section-toolbar">
-                <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Current supply</Heading>
-              </div>
+              <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Proposal activity</Heading>
               <div className="dashboard-secondary-card__scroll">
-                {tokenError ? <Callout variant="error" title="Token inventory unavailable" description={tokenError.message} /> : null}
-                {!tokenLoading && !tokens?.items.length ? <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>No tokens have been indexed yet. Refresh after the first mint is confirmed.</Text></div> : null}
-                {tokens?.items.length ? <>
-                  <div className="token-inventory-grid">{tokenItems.map((token) => <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />)}</div>
-                  {canLoadMoreTokens ? <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}><Button type="button" variant="outline" size="sm" onClick={() => setTokenLimit((current) => current + TOKEN_PAGE_SIZE)} disabled={tokenLoading}>{tokenLoading ? 'Loading...' : 'Show more tokens'}</Button></div> : null}
-                </> : null}
+                {proposalsError ? <Callout variant="error" title="Proposal activity unavailable" description={proposalsError.message} /> : null}
+                {proposalsLoading && !proposals ? <Callout variant="info" title="Loading proposal activity…" /> : null}
+                {!proposalsLoading && !proposalItems.length ? <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>Proposal activity will appear here once proposals are indexed.</Text></div> : null}
+                {proposalItems.length ? <div className="dashboard-proposal-list proposal-list" role="list" aria-label="Recent proposals">{proposalItems.map((item) => <div key={item.proposalId} role="listitem"><Link className="proposal-row" href={`/proposals/${item.proposalNumber}`}><div className="proposal-row__identity"><Text className="proposal-row__id mono">#{item.proposalNumber}</Text><div className="proposal-row__content"><Heading className="proposal-row__title">{item.metadata.title}</Heading><Text className="proposal-row__date">{formatTimestamp(item.timestamp)}</Text></div></div><div className="proposal-row__outcome">{item.voteTotals ? <div className="dashboard-vote-totals mono" aria-label={`For ${formatVoteTotal(item.voteTotals.forVotes)}, against ${formatVoteTotal(item.voteTotals.againstVotes)}, abstain ${formatVoteTotal(item.voteTotals.abstainVotes)}`}><span className="dashboard-vote-totals__for">{formatVoteTotal(item.voteTotals.forVotes)}</span><span>/</span><span className="dashboard-vote-totals__against">{formatVoteTotal(item.voteTotals.againstVotes)}</span><span>/</span><span className="dashboard-vote-totals__abstain">{formatVoteTotal(item.voteTotals.abstainVotes)}</span></div> : null}<ProposalStateBadge label={item.stateLabel} /></div></Link></div>)}</div> : null}
               </div>
             </div>
-            <style jsx>{`.token-inventory-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } @media (min-width: 768px) { .token-inventory-grid { gap: 20px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); } }`}</style>
           </Card>
         </div>
 
-        <Card p="5">
+        <Card className="dashboard-feed-card" p="5">
           <Stack gap="3">
             <div className="section-toolbar">
               <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Activity feed</Heading>
@@ -143,10 +167,22 @@ export default function Page() {
             {activityError ? <Callout variant="error" title="Activity feed unavailable" description={activityError.message} /> : null}
             {!activityItems.length ? <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>No indexed activity yet. Governance and token events will appear here.</Text></div> : null}
             {activityItems.length ? <>
-              <div className="dashboard-activity-list">{activityItems.map((item, index) => <div className="dashboard-activity-row" data-first={index === 0 ? 'true' : undefined} key={item.activity_id}><Stack gap="1"><Text style={{ margin: 0, fontWeight: 700 }}>{item.title}</Text><Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{item.summary}</Text><Text className="lede" style={{ margin: 0, fontSize: '0.8rem' }}>{formatTimestamp(item.timestamp)} | Ledger {item.ledger_sequence} | {item.contract_role}</Text></Stack></div>)}</div>
+              <div className="dashboard-activity-scroll"><div className="dashboard-activity-list">{activityItems.map((item, index) => <div className="dashboard-activity-row" data-first={index === 0 ? 'true' : undefined} key={item.activity_id}><div><Text style={{ margin: 0, fontWeight: 700 }}>{item.title}</Text><Text className="lede" style={{ margin: '4px 0 0', fontSize: '0.9rem' }}>{item.summary}</Text></div><Text className="lede dashboard-activity-meta">{formatTimestamp(item.timestamp)} | Ledger {item.ledger_sequence} | {item.contract_role}</Text></div>)}</div></div>
               {canLoadMoreActivity ? <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}><Button type="button" variant="outline" size="sm" onClick={() => setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)} disabled={activityLoading}>{activityLoading ? 'Loading...' : 'Show more activity'}</Button></div> : null}
             </> : null}
           </Stack>
+        </Card>
+
+        <Card className="dashboard-membership-card" p="5">
+          <div className="dashboard-membership-card__content">
+            <Heading style={{ fontSize: '1.35rem', margin: 0 }}>Membership</Heading>
+            <div className="dashboard-membership-card__scroll">
+              {tokenError ? <Callout variant="error" title="Token inventory unavailable" description={tokenError.message} /> : null}
+              {!tokenLoading && !tokens?.items.length ? <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>No tokens have been indexed yet. Refresh after the first mint is confirmed.</Text></div> : null}
+              {tokens?.items.length ? <><div className="token-inventory-grid">{tokenItems.map((token) => <TokenCard key={token.tokenId} tokenId={token.tokenId} owner={token.owner} />)}</div>{canLoadMoreTokens ? <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px' }}><Button type="button" variant="outline" size="sm" onClick={() => setTokenLimit((current) => current + TOKEN_PAGE_SIZE)} disabled={tokenLoading}>{tokenLoading ? 'Loading...' : 'Show more tokens'}</Button></div> : null}</> : null}
+            </div>
+          </div>
+          <style jsx>{`.token-inventory-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } @media (min-width: 768px) { .token-inventory-grid { gap: 20px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); } }`}</style>
         </Card>
       </PageSection>
     </DaoShell>
