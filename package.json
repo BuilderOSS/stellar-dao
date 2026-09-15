@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.12.4",
   "scripts": {
-    "prepare": "lefthook install",
+    "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && lefthook install || true",
     "dev": "pnpm --dir apps/web dev",
     "build": "pnpm --dir apps/web build",
     "lint": "pnpm --dir apps/web lint",
