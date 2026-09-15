@@ -107,6 +107,7 @@ export default function Page() {
                 {config.tokenContractId ? <ShortId label="Token" value={config.tokenContractId} /> : <Text>Token: Missing</Text>}
                 {config.governorContractId ? <ShortId label="Governor" value={config.governorContractId} /> : <Text>Governor: Missing</Text>}
                 {config.treasuryContractId ? <ShortId label="Treasury" value={config.treasuryContractId} /> : <Text>Treasury: Missing</Text>}
+                {config.auctionContractId ? <ShortId label="Auction" value={config.auctionContractId} /> : <Text>Auction: Missing</Text>}
                 <ShortId label="Admin" value={config.adminAddress} />
               </div>
             </div>

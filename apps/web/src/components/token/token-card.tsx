@@ -4,9 +4,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Card, Heading, Text } from '@/components/ui';
 import { useTokenMetadata } from '@/lib/token-queries';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { getDaoAccountRole } from '@/lib/account-role';
 
 export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }) {
   const { data, error, isLoading } = useTokenMetadata(tokenId);
+  const role = getDaoAccountRole(getDaoNetworkConfig(getDefaultDaoNetwork()), owner);
 
   return (
     <Card p="3" className="membership-token-card" style={{ overflow: 'hidden', minWidth: 0 }}>
@@ -15,7 +18,7 @@ export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }
       ) : error ? (
         <Text className="lede" style={{ margin: 0 }}>{error.message}</Text>
       ) : data ? (
-          <div className="membership-token-card__content">
+        <div className="membership-token-card__content">
           <Link href={`/token/${tokenId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
             <div style={{ display: 'grid', gap: '12px' }}>
               <Image
@@ -32,7 +35,7 @@ export function TokenCard({ tokenId, owner }: { tokenId: number; owner: string }
             </div>
           </Link>
           <div className="membership-token-card__owner">
-            <Text className="label" style={{ margin: 0 }}>Owner</Text>
+            <Text className="label" style={{ margin: 0 }}>{role ? `Owner · ${role}` : 'Owner'}</Text>
             <Link className="membership-token-card__owner-link mono" href={`/members/${owner}`} title={`View ${owner}'s profile`}>
               {owner.slice(0, 6)}…{owner.slice(-6)}
             </Link>
