@@ -86,7 +86,6 @@ export default function TokenAdminPage() {
   return (
     <DaoShell>
       <PageSection
-        eyebrow="Admin"
         title="Token Admin"
         description="Mint tokens and review the current mint-authority set."
       >

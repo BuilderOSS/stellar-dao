@@ -819,4 +819,3 @@ export interface CreateContractWithConstructorHostFnContext {
   { tag: "StellarAsset"; values: void } |
   { tag: "Account"; values: void };
     export type ContractEvent = BidPlacedEvent | BidRefundedEvent | AuctionCreatedEvent | AuctionSettledEvent | DurationUpdatedEvent | TreasuryUpdatedEvent | AuctionCancelledEvent | TimeBufferUpdatedEvent | AuctionInitializedEvent | PaymentTokenUpdatedEvent | ReservePriceUpdatedEvent | MinBidIncrementUpdatedEvent | SetRootEvent | SetClaimedEvent | PausedEvent | UnpausedEvent | RoleGrantedEvent | RoleRevokedEvent | AdminRenouncedEvent | RoleAdminChangedEvent | AdminTransferCompletedEvent | AdminTransferInitiatedEvent | OwnershipTransferEvent | OwnershipRenouncedEvent | OwnershipTransferCompletedEvent;
-    

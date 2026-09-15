@@ -18,14 +18,14 @@ import { useTransactionFeedback } from '@/lib/transaction-feedback';
 import { useVotingPower } from '@/lib/voting-power';
 import { ProposalExecutePanel } from '@/components/proposal/proposal-execute-panel';
 import { ProposalActionPreview } from '@/components/proposal/proposal-action-preview';
-import { ProposalOverview } from '@/components/proposal/proposal-overview';
+import { ProposalLifecyclePanel, ProposalOverview } from '@/components/proposal/proposal-overview';
 import { ProposalQueuePanel } from '@/components/proposal/proposal-queue-panel';
 import { ProposalVoteHistory } from '@/components/proposal/proposal-vote-history';
 import { ProposalVotePanel } from '@/components/proposal/proposal-vote-panel';
 import { ProposalVoteSummary } from '@/components/proposal/proposal-vote-summary';
 import type { ProposalDetail, ProposalVoteItem } from '@/components/proposal/types';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
-import { Grid, Stack } from 'styled-system/jsx';
+import { Stack } from 'styled-system/jsx';
 import useSWR from 'swr';
 
 type ProposalPageData = {
@@ -287,64 +287,54 @@ export default function ProposalDetailPage() {
     return 'Abstain';
   }
 
+  const actionPanel = detail && actionMode === 'vote' ? (
+    <ProposalVotePanel
+      canVote={canVote}
+      busy={busy}
+      voteReason={voteReason}
+      selectedVoteType={selectedVoteType}
+      votingPower={votingPower?.votes.toString() ?? null}
+      votingPowerLoading={votingPowerLoading}
+      votingPowerError={votingPowerError?.message ?? ''}
+      unavailableReason={voteUnavailableReason}
+      onVoteReasonChange={setVoteReason}
+      onSelectedVoteTypeChange={setSelectedVoteType}
+      onVote={(voteType) => void submitVote(voteType)}
+      currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
+    />
+  ) : detail && actionMode === 'queue' ? (
+    <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
+  ) : detail && actionMode === 'execute' ? (
+    <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
+  ) : null;
+
   return (
     <DaoShell>
       <PageSection
-        eyebrow="Proposal detail"
-         title={detail ? `Proposal #${detail.proposalNumber}` : `Proposal ${shortenProposalId(proposalId)}`}
+        title={detail ? `Proposal #${detail.proposalNumber}: ${detail.metadata.title}` : `Proposal ${shortenProposalId(proposalId)}`}
         description="Live vote state, indexed votes, and proposal actions for the selected governance item."
       >
         <Stack gap="4">
-          {detail ? (
-            <ProposalOverview
-              detail={detail}
-              now={now}
-              network={config.name}
-              actionSlot={
-                actionMode === 'vote' ? (
-                  <ProposalVotePanel
-                    canVote={canVote}
-                    busy={busy}
-                    voteReason={voteReason}
-                    selectedVoteType={selectedVoteType}
-                    votingPower={votingPower?.votes.toString() ?? null}
-                    votingPowerLoading={votingPowerLoading}
-                    votingPowerError={votingPowerError?.message ?? ''}
-                    unavailableReason={voteUnavailableReason}
-                    onVoteReasonChange={setVoteReason}
-                    onSelectedVoteTypeChange={setSelectedVoteType}
-                    onVote={(voteType) => void submitVote(voteType)}
-                    currentVote={currentVote ? { label: voteLabelForSupport(currentVote.support), reason: currentVote.reason } : null}
-                  />
-                ) : actionMode === 'queue' ? (
-                  <ProposalQueuePanel busy={busy} onQueue={() => void queueProposal()} />
-                ) : actionMode === 'execute' ? (
-                  <ProposalExecutePanel busy={busy} now={now} eta={detail.eta} onExecute={() => void executeProposal()} />
-                ) : null
-              }
-            />
-          ) : null}
           {errorMessage ? <Callout variant="error" title={errorMessage} /> : null}
+          {isLoading && !detail ? <Callout variant="info" title="Loading proposal…" /> : null}
 
-          {detail ? <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} tokenContractId={config.tokenContractId} /> : null}
-
-          <Grid columns={{ base: 1, xl: 2 }} gap="4">
-            <ProposalVoteSummary votes={votes} quorumVotes={detail?.quorumVotes ?? null} />
-            {detail ? (
-              <ProposalVoteHistory
-                votes={votes}
-                voteLabelForSupport={voteLabelForSupport}
-                formatTimestamp={formatTimestamp}
-              />
-            ) : null}
-          </Grid>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
-            <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
-              {isLoading ? 'Refreshing...' : 'Refresh'}
-            </Button>
-          </div>
+          {detail ? (
+            <div className="proposal-detail-layout">
+              <div className="proposal-detail-main">
+                <ProposalOverview detail={detail} network={config.name} />
+                <ProposalActionPreview targets={detail.targets} functions={detail.functions} args={detail.args} tokenContractId={config.tokenContractId} />
+                <ProposalVoteHistory votes={votes} voteLabelForSupport={voteLabelForSupport} formatTimestamp={formatTimestamp} />
+              </div>
+              <aside className="proposal-detail-sidebar" aria-label="Proposal status and voting">
+                {formMessage ? <Callout variant="warning" title={formMessage} /> : null}
+                <ProposalLifecyclePanel detail={detail} now={now} actionSlot={actionPanel} />
+                <ProposalVoteSummary votes={votes} quorumVotes={detail.quorumVotes} />
+                <Button type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading}>
+                  {isLoading ? 'Refreshing...' : 'Refresh proposal'}
+                </Button>
+              </aside>
+            </div>
+          ) : null}
 
           <Link href="/proposals" style={{ color: 'inherit' }}>Back to proposals</Link>
         </Stack>

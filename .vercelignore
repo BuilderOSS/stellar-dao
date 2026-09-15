@@ -1,0 +1,10 @@
+.pnpm-store
+**/node_modules
+**/.next
+**/.env*
+**/tsconfig.tsbuildinfo
+apps/web/styled-system
+target
+.git
+.stellar
+.soroban

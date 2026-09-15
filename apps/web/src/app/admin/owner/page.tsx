@@ -61,7 +61,7 @@ export default function OwnerPage() {
   if (!isOwner) {
     return (
       <DaoShell>
-        <PageSection eyebrow="Admin" title="Owner" description="Owner-only authority management.">
+        <PageSection title="Owner" description="Owner-only authority management.">
           <Callout
             variant="warning"
             badge="Access restricted"
@@ -116,7 +116,6 @@ export default function OwnerPage() {
   return (
     <DaoShell>
       <PageSection
-        eyebrow="Admin"
         title="Owner"
         description="Manage mint and governance authorities from one control center."
       >

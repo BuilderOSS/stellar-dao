@@ -177,9 +177,8 @@ export default function ProposalCreatePage() {
   return (
     <DaoShell>
       <PageSection
-        eyebrow="Governance"
-        title="Create Proposal"
-        description="Create a new proposal for the DAO to vote on"
+        title="Create proposal"
+        description="Draft the decision, assemble its on-chain actions, then verify every detail before asking the wallet to sign."
       >
         <Stack gap="6">
           {/* Voting Power Warning - Block entire form */}
@@ -192,11 +191,11 @@ export default function ProposalCreatePage() {
           ) : (
             <>
               {/* Wizard Steps */}
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <div className="stepper" aria-label={`Proposal creation, step ${step} of 3`}>
                 <Badge style={{ opacity: step === 1 ? 1 : 0.5 }}>1. Details</Badge>
-                <div style={{ flex: 1, height: '2px', background: 'var(--gray-6)' }} />
+                <div className="stepper-line" aria-hidden="true" />
                 <Badge style={{ opacity: step === 2 ? 1 : 0.5 }}>2. Actions</Badge>
-                <div style={{ flex: 1, height: '2px', background: 'var(--gray-6)' }} />
+                <div className="stepper-line" aria-hidden="true" />
                 <Badge style={{ opacity: step === 3 ? 1 : 0.5 }}>3. Review</Badge>
               </div>
 
@@ -251,7 +250,7 @@ export default function ProposalCreatePage() {
                 </Stack>
               </Card>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div className="form-actions">
                 <Button variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
@@ -300,7 +299,7 @@ export default function ProposalCreatePage() {
                   </Stack>
                 </Grid>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                <div className="form-actions form-actions--split">
                   <Button variant="outline" onClick={() => setStep(1)}>
                     Back to Details
                   </Button>
@@ -323,6 +322,13 @@ export default function ProposalCreatePage() {
                   Review your proposal details and actions before submitting to the blockchain
                 </Text>
               </div>
+
+              <Callout
+                variant="warning"
+                badge="Wallet transaction"
+                title="Submitting creates an on-chain governance proposal"
+                description="Your wallet will show the final transaction for review. Confirm the target contracts, recipients, and amounts before signing."
+              />
 
               <Card p="5">
                 <Stack gap="4">
@@ -383,7 +389,7 @@ export default function ProposalCreatePage() {
                 </Stack>
               </Card>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+              <div className="form-actions form-actions--split">
                 <Button variant="outline" onClick={() => setStep(2)}>
                   Back to Actions
                 </Button>
