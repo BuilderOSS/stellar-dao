@@ -3,7 +3,9 @@
 'use client';
 
 import { Stack } from 'styled-system/jsx';
-import { FieldLabel, FieldHelperText, Input } from '@/components/ui';
+
+import { FieldHelperText, FieldLabel, Input } from '@/components/ui';
+
 import type { ActionFormProps } from '../../types';
 import type { BatchMintGovernanceTokenData } from './types';
 
@@ -11,11 +13,10 @@ export function BatchMintGovernanceTokenForm({
   value,
   onChange,
   disabled,
-  validationErrors,
+  validationErrors
 }: ActionFormProps<BatchMintGovernanceTokenData>) {
   return (
     <Stack gap="3">
-
       <Stack gap="2">
         <FieldLabel htmlFor="recipient">Recipient</FieldLabel>
         <Input
@@ -25,7 +26,11 @@ export function BatchMintGovernanceTokenForm({
           placeholder="Recipient address (G... or C...)"
           disabled={disabled}
           aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.recipient)}
-          aria-describedby={validationErrors && !validationErrors.valid && validationErrors.fields?.recipient ? 'recipient-error' : undefined}
+          aria-describedby={
+            validationErrors && !validationErrors.valid && validationErrors.fields?.recipient
+              ? 'recipient-error'
+              : undefined
+          }
         />
         {validationErrors && !validationErrors.valid && validationErrors.fields?.recipient ? (
           <FieldHelperText id="recipient-error" style={{ color: '#f87171' }}>
@@ -49,16 +54,18 @@ export function BatchMintGovernanceTokenForm({
           placeholder="Number of tokens (1-20)"
           disabled={disabled}
           aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.amount)}
-          aria-describedby={validationErrors && !validationErrors.valid && validationErrors.fields?.amount ? 'amount-error' : 'amount-helper'}
+          aria-describedby={
+            validationErrors && !validationErrors.valid && validationErrors.fields?.amount
+              ? 'amount-error'
+              : 'amount-helper'
+          }
         />
         {validationErrors && !validationErrors.valid && validationErrors.fields?.amount ? (
           <FieldHelperText id="amount-error" style={{ color: '#f87171' }}>
             {validationErrors.fields.amount}
           </FieldHelperText>
         ) : (
-          <FieldHelperText id="amount-helper">
-            Batch mint allows 1-20 tokens in a single action
-          </FieldHelperText>
+          <FieldHelperText id="amount-helper">Batch mint allows 1-20 tokens in a single action</FieldHelperText>
         )}
       </Stack>
     </Stack>

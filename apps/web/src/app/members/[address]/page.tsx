@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Callout, Card, Heading, ShortId, Text } from '@/components/ui';
@@ -19,16 +20,45 @@ export default function MemberProfilePage() {
         <Card p="5">
           {isLoading ? <Callout variant="info" title="Loading member profile…" /> : null}
           {error ? <Callout variant="error" title="Member profile unavailable" description={error.message} /> : null}
-          {!isLoading && !error && !member ? <Callout variant="warning" title="Member not found" description="This address does not currently have indexed membership data." /> : null}
-          {member ? <div style={{ display: 'grid', gap: '18px' }}>
-            <ShortId label="Address" value={member.address} />
-            <div className="member-profile-stats">
-              <div><Text className="label" style={{ margin: 0 }}>Voting power</Text><Heading style={{ margin: '4px 0 0' }}>{member.voting_power}</Heading></div>
-              <div><Text className="label" style={{ margin: 0 }}>Tokens owned</Text><Heading style={{ margin: '4px 0 0' }}>{member.owned_token_count}</Heading></div>
-              <div><Text className="label" style={{ margin: 0 }}>Last activity ledger</Text><Heading style={{ margin: '4px 0 0' }}>{member.last_activity_ledger}</Heading></div>
+          {!isLoading && !error && !member ? (
+            <Callout
+              variant="warning"
+              title="Member not found"
+              description="This address does not currently have indexed membership data."
+            />
+          ) : null}
+          {member ? (
+            <div style={{ display: 'grid', gap: '18px' }}>
+              <ShortId label="Address" value={member.address} />
+              <div className="member-profile-stats">
+                <div>
+                  <Text className="label" style={{ margin: 0 }}>
+                    Voting power
+                  </Text>
+                  <Heading style={{ margin: '4px 0 0' }}>{member.voting_power}</Heading>
+                </div>
+                <div>
+                  <Text className="label" style={{ margin: 0 }}>
+                    Tokens owned
+                  </Text>
+                  <Heading style={{ margin: '4px 0 0' }}>{member.owned_token_count}</Heading>
+                </div>
+                <div>
+                  <Text className="label" style={{ margin: 0 }}>
+                    Last activity ledger
+                  </Text>
+                  <Heading style={{ margin: '4px 0 0' }}>{member.last_activity_ledger}</Heading>
+                </div>
+              </div>
             </div>
-          </div> : null}
-          <Link href="/members" className="dashboard-auction__action" style={{ width: 'fit-content', marginTop: '18px' }}>Back to members</Link>
+          ) : null}
+          <Link
+            href="/members"
+            className="dashboard-auction__action"
+            style={{ width: 'fit-content', marginTop: '18px' }}
+          >
+            Back to members
+          </Link>
         </Card>
       </PageSection>
     </DaoShell>

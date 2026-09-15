@@ -4,49 +4,8 @@
 //! - Contract initialization
 //! - Governor address changes
 //! - Proposal action executions
-//!
-//! Events use the same dual-emission pattern as other contracts:
-//! 1. Standard Soroban events for on-chain indexing
-//! 2. Mercury-indexed events (when `mercury` feature is enabled) for enhanced querying
 
 use soroban_sdk::{contractevent, Address, Symbol};
-
-#[cfg(feature = "mercury")]
-mod retroshade {
-    use super::*;
-    use retroshade_sdk::Retroshade;
-    use soroban_sdk::contracttype;
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct TreasuryCallIndexed {
-        pub governor: Address,
-        pub target: Address,
-        pub function: Symbol,
-        pub args: Vec<Val>,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct TreasuryInitializedIndexed {
-        pub owner: Address,
-        pub governor: Address,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-
-    #[derive(Retroshade)]
-    #[contracttype]
-    pub struct GovernorChangedIndexed {
-        pub old_governor: Address,
-        pub new_governor: Address,
-        pub changed_by: Address,
-        pub ledger: u32,
-        pub timestamp: u64,
-    }
-}
 
 // Standard contract events
 
@@ -79,7 +38,7 @@ pub struct Execute {
 
 // Event helper functions
 
-use soroban_sdk::{Env, Val, Vec};
+use soroban_sdk::Env;
 
 pub fn emit_treasury_initialized(e: &Env, owner: &Address, governor: &Address) {
     TreasuryInitialized {
@@ -87,62 +46,21 @@ pub fn emit_treasury_initialized(e: &Env, owner: &Address, governor: &Address) {
         governor: governor.clone(),
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::TreasuryInitializedIndexed {
-        owner: owner.clone(),
-        governor: governor.clone(),
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }
 
-pub fn emit_governor_changed(
-    e: &Env,
-    old_governor: &Address,
-    new_governor: &Address,
-    #[allow(unused_variables)] changed_by: &Address,
-) {
+pub fn emit_governor_changed(e: &Env, old_governor: &Address, new_governor: &Address) {
     GovernorChanged {
         old_governor: old_governor.clone(),
         new_governor: new_governor.clone(),
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::GovernorChangedIndexed {
-        old_governor: old_governor.clone(),
-        new_governor: new_governor.clone(),
-        changed_by: changed_by.clone(),
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }
 
-pub fn emit_execute(
-    e: &Env,
-    governor: &Address,
-    target: &Address,
-    function: &Symbol,
-    #[allow(unused_variables)] args: &Vec<Val>,
-) {
+pub fn emit_execute(e: &Env, governor: &Address, target: &Address, function: &Symbol) {
     Execute {
         governor: governor.clone(),
         target: target.clone(),
         function: function.clone(),
     }
     .publish(e);
-
-    #[cfg(feature = "mercury")]
-    retroshade::TreasuryCallIndexed {
-        governor: governor.clone(),
-        target: target.clone(),
-        function: function.clone(),
-        args: args.clone(),
-        ledger: e.ledger().sequence(),
-        timestamp: e.ledger().timestamp(),
-    }
-    .emit(e);
 }

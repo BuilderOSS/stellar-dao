@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import { Stack } from 'styled-system/jsx';
 import useSWR from 'swr';
-import { RefreshCw } from 'lucide-react';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
-import { Button, Callout, Heading, Input, Select, Text } from '@/components/ui';
 import { ProposalStateBadge } from '@/components/proposal/proposal-state-badge';
-import { Stack } from 'styled-system/jsx';
 import type { ProposalListResponse } from '@/components/proposal/types';
+import { Button, Callout, Heading, Input, Select, Text } from '@/components/ui';
 import type { GovernorSettings } from '@/lib/admin-queries';
 import { useGovernorSettings } from '@/lib/admin-queries';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
@@ -34,7 +35,11 @@ function formatVoteTotal(value: string) {
   }
 }
 
-function formatProposalCreationDisabledMessage(votingPower: VotingPowerSnapshot | undefined, settings: GovernorSettings | undefined, errorMessage?: string) {
+function formatProposalCreationDisabledMessage(
+  votingPower: VotingPowerSnapshot | undefined,
+  settings: GovernorSettings | undefined,
+  errorMessage?: string
+) {
   if (errorMessage) {
     return errorMessage;
   }
@@ -62,14 +67,18 @@ export default function ProposalsPage() {
     error: governorSettingsError,
     isLoading: governorSettingsLoading
   } = useGovernorSettings(config, session.address || config.adminAddress);
-  const { data, error, isLoading, mutate } = useSWR<ProposalListResponse>('/api/proposals?limit=24', async (url: string) => {
-    const response = await fetch(url, { cache: 'no-store' });
-    const json = (await response.json()) as ProposalListResponse;
-    if (!response.ok) {
-      throw new Error(json.message || 'Proposal list failed');
-    }
-    return json;
-  }, { keepPreviousData: true });
+  const { data, error, isLoading, mutate } = useSWR<ProposalListResponse>(
+    '/api/proposals?limit=24',
+    async (url: string) => {
+      const response = await fetch(url, { cache: 'no-store' });
+      const json = (await response.json()) as ProposalListResponse;
+      if (!response.ok) {
+        throw new Error(json.message || 'Proposal list failed');
+      }
+      return json;
+    },
+    { keepPreviousData: true }
+  );
   const items = useMemo(() => data?.items ?? [], [data?.items]);
   const statusOptions = useMemo(
     () => [...new Set(items.map((item) => item.stateLabel).filter(Boolean))].sort(),
@@ -79,26 +88,27 @@ export default function ProposalsPage() {
     const normalizedQuery = query.trim().toLowerCase();
     return items.filter((item) => {
       const matchesStatus = status === 'all' || item.stateLabel === status;
-      const matchesQuery = !normalizedQuery
-        || item.metadata.title.toLowerCase().includes(normalizedQuery)
-        || item.proposalId.toLowerCase().includes(normalizedQuery);
+      const matchesQuery =
+        !normalizedQuery ||
+        item.metadata.title.toLowerCase().includes(normalizedQuery) ||
+        item.proposalId.toLowerCase().includes(normalizedQuery);
       return matchesStatus && matchesQuery;
     });
   }, [items, query, status]);
   const proposalEligibilityLoading = votingPowerLoading || governorSettingsLoading;
   const proposalEligibilityError = votingPowerError ?? governorSettingsError;
-  const hasProposalVotes = Boolean(votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold);
-  const createDisabled = !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
+  const hasProposalVotes = Boolean(
+    votingPower && governorSettings && votingPower.votes >= governorSettings.proposalThreshold
+  );
+  const createDisabled =
+    !session.address || proposalEligibilityLoading || Boolean(proposalEligibilityError) || !hasProposalVotes;
   const createDisabledMessage = createDisabled
     ? formatProposalCreationDisabledMessage(votingPower, governorSettings, proposalEligibilityError?.message)
     : undefined;
 
   return (
     <DaoShell>
-      <PageSection
-        title="Proposals"
-        description="Browse proposal history and review on-chain proposal state."
-      >
+      <PageSection title="Proposals" description="Browse proposal history and review on-chain proposal state.">
         <Stack gap="4">
           <div className="section-toolbar">
             <div className="proposal-filters" role="search">
@@ -109,29 +119,65 @@ export default function ProposalsPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
-              <Select aria-label="Filter proposals by status" value={status} onChange={(event) => setStatus(event.target.value)}>
+              <Select
+                aria-label="Filter proposals by status"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
                 <option value="all">All statuses</option>
-                {statusOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                {statusOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
               </Select>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button className="proposal-refresh-button" type="button" variant="outline" size="sm" onClick={() => void mutate()} disabled={isLoading} aria-label="Refresh proposals" title="Refresh proposals">
+              <Button
+                className="proposal-refresh-button"
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void mutate()}
+                disabled={isLoading}
+                aria-label="Refresh proposals"
+                title="Refresh proposals"
+              >
                 <RefreshCw aria-hidden="true" className={isLoading ? 'is-spinning' : undefined} size={16} />
               </Button>
               <span className="proposal-create-tooltip" tabIndex={createDisabledMessage ? 0 : undefined}>
-                <Button type="button" size="sm" onClick={() => router.push('/proposals/create')} disabled={createDisabled}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => router.push('/proposals/create')}
+                  disabled={createDisabled}
+                >
                   {proposalEligibilityLoading ? 'Checking eligibility...' : 'Create proposal'}
                 </Button>
-                {createDisabledMessage ? <span className="proposal-create-tooltip__message" role="tooltip">{createDisabledMessage}</span> : null}
+                {createDisabledMessage ? (
+                  <span className="proposal-create-tooltip__message" role="tooltip">
+                    {createDisabledMessage}
+                  </span>
+                ) : null}
               </span>
             </div>
           </div>
 
           {error ? <Callout variant="error" title={error.message} /> : null}
           {!items.length ? (
-            <div className="empty-state" role="status"><Heading style={{ fontSize: '1.15rem' }}>No proposals yet</Heading><Text className="lede" style={{ margin: '8px auto 0' }}>Once an eligible member creates a proposal, its state and voting activity will appear here.</Text></div>
+            <div className="empty-state" role="status">
+              <Heading style={{ fontSize: '1.15rem' }}>No proposals yet</Heading>
+              <Text className="lede" style={{ margin: '8px auto 0' }}>
+                Once an eligible member creates a proposal, its state and voting activity will appear here.
+              </Text>
+            </div>
           ) : !visibleItems.length ? (
-            <div className="empty-state" role="status"><Heading style={{ fontSize: '1.15rem' }}>No matching proposals</Heading><Text className="lede" style={{ margin: '8px auto 0' }}>Try a different search or status filter.</Text></div>
+            <div className="empty-state" role="status">
+              <Heading style={{ fontSize: '1.15rem' }}>No matching proposals</Heading>
+              <Text className="lede" style={{ margin: '8px auto 0' }}>
+                Try a different search or status filter.
+              </Text>
+            </div>
           ) : (
             <>
               <Text className="lede" style={{ margin: 0, fontSize: '0.86rem' }} aria-live="polite">
@@ -141,25 +187,34 @@ export default function ProposalsPage() {
                 {visibleItems.map((item) => (
                   <div key={item.proposalId} role="listitem">
                     <Link className="proposal-row" href={`/proposals/${item.proposalNumber}`}>
-                    <div className="proposal-row__identity">
-                      <Text className="proposal-row__id mono">#{item.proposalNumber}</Text>
-                      <div className="proposal-row__content">
-                        <Heading className="proposal-row__title">{item.metadata.title}</Heading>
-                        <Text className="proposal-row__date">{formatTimestamp(item.timestamp)}</Text>
+                      <div className="proposal-row__identity">
+                        <Text className="proposal-row__id mono">#{item.proposalNumber}</Text>
+                        <div className="proposal-row__content">
+                          <Heading className="proposal-row__title">{item.metadata.title}</Heading>
+                          <Text className="proposal-row__date">{formatTimestamp(item.timestamp)}</Text>
+                        </div>
                       </div>
-                    </div>
-                    <div className="proposal-row__outcome">
-                      {item.voteTotals ? (
-                        <dl className="proposal-row__votes" aria-label="Voting totals">
-                          <div><dt>For</dt><dd>{formatVoteTotal(item.voteTotals.forVotes)}</dd></div>
-                          <div><dt>Against</dt><dd>{formatVoteTotal(item.voteTotals.againstVotes)}</dd></div>
-                          <div><dt>Abstain</dt><dd>{formatVoteTotal(item.voteTotals.abstainVotes)}</dd></div>
-                        </dl>
-                      ) : (
-                        <Text className="proposal-row__votes-unavailable">Voting totals unavailable</Text>
-                      )}
-                      <ProposalStateBadge label={item.stateLabel} />
-                    </div>
+                      <div className="proposal-row__outcome">
+                        {item.voteTotals ? (
+                          <dl className="proposal-row__votes" aria-label="Voting totals">
+                            <div>
+                              <dt>For</dt>
+                              <dd>{formatVoteTotal(item.voteTotals.forVotes)}</dd>
+                            </div>
+                            <div>
+                              <dt>Against</dt>
+                              <dd>{formatVoteTotal(item.voteTotals.againstVotes)}</dd>
+                            </div>
+                            <div>
+                              <dt>Abstain</dt>
+                              <dd>{formatVoteTotal(item.voteTotals.abstainVotes)}</dd>
+                            </div>
+                          </dl>
+                        ) : (
+                          <Text className="proposal-row__votes-unavailable">Voting totals unavailable</Text>
+                        )}
+                        <ProposalStateBadge label={item.stateLabel} />
+                      </div>
                     </Link>
                   </div>
                 ))}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+
 import { getGoldskyTokenInventory } from '@/lib/goldsky';
 
 export const dynamic = 'force-dynamic';

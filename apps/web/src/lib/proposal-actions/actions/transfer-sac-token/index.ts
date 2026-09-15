@@ -1,10 +1,11 @@
 // src/lib/proposal-actions/actions/transfer-sac-token/index.ts
 
+import { getTreasuryAssets } from '@/lib/assets-config';
+
 import type { ActionHandler } from '../../types';
 import { TransferSacTokenForm } from './component';
-import { validateTransferSacToken } from './validator';
 import type { TransferSacTokenData } from './types';
-import { getTreasuryAssets } from '@/lib/assets-config';
+import { validateTransferSacToken } from './validator';
 
 export const transferSacTokenHandler: ActionHandler<TransferSacTokenData> = {
   type: 'transfer-sac-token',
@@ -18,7 +19,7 @@ export const transferSacTokenHandler: ActionHandler<TransferSacTokenData> = {
   getDefaultValues: () => ({
     recipient: '',
     amount: '',
-    assetCode: '',
+    assetCode: ''
   }),
 
   validate: validateTransferSacToken,
@@ -34,14 +35,14 @@ export const transferSacTokenHandler: ActionHandler<TransferSacTokenData> = {
       recipient: data.recipient.trim(),
       amount: data.amount.trim(),
       assetCode: data.assetCode,
-      assetContractId: asset?.contractId,
+      assetContractId: asset?.contractId
     };
   },
 
   deserialize: (action) => ({
     recipient: action.recipient || '',
     amount: action.amount || '',
-    assetCode: action.assetCode || '',
+    assetCode: action.assetCode || ''
   }),
 
   buildCallVector: (data, context) => {
@@ -59,9 +60,9 @@ export const transferSacTokenHandler: ActionHandler<TransferSacTokenData> = {
     return {
       target: asset.contractId,
       function: 'transfer',
-      args: [context.treasuryAddress, data.recipient.trim(), stroops.toString()],
+      args: [context.treasuryAddress, data.recipient.trim(), stroops.toString()]
     };
   },
 
-  requiresMintAuthority: false,
+  requiresMintAuthority: false
 };

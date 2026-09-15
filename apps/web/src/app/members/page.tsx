@@ -1,12 +1,13 @@
 'use client';
 
+import { Grid, Stack } from 'styled-system/jsx';
+
 import { DaoShell } from '@/components/dao-shell';
 import { PageSection } from '@/components/page-section';
 import { Badge, Button, Callout, Card, ShortId, Text } from '@/components/ui';
-import { useGoldskyMemberList } from '@/lib/goldsky-queries';
-import { Grid, Stack } from 'styled-system/jsx';
-import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getDaoAccountRole } from '@/lib/account-role';
+import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
+import { useGoldskyMemberList } from '@/lib/goldsky-queries';
 
 export default function MembersPage() {
   const { data, error, isLoading, mutate } = useGoldskyMemberList(100);
@@ -25,10 +26,16 @@ export default function MembersPage() {
               </Button>
             </div>
 
-            {error ? <Callout variant="error" title="Member directory unavailable" description={error.message} /> : null}
+            {error ? (
+              <Callout variant="error" title="Member directory unavailable" description={error.message} />
+            ) : null}
             {isLoading ? <Callout variant="info" title="Loading member balances…" /> : null}
             {!isLoading && !rows.length ? (
-              <div className="empty-state" role="status"><Text className="lede" style={{ margin: '0 auto' }}>No token holders are indexed yet.</Text></div>
+              <div className="empty-state" role="status">
+                <Text className="lede" style={{ margin: '0 auto' }}>
+                  No token holders are indexed yet.
+                </Text>
+              </div>
             ) : (
               <>
                 <div className="members-table-wrap">
@@ -43,7 +50,9 @@ export default function MembersPage() {
                     <tbody>
                       {rows.map((row, index) => (
                         <tr key={row.address}>
-                          <td><ShortId value={row.address} /></td>
+                          <td>
+                            <ShortId value={row.address} />
+                          </td>
                           <td className="members-table-number">{row.voting_power}</td>
                           <td className="members-table-number">#{index + 1}</td>
                         </tr>

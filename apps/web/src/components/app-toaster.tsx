@@ -3,6 +3,7 @@
 import { Portal } from '@ark-ui/react/portal';
 import { Toast, Toaster } from '@ark-ui/react/toast';
 import { ArrowUpRight, CircleAlert, CircleCheck, Info, LoaderCircle, X } from 'lucide-react';
+
 import { toaster } from '@/lib/toaster';
 
 function getToastIcon(type: string | undefined) {
@@ -12,7 +13,9 @@ function getToastIcon(type: string | undefined) {
     case 'error':
       return <CircleAlert aria-hidden="true" size={18} color="#fca5a5" />;
     case 'loading':
-      return <LoaderCircle aria-hidden="true" size={18} color="#93c5fd" style={{ animation: 'spin 1s linear infinite' }} />;
+      return (
+        <LoaderCircle aria-hidden="true" size={18} color="#93c5fd" style={{ animation: 'spin 1s linear infinite' }} />
+      );
     default:
       return <Info aria-hidden="true" size={18} color="#93c5fd" />;
   }

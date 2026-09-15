@@ -1,12 +1,14 @@
 import { ArrowUpRight } from 'lucide-react';
-import { Card, Heading, IconLinkButton, ShortId, Text } from '@/components/ui';
 import type { ReactNode } from 'react';
 import { Grid, HStack, Stack } from 'styled-system/jsx';
-import type { ProposalDetail } from './types';
-import { ProposalStateBadge } from './proposal-state-badge';
-import { ProposalState } from '@/lib/proposal-state';
+
+import { Card, Heading, IconLinkButton, ShortId, Text } from '@/components/ui';
 import type { DaoNetworkName } from '@/lib/dao-config';
 import { getExplorerLedgerUrl } from '@/lib/explorer-links';
+import { ProposalState } from '@/lib/proposal-state';
+
+import { ProposalStateBadge } from './proposal-state-badge';
+import type { ProposalDetail } from './types';
 
 type ProposalOverviewProps = {
   detail: ProposalDetail;
@@ -35,7 +37,9 @@ function formatCountdown(target: number, now: number) {
 function formatDateTime(timestamp: number) {
   if (!timestamp) return '—';
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp * 1000));
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(timestamp * 1000)
+    );
   } catch {
     return String(timestamp);
   }
@@ -51,14 +55,22 @@ function getLifecycleSummary(detail: ProposalDetail, now: number) {
       const startTime = hasValidTimestamp(detail.vote_start) ? detail.vote_start : detail.vote_end;
       return {
         eyebrow: 'Voting starts',
-        headline: hasValidTimestamp(startTime) ? `Voting starts in ${formatCountdown(startTime, now)}` : 'Voting has not started yet',
-        subline: hasValidTimestamp(startTime) ? `Opens ${formatDateTime(startTime)}` : 'Waiting for the voting schedule to become available.'
+        headline: hasValidTimestamp(startTime)
+          ? `Voting starts in ${formatCountdown(startTime, now)}`
+          : 'Voting has not started yet',
+        subline: hasValidTimestamp(startTime)
+          ? `Opens ${formatDateTime(startTime)}`
+          : 'Waiting for the voting schedule to become available.'
       };
     case ProposalState.Active:
       return {
         eyebrow: 'Voting ends',
-        headline: hasValidTimestamp(detail.vote_end) ? `Voting ends in ${formatCountdown(detail.vote_end, now)}` : 'Voting is active',
-        subline: hasValidTimestamp(detail.vote_end) ? `Closes ${formatDateTime(detail.vote_end)}` : 'Voting end time is not available.'
+        headline: hasValidTimestamp(detail.vote_end)
+          ? `Voting ends in ${formatCountdown(detail.vote_end, now)}`
+          : 'Voting is active',
+        subline: hasValidTimestamp(detail.vote_end)
+          ? `Closes ${formatDateTime(detail.vote_end)}`
+          : 'Voting end time is not available.'
       };
     case ProposalState.Succeeded:
       return {
@@ -84,7 +96,9 @@ function getLifecycleSummary(detail: ProposalDetail, now: number) {
       return {
         eyebrow: 'Finalized',
         headline: 'Proposal defeated',
-        subline: hasValidTimestamp(detail.vote_end) ? `Voting ended ${formatDateTime(detail.vote_end)}` : 'No further action is available.'
+        subline: hasValidTimestamp(detail.vote_end)
+          ? `Voting ended ${formatDateTime(detail.vote_end)}`
+          : 'No further action is available.'
       };
     case ProposalState.Canceled:
       return {
@@ -118,7 +132,9 @@ export function ProposalOverview({ detail, network }: ProposalOverviewProps) {
     <Stack gap="3">
       <Card p="5">
         <Stack gap="3">
-          <div><ProposalStateBadge label={detail.label} /></div>
+          <div>
+            <ProposalStateBadge label={detail.label} />
+          </div>
           <Stack gap="1">
             <Text className="label">Proposed by</Text>
             <ShortId value={detail.proposer} />
@@ -131,7 +147,9 @@ export function ProposalOverview({ detail, network }: ProposalOverviewProps) {
           <HStack gap="2" justify="space-between">
             <div style={{ minWidth: 0 }}>
               <Text className="label">Snapshot</Text>
-              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>Ledger #{detail.vote_snapshot}</Text>
+              <Text className="lede" style={{ margin: 0, fontSize: '1rem' }}>
+                Ledger #{detail.vote_snapshot}
+              </Text>
             </div>
             <IconLinkButton href={getExplorerLedgerUrl(network, detail.vote_snapshot)} label="Open in Stellar Expert">
               <ArrowUpRight size={12} />
@@ -193,9 +211,13 @@ export function ProposalLifecyclePanel({ detail, now, actionSlot }: ProposalLife
         <Stack gap="1">
           <Text className="label">{lifecycle.eyebrow}</Text>
           <Heading style={{ fontSize: '1.35rem' }}>{lifecycle.headline}</Heading>
-          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{lifecycle.subline}</Text>
+          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {lifecycle.subline}
+          </Text>
         </Stack>
-        {actionSlot ? <div style={{ borderTop: '1px solid rgba(160, 194, 225, 0.18)', paddingTop: '16px' }}>{actionSlot}</div> : null}
+        {actionSlot ? (
+          <div style={{ borderTop: '1px solid rgba(160, 194, 225, 0.18)', paddingTop: '16px' }}>{actionSlot}</div>
+        ) : null}
       </Stack>
     </Card>
   );

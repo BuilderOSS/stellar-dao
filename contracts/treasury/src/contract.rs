@@ -56,13 +56,12 @@ impl DaoTreasuryContract {
     #[only_owner]
     pub fn set_governor(e: &Env, governor: Address) {
         let old_governor = Self::governor(e);
-        let changed_by = stellar_access::ownable::get_owner(e).expect("owner not set");
 
         e.storage()
             .instance()
             .set(&TreasuryKey::Governor, &governor);
 
-        emit_governor_changed(e, &old_governor, &governor, &changed_by);
+        emit_governor_changed(e, &old_governor, &governor);
     }
 
     /// Returns the address of the authorized governor contract.
@@ -137,7 +136,7 @@ impl DaoTreasuryContract {
 
         let result = e.invoke_contract::<Val>(&target, &function, args.clone());
 
-        emit_execute(e, &governor, &target, &function, &args);
+        emit_execute(e, &governor, &target, &function);
 
         result
     }

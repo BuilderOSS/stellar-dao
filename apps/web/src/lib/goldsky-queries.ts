@@ -97,11 +97,15 @@ export function useGoldskyActivityFeed(limit = 12) {
 }
 
 export function useGoldskyTokenInventory(limit = 100, offset = 0) {
-  return useSWR<GoldskyTokenResponse>(`/api/tokens?limit=${limit}&offset=${offset}`, fetchJson, { keepPreviousData: true });
+  return useSWR<GoldskyTokenResponse>(`/api/tokens?limit=${limit}&offset=${offset}`, fetchJson, {
+    keepPreviousData: true
+  });
 }
 
 export function useGoldskyMemberList(limit = 100, offset = 0) {
-  return useSWR<GoldskyMemberResponse>(`/api/members?limit=${limit}&offset=${offset}`, fetchJson, { keepPreviousData: true });
+  return useSWR<GoldskyMemberResponse>(`/api/members?limit=${limit}&offset=${offset}`, fetchJson, {
+    keepPreviousData: true
+  });
 }
 
 export function useGoldskyMintAuthorities() {

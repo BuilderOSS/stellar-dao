@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useId, useRef } from 'react';
-import { Button, Card, Heading, Text } from '@/components/ui';
 import { Stack } from 'styled-system/jsx';
+
+import { Button, Card, Heading, Text } from '@/components/ui';
 
 type ProposalActionConfirmDialogProps = {
   open: boolean;
@@ -75,7 +76,9 @@ export function ProposalActionConfirmDialog({
         }}
       >
         <Stack gap="4">
-          <Heading id={titleId} style={{ margin: 0, fontSize: '1.4rem' }}>{title}</Heading>
+          <Heading id={titleId} style={{ margin: 0, fontSize: '1.4rem' }}>
+            {title}
+          </Heading>
           <Text id={descriptionId} className="lede" style={{ margin: 0, fontSize: '0.95rem' }}>
             {message}
           </Text>
