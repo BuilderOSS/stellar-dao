@@ -2,8 +2,8 @@
 
 import type { ActionHandler } from '../../types';
 import { BatchMintGovernanceTokenForm } from './component';
-import { validateBatchMintGovernanceToken } from './validator';
 import type { BatchMintGovernanceTokenData } from './types';
+import { validateBatchMintGovernanceToken } from './validator';
 
 export const batchMintGovernanceTokenHandler: ActionHandler<BatchMintGovernanceTokenData> = {
   type: 'batch-mint-governance-token',
@@ -16,31 +16,27 @@ export const batchMintGovernanceTokenHandler: ActionHandler<BatchMintGovernanceT
 
   getDefaultValues: () => ({
     recipient: '',
-    amount: '1',
+    amount: '1'
   }),
 
   validate: validateBatchMintGovernanceToken,
 
-  serialize: (data, context) => ({
+  serialize: (data, _context) => ({
     id: crypto.randomUUID(),
     type: 'batch-mint-governance-token',
     recipient: data.recipient.trim(),
-    amount: data.amount.trim(),
+    amount: data.amount.trim()
   }),
 
   deserialize: (action) => ({
     recipient: action.recipient || '',
-    amount: action.amount || '1',
+    amount: action.amount || '1'
   }),
 
   buildCallVector: (data, context) => ({
     target: context.tokenContractId,
     function: 'batch_mint',
-    args: [
-      context.treasuryAddress,
-      data.recipient.trim(),
-      parseInt(data.amount.trim(), 10),
-    ],
+    args: [context.treasuryAddress, data.recipient.trim(), parseInt(data.amount.trim(), 10)]
   }),
 
   checkPreconditions: (context) => {
@@ -49,27 +45,25 @@ export const batchMintGovernanceTokenHandler: ActionHandler<BatchMintGovernanceT
       return {
         canExecute: false,
         reason: 'Checking mint authority...',
-        loading: true,
+        loading: true
       };
     }
 
     // Check if treasury has mint authority
     const treasuryHasMintAuthority = Boolean(
       context.config.treasuryContractId &&
-      context.mintAuthorities?.some(
-        (item) => item.authority === context.config.treasuryContractId && item.enabled
-      )
+      context.mintAuthorities?.some((item) => item.authority === context.config.treasuryContractId && item.enabled)
     );
 
     if (!treasuryHasMintAuthority) {
       return {
         canExecute: false,
-        reason: 'Grant mint authority to the treasury before creating mint proposals.',
+        reason: 'Grant mint authority to the treasury before creating mint proposals.'
       };
     }
 
     return { canExecute: true };
   },
 
-  requiresMintAuthority: false,
+  requiresMintAuthority: false
 };

@@ -1,20 +1,24 @@
 import type { ReactNode } from 'react';
+import { Stack } from 'styled-system/jsx';
+
 import { Badge } from './badge';
 import { Card } from './card';
 import { Text } from './text';
-import { Stack } from 'styled-system/jsx';
 
 type CalloutVariant = 'info' | 'warning' | 'error' | 'success';
 
-const CALLOUT_STYLES: Record<CalloutVariant, {
-  badge: string;
-  accent: string;
-  border: string;
-  background: string;
-  badgeBorder: string;
-  badgeBackground: string;
-  badgeColor: string;
-}> = {
+const CALLOUT_STYLES: Record<
+  CalloutVariant,
+  {
+    badge: string;
+    accent: string;
+    border: string;
+    background: string;
+    badgeBorder: string;
+    badgeBackground: string;
+    badgeColor: string;
+  }
+> = {
   info: {
     badge: 'Info',
     accent: 'var(--focus)',
@@ -90,7 +94,11 @@ export function Callout({
           </Badge>
         </div>
         <Text style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 700 }}>{title}</Text>
-        {description ? <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>{description}</Text> : null}
+        {description ? (
+          <Text className="lede" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {description}
+          </Text>
+        ) : null}
         {children}
       </Stack>
     </Card>

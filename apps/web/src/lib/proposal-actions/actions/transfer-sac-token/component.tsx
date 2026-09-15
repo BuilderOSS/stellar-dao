@@ -3,7 +3,9 @@
 'use client';
 
 import { Stack } from 'styled-system/jsx';
-import { FieldLabel, FieldHelperText, Input, Select, Button, Callout } from '@/components/ui';
+
+import { Button, FieldHelperText, FieldLabel, Input, Select } from '@/components/ui';
+
 import { useActionFormContext } from '../../context';
 import type { ActionFormProps } from '../../types';
 import type { TransferSacTokenData } from './types';
@@ -12,7 +14,7 @@ export function TransferSacTokenForm({
   value,
   onChange,
   disabled,
-  validationErrors,
+  validationErrors
 }: ActionFormProps<TransferSacTokenData>) {
   const context = useActionFormContext();
   const { balances, balancesLoading } = context;
@@ -24,7 +26,7 @@ export function TransferSacTokenForm({
       ? selectedBalance
         ? `${parseFloat(selectedBalance.balance).toLocaleString(undefined, {
             minimumFractionDigits: 2,
-            maximumFractionDigits: 7,
+            maximumFractionDigits: 7
           })} ${value.assetCode}`
         : `0 ${value.assetCode}`
       : null;
@@ -44,9 +46,7 @@ export function TransferSacTokenForm({
           value={value.assetCode}
           onChange={(e) => onChange({ ...value, assetCode: e.target.value })}
           disabled={disabled}
-          aria-invalid={
-            !!(validationErrors && !validationErrors.valid && validationErrors.fields?.assetCode)
-          }
+          aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.assetCode)}
           aria-describedby={
             validationErrors && !validationErrors.valid && validationErrors.fields?.assetCode
               ? 'asset-code-error'
@@ -67,8 +67,7 @@ export function TransferSacTokenForm({
         )}
         {balanceDisplay && (
           <FieldHelperText>
-            <strong>Treasury balance:</strong>{' '}
-            {balancesLoading ? 'Loading...' : balanceDisplay}
+            <strong>Treasury balance:</strong> {balancesLoading ? 'Loading...' : balanceDisplay}
           </FieldHelperText>
         )}
       </Stack>
@@ -81,9 +80,7 @@ export function TransferSacTokenForm({
           onChange={(e) => onChange({ ...value, recipient: e.target.value })}
           placeholder="Recipient address (G... or C...)"
           disabled={disabled}
-          aria-invalid={
-            !!(validationErrors && !validationErrors.valid && validationErrors.fields?.recipient)
-          }
+          aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.recipient)}
           aria-describedby={
             validationErrors && !validationErrors.valid && validationErrors.fields?.recipient
               ? 'recipient-error'
@@ -112,9 +109,7 @@ export function TransferSacTokenForm({
               onChange={(e) => onChange({ ...value, amount: e.target.value })}
               placeholder="Amount to transfer"
               disabled={disabled}
-              aria-invalid={
-                !!(validationErrors && !validationErrors.valid && validationErrors.fields?.amount)
-              }
+              aria-invalid={!!(validationErrors && !validationErrors.valid && validationErrors.fields?.amount)}
               aria-describedby={
                 validationErrors && !validationErrors.valid && validationErrors.fields?.amount
                   ? 'amount-error'

@@ -3,11 +3,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useProposalComposerStore } from '@/stores/proposal-composer-store';
-import { getActionHandler } from '../registry';
-import { Card, Button, Badge, Text } from '@/components/ui';
-import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
 import { Stack } from 'styled-system/jsx';
+
+import { ProposalActionConfirmDialog } from '@/components/proposal/proposal-action-confirm-dialog';
+import { Badge, Button, Card, Text } from '@/components/ui';
+import { useProposalComposerStore } from '@/stores/proposal-composer-store';
+
+import { getActionHandler } from '../registry';
 
 type ConfirmDialogState = {
   open: boolean;
@@ -37,7 +39,7 @@ export function ProposalActionQueue() {
         onConfirm: () => {
           beginEdit(index);
           setConfirmDialog(null);
-        },
+        }
       });
       return;
     }
@@ -53,16 +55,14 @@ export function ProposalActionQueue() {
       onConfirm: () => {
         removeAction(index);
         setConfirmDialog(null);
-      },
+      }
     });
   };
 
   if (queuedActions.length === 0) {
     return (
       <Card p="4">
-        <Text style={{ color: 'var(--gray-11)' }}>
-          No actions queued yet. Add an action above to get started.
-        </Text>
+        <Text style={{ color: 'var(--gray-11)' }}>No actions queued yet. Add an action above to get started.</Text>
       </Card>
     );
   }
@@ -78,17 +78,13 @@ export function ProposalActionQueue() {
             key={action.id}
             p="4"
             style={{
-              border: isEditing ? '2px solid var(--accent-9)' : undefined,
+              border: isEditing ? '2px solid var(--accent-9)' : undefined
             }}
           >
             <Stack gap="3">
               <div>
-                {isEditing && (
-                  <Badge style={{ marginBottom: '8px' }}>Currently editing</Badge>
-                )}
-                <Text style={{ fontWeight: 600, marginBottom: '4px' }}>
-                  {handler.label}
-                </Text>
+                {isEditing && <Badge style={{ marginBottom: '8px' }}>Currently editing</Badge>}
+                <Text style={{ fontWeight: 600, marginBottom: '4px' }}>{handler.label}</Text>
                 <Text style={{ fontSize: '0.875rem', color: 'var(--gray-11)' }}>
                   To: {action.recipient}
                   {action.amount && ` • Amount: ${action.amount}`}

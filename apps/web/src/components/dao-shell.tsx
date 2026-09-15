@@ -1,15 +1,27 @@
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
-import type { Route } from 'next';
-import { usePathname } from 'next/navigation';
-import { useEffect, type ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, Gavel, Landmark, LayoutDashboard, LogOut, Settings, ShieldAlert, Users, Vote, Wallet } from 'lucide-react';
 import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
 import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
 import { KitEventType } from '@creit.tech/stellar-wallets-kit/types';
+import type { LucideIcon } from 'lucide-react';
+import {
+  ChevronDown,
+  Gavel,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  ShieldAlert,
+  Users,
+  Vote,
+  Wallet
+} from 'lucide-react';
+import type { Route } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { type ReactNode, useEffect } from 'react';
+
 import { Button, Callout } from '@/components/ui';
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { useDaoSessionStore } from '@/stores/dao-session-store';
@@ -22,13 +34,19 @@ const BASE_NAV_ITEMS: Array<{ href: Route; label: string; icon: LucideIcon }> = 
   { href: '/members', label: 'Members', icon: Users }
 ];
 
-function NavLink({ href, label, icon: Icon, active }: { href: Route; label: string; icon: LucideIcon; active: boolean }) {
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  active
+}: {
+  href: Route;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+}) {
   return (
-    <Link
-      href={href}
-      className="nav-link"
-      aria-current={active ? 'page' : undefined}
-    >
+    <Link href={href} className="nav-link" aria-current={active ? 'page' : undefined}>
       <Icon aria-hidden="true" size={16} strokeWidth={2} />
       {label}
     </Link>
@@ -69,9 +87,8 @@ async function validateWalletNetwork(
       address,
       status: 'Wallet network validation unavailable',
       walletNetworkPassphrase: '',
-      walletNetworkIssue: error instanceof Error
-        ? error.message
-        : 'This wallet cannot report its network, so the app cannot validate it.'
+      walletNetworkIssue:
+        error instanceof Error ? error.message : 'This wallet cannot report its network, so the app cannot validate it.'
     });
   }
 }
@@ -83,7 +100,11 @@ export function DaoShell({ children }: { children: ReactNode }) {
   const network = getDefaultDaoNetwork();
   const currentNetwork = getDaoNetworkConfig(network);
   const walletDisabled = Boolean(session.address && session.walletNetworkIssue);
-  const adminNavItem: { href: Route; label: string; icon: LucideIcon } = { href: '/admin', label: 'Admin', icon: Settings };
+  const adminNavItem: { href: Route; label: string; icon: LucideIcon } = {
+    href: '/admin',
+    label: 'Admin',
+    icon: Settings
+  };
   const navItems = session.address ? [...BASE_NAV_ITEMS, adminNavItem] : BASE_NAV_ITEMS;
 
   useEffect(() => {
@@ -95,7 +116,13 @@ export function DaoShell({ children }: { children: ReactNode }) {
     });
 
     const onDisconnect = StellarWalletsKit.on(KitEventType.DISCONNECT, () => {
-      updateSession({ address: '', status: 'Disconnected', syncedAt: '', walletNetworkPassphrase: '', walletNetworkIssue: '' });
+      updateSession({
+        address: '',
+        status: 'Disconnected',
+        syncedAt: '',
+        walletNetworkPassphrase: '',
+        walletNetworkIssue: ''
+      });
     });
 
     return () => {
@@ -126,13 +153,21 @@ export function DaoShell({ children }: { children: ReactNode }) {
     try {
       await StellarWalletsKit.disconnect();
     } finally {
-      updateSession({ address: '', status: 'Disconnected', syncedAt: '', walletNetworkPassphrase: '', walletNetworkIssue: '' });
+      updateSession({
+        address: '',
+        status: 'Disconnected',
+        syncedAt: '',
+        walletNetworkPassphrase: '',
+        walletNetworkIssue: ''
+      });
     }
   }
 
   return (
     <div className="page-shell">
-      <a className="skip-link" href="#main-content">Skip to content</a>
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <div className="app-frame">
         <header className="app-header">
           <Link className="brand-lockup" href="/" aria-label={`${currentNetwork.tokenName} dashboard`}>
@@ -157,7 +192,11 @@ export function DaoShell({ children }: { children: ReactNode }) {
             <div className="wallet-summary">
               {session.address ? (
                 <details className="wallet-menu">
-                  <summary className="wallet-menu__trigger" title={session.address} aria-label={`Wallet menu for ${session.address}`}>
+                  <summary
+                    className="wallet-menu__trigger"
+                    title={session.address}
+                    aria-label={`Wallet menu for ${session.address}`}
+                  >
                     <Wallet aria-hidden="true" size={16} />
                     {shortenAddress(session.address)}
                     <ChevronDown aria-hidden="true" size={14} />
@@ -183,12 +222,7 @@ export function DaoShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <main
-          id="main-content"
-          className="content-shell"
-          tabIndex={-1}
-          aria-busy={walletDisabled || undefined}
-        >
+        <main id="main-content" className="content-shell" tabIndex={-1} aria-busy={walletDisabled || undefined}>
           <div
             style={{
               pointerEvents: walletDisabled ? 'none' : undefined,
@@ -217,7 +251,11 @@ export function DaoShell({ children }: { children: ReactNode }) {
               <div style={{ maxWidth: '720px', width: '100%' }}>
                 <Callout
                   variant="error"
-                  badge={<><ShieldAlert aria-hidden="true" size={14} /> Network mismatch</>}
+                  badge={
+                    <>
+                      <ShieldAlert aria-hidden="true" size={14} /> Network mismatch
+                    </>
+                  }
                   title={session.walletNetworkIssue}
                   description={`Switch the connected wallet to ${currentNetwork.label} to continue. No transaction can be submitted until the network matches.`}
                 />

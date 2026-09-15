@@ -1,13 +1,11 @@
 // src/lib/proposal-actions/actions/transfer-sac-token/validator.ts
 
 import { validateStellarAddress } from '@/lib/validate-address';
-import type { ValidationResult, FormContext } from '../../types';
+
+import type { FormContext, ValidationResult } from '../../types';
 import type { TransferSacTokenData } from './types';
 
-export function validateTransferSacToken(
-  data: TransferSacTokenData,
-  context: FormContext
-): ValidationResult {
+export function validateTransferSacToken(data: TransferSacTokenData, context: FormContext): ValidationResult {
   const fields: Record<string, string> = {};
 
   // Validate recipient
@@ -37,13 +35,10 @@ export function validateTransferSacToken(
       // Check balance
       const balance = context.balances?.find((b) => b.assetCode === data.assetCode);
       if (balance && numAmount > parseFloat(balance.balance)) {
-        fields.amount = `Amount exceeds balance of ${parseFloat(balance.balance).toLocaleString(
-          undefined,
-          {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 7,
-          }
-        )} ${data.assetCode}`;
+        fields.amount = `Amount exceeds balance of ${parseFloat(balance.balance).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 7
+        })} ${data.assetCode}`;
       }
     }
   }
@@ -54,7 +49,7 @@ export function validateTransferSacToken(
     return {
       valid: false,
       message: 'Please fix the errors below',
-      fields,
+      fields
     };
   }
 

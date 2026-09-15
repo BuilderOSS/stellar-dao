@@ -1,8 +1,9 @@
 'use client';
 
-import useSWR from 'swr';
-import { Client as TokenClient } from '@stellar-dao/token-bindings';
 import { Server } from '@stellar/stellar-sdk/rpc';
+import { Client as TokenClient } from '@stellar-dao/token-bindings';
+import useSWR from 'swr';
+
 import type { DaoNetworkConfig } from '@/lib/dao-config';
 
 export type VotingPowerSnapshot = {
@@ -10,14 +11,7 @@ export type VotingPowerSnapshot = {
   snapshotLedger: number;
 };
 
-type VotingPowerKey = readonly [
-  'voting-power',
-  string,
-  string,
-  string,
-  string,
-  number | 'latest'
-];
+type VotingPowerKey = readonly ['voting-power', string, string, string, string, number | 'latest'];
 
 async function fetchVotingPower([
   ,
@@ -34,9 +28,13 @@ async function fetchVotingPower([
     publicKey: account
   });
 
-  const snapshotLedger = ledger === 'latest'
-    ? Math.max(0, (await new Server(rpcUrl, { allowHttp: rpcUrl.startsWith('http://') }).getLatestLedger()).sequence - 1)
-    : ledger;
+  const snapshotLedger =
+    ledger === 'latest'
+      ? Math.max(
+          0,
+          (await new Server(rpcUrl, { allowHttp: rpcUrl.startsWith('http://') }).getLatestLedger()).sequence - 1
+        )
+      : ledger;
   const votes = await token.get_votes_at_checkpoint({ account, ledger: snapshotLedger });
 
   return {
@@ -46,16 +44,17 @@ async function fetchVotingPower([
 }
 
 export function useVotingPower(config: DaoNetworkConfig, account: string, ledger?: number | null) {
-  const key = config.tokenContractId && account
-    ? ([
-        'voting-power',
-        config.tokenContractId,
-        config.rpcUrl,
-        config.passphrase,
-        account,
-        typeof ledger === 'number' ? ledger : 'latest'
-      ] as const)
-    : null;
+  const key =
+    config.tokenContractId && account
+      ? ([
+          'voting-power',
+          config.tokenContractId,
+          config.rpcUrl,
+          config.passphrase,
+          account,
+          typeof ledger === 'number' ? ledger : 'latest'
+        ] as const)
+      : null;
 
   return useSWR(key, fetchVotingPower, { keepPreviousData: true });
 }

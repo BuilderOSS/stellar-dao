@@ -1,7 +1,7 @@
 // src/lib/proposal-actions/registry.ts
 
-import { mintGovernanceTokenHandler } from './actions/mint-governance-token';
 import { batchMintGovernanceTokenHandler } from './actions/batch-mint-governance-token';
+import { mintGovernanceTokenHandler } from './actions/mint-governance-token';
 import { transferSacTokenHandler } from './actions/transfer-sac-token';
 import type { ActionHandler, ProposalActionType } from './types';
 
@@ -12,7 +12,7 @@ import type { ActionHandler, ProposalActionType } from './types';
 const REGISTERED_HANDLERS: ActionHandler[] = [
   mintGovernanceTokenHandler,
   batchMintGovernanceTokenHandler,
-  transferSacTokenHandler,
+  transferSacTokenHandler
 ];
 
 const ACTION_REGISTRY = new Map<ProposalActionType, ActionHandler>(

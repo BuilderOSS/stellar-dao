@@ -59,19 +59,27 @@ function unwrapScValLike(value: unknown): unknown {
 export function normalizeProposalCallArgs(value: ProposalCallArgs | unknown): ProposalCallArgs {
   const raw = Array.isArray(value) ? value : [];
   return raw.map((item) => {
-    const decoded = typeof item === 'string' ? (() => {
-      const trimmed = item.trim();
-      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-        try {
-          return JSON.parse(trimmed) as unknown;
-        } catch {
-          return item;
-        }
-      }
-      return item;
-    })() : item;
+    const decoded =
+      typeof item === 'string'
+        ? (() => {
+            const trimmed = item.trim();
+            if (
+              (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+              (trimmed.startsWith('{') && trimmed.endsWith('}'))
+            ) {
+              try {
+                return JSON.parse(trimmed) as unknown;
+              } catch {
+                return item;
+              }
+            }
+            return item;
+          })()
+        : item;
 
-    return Array.isArray(decoded) ? (unwrapScValLike(decoded) as ProposalCallArg[]) : [unwrapScValLike(decoded) as ProposalCallArg];
+    return Array.isArray(decoded)
+      ? (unwrapScValLike(decoded) as ProposalCallArg[])
+      : [unwrapScValLike(decoded) as ProposalCallArg];
   });
 }
 
@@ -122,7 +130,11 @@ export function encodeProposalCallArgs(functions: string[], args: ProposalCallAr
   });
 }
 
-export function buildMintProposalCall(recipient: string, tokenContractId: string, treasuryContractId: string): {
+export function buildMintProposalCall(
+  recipient: string,
+  tokenContractId: string,
+  treasuryContractId: string
+): {
   targets: string[];
   functions: string[];
   args: ProposalCallArgs;
@@ -191,7 +203,11 @@ export function getProposalActionSummary(action: ProposalQueuedAction) {
   return `${getProposalActionLabel(action.type)} to ${action.recipient}`;
 }
 
-export function buildProposalCallVectors(actions: ProposalQueuedAction[], tokenContractId: string, treasuryContractId: string): ProposalCallVectors {
+export function buildProposalCallVectors(
+  actions: ProposalQueuedAction[],
+  tokenContractId: string,
+  treasuryContractId: string
+): ProposalCallVectors {
   const targets: string[] = [];
   const functions: string[] = [];
   const args: ProposalCallArgs = [];

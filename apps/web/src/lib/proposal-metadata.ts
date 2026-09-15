@@ -141,7 +141,10 @@ function decodeLooseMetadata(value: string): ProposalMetadata | null {
 }
 
 function normalizeMetadata(value: Partial<ProposalMetadata> | null | undefined): ProposalMetadata | null {
-  if (!value || (typeof value.title === 'undefined' && typeof value.description === 'undefined' && typeof value.url === 'undefined')) {
+  if (
+    !value ||
+    (typeof value.title === 'undefined' && typeof value.description === 'undefined' && typeof value.url === 'undefined')
+  ) {
     return null;
   }
 
@@ -204,9 +207,11 @@ export function decodeProposalMetadata(value: string): ProposalMetadata | null {
 }
 
 export function parseProposalMetadata(value: string): ProposalMetadata {
-  return decodeProposalMetadata(value) ?? {
-    title: 'No Title',
-    description: value,
-    url: ''
-  };
+  return (
+    decodeProposalMetadata(value) ?? {
+      title: 'No Title',
+      description: value,
+      url: ''
+    }
+  );
 }

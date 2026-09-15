@@ -11,7 +11,9 @@ function mulberry32(seed: number) {
 }
 
 function toColor(value: number) {
-  return `#${Math.floor(value * 0xffffff).toString(16).padStart(6, '0')}`;
+  return `#${Math.floor(value * 0xffffff)
+    .toString(16)
+    .padStart(6, '0')}`;
 }
 
 function escapeXml(value: string) {

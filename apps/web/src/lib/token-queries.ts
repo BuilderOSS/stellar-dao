@@ -1,4 +1,5 @@
 import useSWR from 'swr';
+
 import type { TokenInventoryResponse, TokenMetadataResponse } from '@/lib/token-types';
 
 async function fetchJson<T>(url: string) {

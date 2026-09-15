@@ -60,7 +60,7 @@ export async function waitForConfirmation(
     }
 
     // Wait before next poll
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
   // Timeout reached

@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
 import { Client as AuctionClient } from '@stellar-dao/auction-bindings';
+import { NextResponse } from 'next/server';
+
 import { getDaoNetworkConfig, getDefaultDaoNetwork } from '@/lib/dao-config';
 import { getGoldskyAuctionBids, getGoldskyAuctionHistory } from '@/lib/goldsky';
 
 function jsonValue(value: unknown): unknown {
   if (typeof value === 'bigint') return value.toString();
   if (Array.isArray(value)) return value.map(jsonValue);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, jsonValue(item)]));
+  if (value && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, jsonValue(item)]));
   return value;
 }
 
@@ -32,6 +34,9 @@ export async function GET() {
     const bids = await getGoldskyAuctionBids(auction.token_id);
     return NextResponse.json(jsonValue({ auction, config: configTx.result, paused: pausedTx.result, bids, history }));
   } catch (error) {
-    return NextResponse.json({ message: error instanceof Error ? error.message : 'Auction unavailable' }, { status: 500 });
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : 'Auction unavailable' },
+      { status: 500 }
+    );
   }
 }
